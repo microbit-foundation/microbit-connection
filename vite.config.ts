@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
+import { resolve } from "path";
 import {
   loadEnv,
 } from "vite";
@@ -13,15 +14,15 @@ export default defineConfig(({ mode }) => {
   const config: UserConfig = {
     base: process.env.BASE_URL ?? "/",
     build: {
-      outDir: "build",
       sourcemap: true,
+      lib: {
+        // Could also be a dictionary or array of multiple entry points
+        entry: resolve(__dirname, 'lib/main.ts'),
+        name: 'MicrobitConnection',
+        // the proper extensions will be added
+        fileName: 'microbit-connection',
+      },
     },
-    server: {
-      port: 3000,
-    },
-    assetsInclude: ["**/*.hex"],
-    plugins: [
-    ],
     test: {
       exclude: [...configDefaults.exclude, "**/e2e/**"],
       environment: "jsdom",
