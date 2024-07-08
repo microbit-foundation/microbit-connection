@@ -1,0 +1,23 @@
+{
+  "name": "@microbit/connection",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "jsdom": "^24.1.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1",
+    "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "@types/web-bluetooth": "^0.0.20",
+    "dapjs": "^2.2.0"
+  }
+}
