@@ -264,7 +264,7 @@ export class SimulatorDeviceConnection
       }
       case "internal_error": {
         const error = event.data.error;
-        this.logging.error(error);
+        this.logging.error("Internal error", error);
         break;
       }
       default: {

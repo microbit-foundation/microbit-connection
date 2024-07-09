@@ -5,17 +5,12 @@
  */
 
 import { profile } from "./bluetooth-profile";
-import { BoardId } from "./board-id";
 import { DeviceVersion } from "./device-version";
 import { Logging, NullLogging } from "./logging";
 
-const deviceIdToConnection: Map<string, MicrobitBluetoothConnection> =
-  new Map();
+const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
 const connectTimeoutDuration: number = 10000;
-const requestDeviceTimeoutDuration: number = 30000;
-// After how long should we consider the connection lost if ping was not able to conclude?
-const connectionLostTimeoutDuration: number = 3000;
 
 function findPlatform(): string | undefined {
   const navigator: any = window.navigator;
@@ -29,7 +24,7 @@ function findPlatform(): string | undefined {
 const platform = findPlatform();
 const isWindowsOS = platform && /^Win/.test(platform);
 
-export class MicrobitBluetoothConnection {
+export class BluetoothDeviceWrapper {
   // Used to avoid automatic reconnection during user triggered connect/disconnect
   // or reconnection itself.
   private duringExplicitConnectDisconnect: number = 0;
@@ -52,7 +47,6 @@ export class MicrobitBluetoothConnection {
   private finalAttempt = false;
 
   constructor(
-    public readonly name: string,
     public readonly device: BluetoothDevice,
     private logging: Logging = new NullLogging()
   ) {
@@ -266,40 +260,22 @@ export class MicrobitBluetoothConnection {
       throw new Error("Could not read model number");
     }
   }
-
-  private requestDevice = async (
-    name: string
-  ): Promise<BluetoothDevice | undefined> => {
-    try {
-      // In some situations the Chrome device prompt simply doesn't appear so we time this out after 30 seconds and reload the page
-      // TODO: give control over this to the caller
-      const result = await Promise.race([
-        navigator.bluetooth.requestDevice({
-          // TODO: this is limiting
-          filters: [{ namePrefix: `BBC micro:bit [${name}]` }],
-          optionalServices: [
-            // TODO: include everything or perhaps paramterise?
-            profile.uart.id,
-            profile.accelerometer.id,
-            profile.deviceInformation.id,
-            profile.led.id,
-            profile.io.id,
-            profile.button.id,
-          ],
-        }),
-        new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
-        ),
-      ]);
-      if (result === "timeout") {
-        // btSelectMicrobitDialogOnLoad.set(true);
-        window.location.reload();
-        return undefined;
-      }
-      return result;
-    } catch (e) {
-      this.logging.error("Bluetooth request device failed/cancelled", e);
-      return undefined;
-    }
-  };
 }
+
+export const createBluetoothDeviceWrapper = async (
+  device: BluetoothDevice,
+  logging: Logging
+): Promise<BluetoothDeviceWrapper | undefined> => {
+  try {
+    // Reuse our connection objects for the same device as they
+    // track the GATT connect promise that never resolves.
+    const bluetooth =
+      deviceIdToWrapper.get(device.id) ??
+      new BluetoothDeviceWrapper(device, logging);
+    deviceIdToWrapper.set(device.id, bluetooth);
+    await bluetooth.connect();
+    return bluetooth;
+  } catch (e) {
+    return undefined;
+  }
+};

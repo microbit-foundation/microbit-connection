@@ -26,6 +26,12 @@ import {
   WebUSBError,
 } from "./device";
 import { TypedEventTarget } from "./events";
+import { createBluetoothDeviceWrapper } from "./bluetooth-device-wrapper";
+import { profile } from "./bluetooth-profile";
+
+const requestDeviceTimeoutDuration: number = 30000;
+// After how long should we consider the connection lost if ping was not able to conclude?
+const connectionLostTimeoutDuration: number = 3000;
 
 /**
  * A Bluetooth connection to a micro:bit device.
@@ -35,10 +41,9 @@ export class MicrobitWebBluetoothConnection
   implements DeviceConnection
 {
   // TODO: when do we call getAvailable() ?
-  status: ConnectionStatus =
-    navigator.bluetooth
-      ? ConnectionStatus.NO_AUTHORIZED_DEVICE
-      : ConnectionStatus.NOT_SUPPORTED;
+  status: ConnectionStatus = navigator.bluetooth
+    ? ConnectionStatus.NO_AUTHORIZED_DEVICE
+    : ConnectionStatus.NOT_SUPPORTED;
 
   /**
    * The USB device we last connected to.
@@ -47,6 +52,7 @@ export class MicrobitWebBluetoothConnection
   private device: BluetoothDevice | undefined;
 
   private logging: Logging;
+  connection: any;
 
   constructor(
     options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() }
@@ -294,7 +300,7 @@ export class MicrobitWebBluetoothConnection
   private async connectInternal(options: ConnectOptions): Promise<void> {
     if (!this.connection) {
       const device = await this.chooseDevice();
-      this.connection = new DAPWrapper(device, this.logging);
+      this.connection = createBluetoothDeviceWrapper(device, this.logging);
     }
     await withTimeout(this.connection.reconnectAsync(), 10_000);
     if (options.serial === undefined || options.serial) {
@@ -303,16 +309,45 @@ export class MicrobitWebBluetoothConnection
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async chooseDevice(): Promise<USBDevice> {
+  private async chooseDevice(): Promise<BluetoothDevice | undefined> {
     if (this.device) {
       return this.device;
     }
     this.dispatchTypedEvent("start_usb_select", new StartUSBSelect());
-    this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
-    });
-    this.dispatchTypedEvent("end_usb_select", new EndUSBSelect());
-    return this.device;
+    try {
+      // In some situations the Chrome device prompt simply doesn't appear so we time this out after 30 seconds and reload the page
+      // TODO: give control over this to the caller
+      const result = await Promise.race([
+        navigator.bluetooth.requestDevice({
+          // TODO: this is limiting
+          filters: [{ namePrefix: `BBC micro:bit [${name}]` }],
+          optionalServices: [
+            // TODO: include everything or perhaps parameterise?
+            profile.uart.id,
+            profile.accelerometer.id,
+            profile.deviceInformation.id,
+            profile.led.id,
+            profile.io.id,
+            profile.button.id,
+          ],
+        }),
+        new Promise<"timeout">((resolve) =>
+          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
+        ),
+      ]);
+      if (result === "timeout") {
+        // btSelectMicrobitDialogOnLoad.set(true);
+        window.location.reload();
+        return undefined;
+      }
+      this.device = result;
+      return result;
+    } catch (e) {
+      this.logging.error("Bluetooth request device failed/cancelled", e);
+      return undefined;
+    } finally {
+      this.dispatchTypedEvent("end_usb_select", new EndUSBSelect());
+    }
   }
 }
 
