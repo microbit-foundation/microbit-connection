@@ -5,7 +5,7 @@
  */
 
 import { profile } from "./bluetooth-profile";
-import { DeviceVersion } from "./device-version";
+import { BoardVersion } from "./device";
 import { Logging, NullLogging } from "./logging";
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
@@ -38,7 +38,7 @@ export class BluetoothDeviceWrapper {
   //
   // On Windows it times out after 7s.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=684073
-  private gattConnectPromise: Promise<DeviceVersion | undefined> | undefined;
+  private gattConnectPromise: Promise<BoardVersion | undefined> | undefined;
   private disconnectPromise: Promise<unknown> | undefined;
   private connecting = false;
   private isReconnect = false;
@@ -88,7 +88,7 @@ export class BluetoothDeviceWrapper {
             // We always do this even if we might immediately disconnect as disconnecting
             // without using services causes getPrimaryService calls to hang on subsequent
             // reconnect - probably a device-side issue.
-            const deviceVersion = await this.getDeviceVersion();
+            const boardVersion = await this.getBoardVersion();
             // This connection could be arbitrarily later when our manual timeout may have passed.
             // Do we still want to be connected?
             if (!this.connecting) {
@@ -104,7 +104,7 @@ export class BluetoothDeviceWrapper {
                 "Bluetooth GATT server connected when connecting"
               );
             }
-            return deviceVersion;
+            return boardVersion;
           })
           .catch((e) => {
             if (this.connecting) {
@@ -124,7 +124,7 @@ export class BluetoothDeviceWrapper {
           });
 
       this.connecting = true;
-      let deviceVersion: DeviceVersion | undefined;
+      let boardVersion: BoardVersion | undefined;
       try {
         const gattConnectResult = await Promise.race([
           this.gattConnectPromise,
@@ -136,7 +136,7 @@ export class BluetoothDeviceWrapper {
           this.logging.log("Bluetooth GATT server connect timeout");
           throw new Error("Bluetooth GATT server connect timeout");
         }
-        deviceVersion = gattConnectResult;
+        boardVersion = gattConnectResult;
       } finally {
         this.connecting = false;
       }
@@ -229,12 +229,8 @@ export class BluetoothDeviceWrapper {
     }
     return this.device.gatt;
   }
-  /**
-   * Fetches the model number of the micro:bit.
-   * @param {BluetoothRemoteGATTServer} gattServer The GATT server to read from.
-   * @return {Promise<number>} The model number of the micro:bit. 1 for the original, 2 for the new.
-   */
-  private async getDeviceVersion(): Promise<DeviceVersion> {
+
+  private async getBoardVersion(): Promise<BoardVersion> {
     this.assertGattServer();
     const serviceMeta = profile.deviceInformation;
     try {
@@ -247,12 +243,12 @@ export class BluetoothDeviceWrapper {
       const modelNumberBytes = await characteristic.readValue();
       const modelNumber = new TextDecoder().decode(modelNumberBytes);
       if (modelNumber.toLowerCase() === "BBC micro:bit".toLowerCase()) {
-        return DeviceVersion.V1;
+        return "V1";
       }
       if (
         modelNumber.toLowerCase().includes("BBC micro:bit v2".toLowerCase())
       ) {
-        return DeviceVersion.V2;
+        return "V2";
       }
       throw new Error(`Unexpected model number ${modelNumber}`);
     } catch (e) {
