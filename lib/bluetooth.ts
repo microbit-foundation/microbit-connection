@@ -24,8 +24,6 @@ import { TypedEventTarget } from "./events";
 import { Logging, NullLogging } from "./logging";
 
 const requestDeviceTimeoutDuration: number = 30000;
-// After how long should we consider the connection lost if ping was not able to conclude?
-const connectionLostTimeoutDuration: number = 3000;
 
 export interface MicrobitWebBluetoothConnectionOptions {
   logging?: Logging;
@@ -51,7 +49,6 @@ export class MicrobitWebBluetoothConnection
 
   private logging: Logging;
   connection: BluetoothDeviceWrapper | undefined;
-  flashing: boolean;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -79,11 +76,8 @@ export class MicrobitWebBluetoothConnection
     return this.status;
   }
 
-  getBoardVersion(): BoardVersion | null {
-    if (!this.connection) {
-      return null;
-    }
-    return this.connection.boardVersion;
+  getBoardVersion(): BoardVersion | undefined {
+    return this.connection?.boardVersion;
   }
 
   async flash(
@@ -102,6 +96,7 @@ export class MicrobitWebBluetoothConnection
     throw new Error("Unsupported");
   }
 
+  // @ts-ignore
   private async startSerialInternal() {
     if (!this.connection) {
       // As connecting then starting serial are async we could disconnect between them,
@@ -111,6 +106,7 @@ export class MicrobitWebBluetoothConnection
     // TODO
   }
 
+  // @ts-ignore
   private async stopSerialInternal() {
     if (this.connection) {
       // TODO

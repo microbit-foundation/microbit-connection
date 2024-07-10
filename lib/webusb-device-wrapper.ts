@@ -18,7 +18,7 @@ import {
   bufferConcat,
   CoreRegister,
   regRequest,
-} from "./partial-flashing-utils";
+} from "./webusb-partial-flashing-utils";
 import { BoardSerialInfo } from "./board-serial-info";
 
 export class DAPWrapper {
@@ -33,7 +33,10 @@ export class DAPWrapper {
 
   private initialConnectionComplete: boolean = false;
 
-  constructor(public device: USBDevice, private logging: Logging) {
+  constructor(
+    public device: USBDevice,
+    private logging: Logging
+  ) {
     this.transport = new WebUSB(this.device);
     this.daplink = new DAPLink(this.transport);
     this.cortexM = new CortexM(this.transport);

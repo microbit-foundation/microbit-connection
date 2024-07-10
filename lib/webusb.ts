@@ -5,8 +5,8 @@
  */
 import { Logging, NullLogging } from "./logging";
 import { withTimeout, TimeoutError } from "./async-util";
-import { DAPWrapper } from "./dap-wrapper";
-import { PartialFlashing } from "./partial-flashing";
+import { DAPWrapper } from "./webusb-device-wrapper";
+import { PartialFlashing } from "./webusb-partial-flashing";
 import {
   BoardVersion,
   ConnectionStatus,
@@ -178,12 +178,8 @@ export class MicrobitWebUSBConnection
     });
   }
 
-  getBoardVersion(): BoardVersion | null {
-    if (!this.connection) {
-      return null;
-    }
-    const boardId = this.connection.boardSerialInfo.id;
-    return boardId.isV1() ? "V1" : boardId.isV2() ? "V2" : null;
+  getBoardVersion(): BoardVersion | undefined {
+    return this.connection?.boardSerialInfo?.id.toBoardVersion();
   }
 
   async flash(

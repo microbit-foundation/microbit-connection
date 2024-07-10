@@ -62,7 +62,7 @@ export class MockDeviceConnection
     return this.status;
   }
 
-  getBoardVersion(): BoardVersion | null {
+  getBoardVersion(): BoardVersion | undefined {
     return "V2";
   }
 

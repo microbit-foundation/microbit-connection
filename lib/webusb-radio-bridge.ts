@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * (c) 2023, Center for Computational Thinking and Design at Aarhus University and contributors
  *
@@ -5,8 +6,7 @@
  */
 
 import { MicrobitWebUSBConnection } from "./webusb";
-import { DeviceConnection } from "./device";
-import * as protocol from "./serial-protocol";
+import * as protocol from "./webusb-serial-protocol";
 import { Logging } from "./logging";
 
 const connectTimeoutDuration: number = 10000;
@@ -14,7 +14,7 @@ const connectTimeoutDuration: number = 10000;
 class BridgeError extends Error {}
 class RemoteError extends Error {}
 
-export class MicrobitRadioBridgeConnection implements DeviceConnection {
+export class MicrobitRadioBridgeConnection {
   private responseMap = new Map<
     number,
     (
@@ -176,7 +176,7 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
       // stateOnReady(DeviceRequestStates.INPUT);
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
-        action: "Serial connect success",
+        message: "Serial connect success",
       });
     } catch (e) {
       this.logging.error("Failed to initialise serial protocol", e);
@@ -203,10 +203,7 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
     this.lastReceivedMessageTimestamp = undefined;
   }
 
-  private async disconnectInternal(
-    userDisconnect: boolean,
-    reconnectHelp: ConnectionType
-  ): Promise<void> {
+  private async disconnectInternal(userDisconnect: boolean): Promise<void> {
     this.stopConnectionCheck();
     try {
       await this.sendCmdWaitResponse(protocol.generateCmdStop());
@@ -228,18 +225,25 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
 
   async handleReconnect(): Promise<void> {
     if (this.isConnecting) {
-      logMessage("Serial disconnect ignored... reconnect already in progress");
+      this.logging.log(
+        "Serial disconnect ignored... reconnect already in progress"
+      );
       return;
     }
     try {
       this.stopConnectionCheck();
-      logMessage("Serial disconnected... automatically trying to reconnect");
+      this.logging.log(
+        "Serial disconnected... automatically trying to reconnect"
+      );
       this.responseMap.clear();
       await this.usb.stopSerial();
       await this.usb.softwareReset();
       await this.reconnect();
     } catch (e) {
-      logError("Serial connect triggered by disconnect listener failed", e);
+      this.logging.error(
+        "Serial connect triggered by disconnect listener failed",
+        e
+      );
     } finally {
       this.isConnecting = false;
     }
@@ -247,9 +251,9 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
 
   async reconnect(finalAttempt: boolean = false): Promise<void> {
     this.finalAttempt = finalAttempt;
-    logMessage("Serial reconnect");
+    this.logging.log("Serial reconnect");
     this.isReconnect = true;
-    await this.connect(DeviceRequestStates.INPUT);
+    await this.connect();
   }
 
   private async sendCmdWaitResponse(
@@ -274,7 +278,7 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
     // As a workaround we can spam the micro:bit with handshake messages until
     // enough responses have been queued in the buffer to fill it and the data
     // starts to flow.
-    logMessage("Serial handshake");
+    this.logging.log("Serial handshake");
     const handshakeResult = await new Promise<protocol.MessageResponse>(
       async (resolve, reject) => {
         const attempts = 20;
@@ -311,13 +315,17 @@ export class MicrobitRadioBridgeConnection implements DeviceConnection {
 }
 
 export const startSerialConnection = async (
-  usb: MicrobitUSB,
-  requestState: DeviceRequestStates,
+  logging: Logging,
+  usb: MicrobitWebUSBConnection,
   remoteDeviceId: number
 ): Promise<MicrobitRadioBridgeConnection | undefined> => {
   try {
-    const serial = new MicrobitRadioBridgeConnection(usb, remoteDeviceId);
-    await serial.connect(requestState);
+    const serial = new MicrobitRadioBridgeConnection(
+      usb,
+      logging,
+      remoteDeviceId
+    );
+    await serial.connect();
     return serial;
   } catch (e) {
     return undefined;

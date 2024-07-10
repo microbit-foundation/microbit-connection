@@ -48,7 +48,7 @@ import { DAPLink } from "dapjs";
 import { Logging } from "./logging";
 import { withTimeout, TimeoutError } from "./async-util";
 import { BoardId } from "./board-id";
-import { DAPWrapper } from "./dap-wrapper";
+import { DAPWrapper } from "./webusb-device-wrapper";
 import { FlashDataSource } from "./device";
 import {
   CoreRegister,
@@ -56,7 +56,7 @@ import {
   Page,
   pageAlignBlocks,
   read32FromUInt8Array,
-} from "./partial-flashing-utils";
+} from "./webusb-partial-flashing-utils";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 

@@ -43,10 +43,8 @@ export class BluetoothDeviceWrapper {
   private connecting = false;
   private isReconnect = false;
   private reconnectReadyPromise: Promise<void> | undefined;
-  // Whether this is the final reconnection attempt.
-  private finalAttempt = false;
 
-  boardVersion: BoardVersion | null;
+  boardVersion: BoardVersion | undefined;
 
   constructor(
     public readonly device: BluetoothDevice,
@@ -98,7 +96,7 @@ export class BluetoothDeviceWrapper {
                 "Bluetooth GATT server connect after timeout, triggering disconnect"
               );
               this.disconnectPromise = (async () => {
-                await this.disconnectInternal(false, false);
+                await this.disconnectInternal(false);
                 this.disconnectPromise = undefined;
               })();
             } else {
@@ -153,7 +151,6 @@ export class BluetoothDeviceWrapper {
       await this.disconnectInternal(false);
       throw new Error("Failed to establish a connection!");
     } finally {
-      this.finalAttempt = false;
       this.duringExplicitConnectDisconnect--;
     }
   }
@@ -162,10 +159,7 @@ export class BluetoothDeviceWrapper {
     return this.disconnectInternal(true);
   }
 
-  private async disconnectInternal(
-    userTriggered: boolean,
-    updateState: boolean = true
-  ): Promise<void> {
+  private async disconnectInternal(userTriggered: boolean): Promise<void> {
     this.logging.log(
       `Bluetooth disconnect ${userTriggered ? "(user triggered)" : "(programmatic)"}`
     );
@@ -185,8 +179,7 @@ export class BluetoothDeviceWrapper {
     );
   }
 
-  async reconnect(finalAttempt: boolean = false): Promise<void> {
-    this.finalAttempt = finalAttempt;
+  async reconnect(): Promise<void> {
     this.logging.log("Bluetooth reconnect");
     this.isReconnect = true;
     if (isWindowsOS) {

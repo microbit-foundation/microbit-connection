@@ -193,7 +193,7 @@ export interface DeviceConnection
    *
    * @returns the board version or null if there is no connection.
    */
-  getBoardVersion(): BoardVersion | null;
+  getBoardVersion(): BoardVersion | undefined;
 
   /**
    * Flash the micro:bit.
