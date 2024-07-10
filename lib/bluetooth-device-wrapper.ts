@@ -38,13 +38,15 @@ export class BluetoothDeviceWrapper {
   //
   // On Windows it times out after 7s.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=684073
-  private gattConnectPromise: Promise<BoardVersion | undefined> | undefined;
+  private gattConnectPromise: Promise<void> | undefined;
   private disconnectPromise: Promise<unknown> | undefined;
   private connecting = false;
   private isReconnect = false;
   private reconnectReadyPromise: Promise<void> | undefined;
   // Whether this is the final reconnection attempt.
   private finalAttempt = false;
+
+  boardVersion: BoardVersion | null;
 
   constructor(
     public readonly device: BluetoothDevice,
@@ -88,7 +90,7 @@ export class BluetoothDeviceWrapper {
             // We always do this even if we might immediately disconnect as disconnecting
             // without using services causes getPrimaryService calls to hang on subsequent
             // reconnect - probably a device-side issue.
-            const boardVersion = await this.getBoardVersion();
+            this.boardVersion = await this.getBoardVersion();
             // This connection could be arbitrarily later when our manual timeout may have passed.
             // Do we still want to be connected?
             if (!this.connecting) {
@@ -104,7 +106,6 @@ export class BluetoothDeviceWrapper {
                 "Bluetooth GATT server connected when connecting"
               );
             }
-            return boardVersion;
           })
           .catch((e) => {
             if (this.connecting) {
@@ -124,7 +125,6 @@ export class BluetoothDeviceWrapper {
           });
 
       this.connecting = true;
-      let boardVersion: BoardVersion | undefined;
       try {
         const gattConnectResult = await Promise.race([
           this.gattConnectPromise,
@@ -136,7 +136,6 @@ export class BluetoothDeviceWrapper {
           this.logging.log("Bluetooth GATT server connect timeout");
           throw new Error("Bluetooth GATT server connect timeout");
         }
-        boardVersion = gattConnectResult;
       } finally {
         this.connecting = false;
       }

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 import { TypedEventTarget } from "./events";
-import { Logging } from "./logging";
 import { BoardId } from "./board-id";
 
 /**
@@ -53,13 +52,6 @@ export class WebUSBError extends Error {
     super(message);
     this.code = code;
   }
-}
-
-export interface MicrobitWebUSBConnectionOptions {
-  // We should copy this type when extracting a library, and make it optional.
-  // Coupling for now to make it easy to evolve.
-
-  logging: Logging;
 }
 
 /**
@@ -135,19 +127,19 @@ export class ConnectionStatusEvent extends Event {
 
 export class SerialDataEvent extends Event {
   constructor(public readonly data: string) {
-    super("serial_data");
+    super("serialdata");
   }
 }
 
 export class SerialResetEvent extends Event {
   constructor() {
-    super("serial_reset");
+    super("serialreset");
   }
 }
 
 export class SerialErrorEvent extends Event {
   constructor(public readonly error: unknown) {
-    super("serial_error");
+    super("serialerror");
   }
 }
 
@@ -157,26 +149,26 @@ export class FlashEvent extends Event {
   }
 }
 
-export class StartUSBSelect extends Event {
+export class BeforeRequestDevice extends Event {
   constructor() {
-    super("start_usb_select");
+    super("beforerequestdevice");
   }
 }
 
-export class EndUSBSelect extends Event {
+export class AfterRequestDevice extends Event {
   constructor() {
-    super("end_usb_select");
+    super("afterrequestdevice");
   }
 }
 
 export class DeviceConnectionEventMap {
   "status": ConnectionStatusEvent;
-  "serial_data": SerialDataEvent;
-  "serial_reset": Event;
-  "serial_error": Event;
+  "serialdata": SerialDataEvent;
+  "serialreset": Event;
+  "serialerror": Event;
   "flash": Event;
-  "start_usb_select": Event;
-  "end_usb_select": Event;
+  "beforerequestdevice": Event;
+  "afterrequestdevice": Event;
 }
 
 export interface DeviceConnection

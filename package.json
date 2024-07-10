@@ -17,6 +17,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "ci": "npm run build && npm run test && npx prettier --check src",
     "test": "vitest",
     "preview": "vite preview"
   },

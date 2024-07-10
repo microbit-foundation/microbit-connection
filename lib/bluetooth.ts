@@ -3,8 +3,10 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { withTimeout } from "./async-util";
-import { createBluetoothDeviceWrapper } from "./bluetooth-device-wrapper";
+import {
+  BluetoothDeviceWrapper,
+  createBluetoothDeviceWrapper,
+} from "./bluetooth-device-wrapper";
 import { profile } from "./bluetooth-profile";
 import {
   BoardVersion,
@@ -13,10 +15,10 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  EndUSBSelect,
+  AfterRequestDevice,
   FlashDataSource,
   SerialResetEvent,
-  StartUSBSelect,
+  BeforeRequestDevice,
 } from "./device";
 import { TypedEventTarget } from "./events";
 import { Logging, NullLogging } from "./logging";
@@ -48,7 +50,7 @@ export class MicrobitWebBluetoothConnection
   private device: BluetoothDevice | undefined;
 
   private logging: Logging;
-  connection: any;
+  connection: BluetoothDeviceWrapper | undefined;
   flashing: boolean;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
@@ -81,8 +83,7 @@ export class MicrobitWebBluetoothConnection
     if (!this.connection) {
       return null;
     }
-    const boardId = this.connection.boardSerialInfo.id;
-    return boardId.isV1() ? "V1" : boardId.isV2() ? "V2" : null;
+    return this.connection.boardVersion;
   }
 
   async flash(
@@ -113,15 +114,14 @@ export class MicrobitWebBluetoothConnection
   private async stopSerialInternal() {
     if (this.connection) {
       // TODO
-      this.dispatchTypedEvent("serial_reset", new SerialResetEvent());
+      this.dispatchTypedEvent("serialreset", new SerialResetEvent());
     }
   }
 
   async disconnect(): Promise<void> {
     try {
       if (this.connection) {
-        await this.stopSerialInternal();
-        await this.connection.disconnectAsync();
+        await this.connection.disconnect();
       }
     } catch (e) {
       this.log("Error during disconnection:\r\n" + e);
@@ -165,12 +165,13 @@ export class MicrobitWebBluetoothConnection
       if (!device) {
         return;
       }
-      this.connection = createBluetoothDeviceWrapper(device, this.logging);
+      this.connection = await createBluetoothDeviceWrapper(
+        device,
+        this.logging
+      );
     }
-    await withTimeout(this.connection.reconnectAsync(), 10_000);
-    if (options.serial === undefined || options.serial) {
-      this.startSerialInternal();
-    }
+    // TODO: timeout unification?
+    this.connection?.connect();
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
@@ -178,7 +179,7 @@ export class MicrobitWebBluetoothConnection
     if (this.device) {
       return this.device;
     }
-    this.dispatchTypedEvent("start_usb_select", new StartUSBSelect());
+    this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     try {
       // In some situations the Chrome device prompt simply doesn't appear so we time this out after 30 seconds and reload the page
       // TODO: give control over this to the caller
@@ -211,7 +212,7 @@ export class MicrobitWebBluetoothConnection
       this.logging.error("Bluetooth request device failed/cancelled", e);
       return undefined;
     } finally {
-      this.dispatchTypedEvent("end_usb_select", new EndUSBSelect());
+      this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     }
   }
 }

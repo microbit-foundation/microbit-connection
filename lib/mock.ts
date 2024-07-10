@@ -41,7 +41,7 @@ export class MockDeviceConnection
   }
 
   mockSerialWrite(data: string) {
-    this.dispatchTypedEvent("serial_data", new SerialDataEvent(data));
+    this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
   }
 
   mockConnect(code: WebUSBErrorCode) {

@@ -13,15 +13,14 @@ import {
   ConnectOptions,
   DeviceConnection,
   DeviceConnectionEventMap,
-  EndUSBSelect,
+  AfterRequestDevice,
   FlashDataSource,
   FlashEvent,
   HexGenerationError,
-  MicrobitWebUSBConnectionOptions,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
-  StartUSBSelect,
+  BeforeRequestDevice,
   ConnectionStatusEvent,
   WebUSBError,
 } from "./device";
@@ -33,6 +32,13 @@ export const isChromeOS105 = (): boolean => {
   const userAgent = navigator.userAgent;
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
+
+export interface MicrobitWebUSBConnectionOptions {
+  // We should copy this type when extracting a library, and make it optional.
+  // Coupling for now to make it easy to evolve.
+
+  logging: Logging;
+}
 
 /**
  * A WebUSB connection to a micro:bit device.
@@ -63,7 +69,7 @@ export class MicrobitWebUSBConnection
   private serialReadInProgress: Promise<void> | undefined;
 
   private serialListener = (data: string) => {
-    this.dispatchTypedEvent("serial_data", new SerialDataEvent(data));
+    this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
   };
 
   private flashing: boolean = false;
@@ -277,7 +283,7 @@ export class MicrobitWebUSBConnection
       .startSerial(this.serialListener)
       .then(() => this.log("Finished listening for serial data"))
       .catch((e) => {
-        this.dispatchTypedEvent("serial_error", new SerialErrorEvent(e));
+        this.dispatchTypedEvent("serialerror", new SerialErrorEvent(e));
       });
   }
 
@@ -286,7 +292,7 @@ export class MicrobitWebUSBConnection
       this.connection.stopSerial(this.serialListener);
       await this.serialReadInProgress;
       this.serialReadInProgress = undefined;
-      this.dispatchTypedEvent("serial_reset", new SerialResetEvent());
+      this.dispatchTypedEvent("serialreset", new SerialResetEvent());
     }
   }
 
@@ -401,11 +407,11 @@ export class MicrobitWebUSBConnection
     if (this.device) {
       return this.device;
     }
-    this.dispatchTypedEvent("start_usb_select", new StartUSBSelect());
+    this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
     });
-    this.dispatchTypedEvent("end_usb_select", new EndUSBSelect());
+    this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
   }
 }

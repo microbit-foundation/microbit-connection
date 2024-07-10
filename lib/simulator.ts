@@ -258,7 +258,7 @@ export class SimulatorDeviceConnection
       case "serial_output": {
         const text = event.data.data;
         if (typeof text === "string") {
-          this.dispatchTypedEvent("serial_data", new SerialDataEvent(text));
+          this.dispatchTypedEvent("serialdata", new SerialDataEvent(text));
         }
         break;
       }
@@ -329,7 +329,7 @@ export class SimulatorDeviceConnection
 
   private notifyResetComms() {
     // Might be nice to rework so this was all about connection state changes.
-    this.dispatchTypedEvent("serial_reset", new SerialResetEvent());
+    this.dispatchTypedEvent("serialreset", new SerialResetEvent());
     this.dispatchTypedEvent("radio_reset", new RadioResetEvent());
   }
 
