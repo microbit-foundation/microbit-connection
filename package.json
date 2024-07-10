@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@types/web-bluetooth": "^0.0.20",
-    "dapjs": "^2.2.0"
+    "dapjs": "^2.2.0",
+    "nrf-intel-hex": "^1.4.0"
   }
 }

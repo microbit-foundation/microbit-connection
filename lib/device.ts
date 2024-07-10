@@ -92,7 +92,9 @@ export class HexGenerationError extends Error {}
 
 export interface FlashDataSource {
   /**
-   * The data required for a partial flash.
+   * For now we only support partially flashing contiguous data.
+   * This can be generated from microbit-fs directly (via getIntelHexBytes())
+   * or from an existing Intel Hex via slicePad.
    *
    * @param boardId the id of the board.
    * @throws HexGenerationError if we cannot generate hex data.
@@ -100,12 +102,11 @@ export interface FlashDataSource {
   partialFlashData(boardId: BoardId): Promise<Uint8Array>;
 
   /**
-   * A full hex.
-   *
    * @param boardId the id of the board.
+   * @returns A board-specific (non-universal) Intel Hex file for the given board id.
    * @throws HexGenerationError if we cannot generate hex data.
    */
-  fullFlashData(boardId: BoardId): Promise<Uint8Array>;
+  fullFlashData(boardId: BoardId): Promise<string>;
 }
 
 export interface ConnectOptions {
