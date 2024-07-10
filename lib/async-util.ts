@@ -12,7 +12,7 @@ export class TimeoutError extends Error {}
  */
 export async function withTimeout<T>(
   actionPromise: Promise<T>,
-  timeout: number
+  timeout: number,
 ): Promise<T> {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => {

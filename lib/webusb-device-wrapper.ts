@@ -35,7 +35,7 @@ export class DAPWrapper {
 
   constructor(
     public device: USBDevice,
-    private logging: Logging
+    private logging: Logging,
   ) {
     this.transport = new WebUSB(this.device);
     this.daplink = new DAPLink(this.transport);
@@ -65,7 +65,7 @@ export class DAPWrapper {
   get boardSerialInfo(): BoardSerialInfo {
     return BoardSerialInfo.parse(
       this.device,
-      this.logging.log.bind(this.logging)
+      this.logging.log.bind(this.logging),
     );
   }
 
@@ -152,7 +152,7 @@ export class DAPWrapper {
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/transport/cmsis_dap.ts#L74
   private async cmdNums(
     op: number /* DapCmd */,
-    data: number[]
+    data: number[],
   ): Promise<Uint8Array> {
     data.unshift(op);
 
@@ -181,7 +181,7 @@ export class DAPWrapper {
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/dap/dap.ts#L117
   private async readRegRepeat(
     regId: number /* Reg */,
-    cnt: number
+    cnt: number,
   ): Promise<Uint8Array> {
     const request = regRequest(regId);
     const sendargs = [0, cnt];
@@ -206,7 +206,7 @@ export class DAPWrapper {
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/dap/dap.ts#L138
   private async writeRegRepeat(
     regId: number /* Reg */,
-    data: Uint32Array
+    data: Uint32Array,
   ): Promise<void> {
     const request = regRequest(regId, true);
     const sendargs = [0, data.length, 0, request];
@@ -217,7 +217,7 @@ export class DAPWrapper {
         d & 0xff,
         (d >> 8) & 0xff,
         (d >> 16) & 0xff,
-        (d >> 24) & 0xff
+        (d >> 24) & 0xff,
       );
     });
 
@@ -233,7 +233,7 @@ export class DAPWrapper {
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/memory/memory.ts#L181
   private async readBlockCore(
     addr: number,
-    words: number
+    words: number,
   ): Promise<Uint8Array> {
     // Set up CMSIS-DAP to read/write from/to the RAM address addr using the register
     // ApReg.DRW to write to or read from.
@@ -250,7 +250,7 @@ export class DAPWrapper {
     for (let i = 0; i < Math.ceil(words / 15); i++) {
       const b: Uint8Array = await this.readRegRepeat(
         apReg(ApReg.DRW, DapVal.READ),
-        i === blocks.length - 1 ? lastSize : 15
+        i === blocks.length - 1 ? lastSize : 15,
       );
       blocks.push(b);
     }
@@ -262,7 +262,7 @@ export class DAPWrapper {
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/memory/memory.ts#L205
   private async writeBlockCore(
     addr: number,
-    words: Uint32Array
+    words: Uint32Array,
   ): Promise<void> {
     try {
       // Set up CMSIS-DAP to read/write from/to the RAM address addr using the register ApReg.DRW to write to or read from.
@@ -335,7 +335,7 @@ export class DAPWrapper {
   ) {
     if (registers.length > 12) {
       throw new Error(
-        `Only 12 general purpose registers but got ${registers.length} values`
+        `Only 12 general purpose registers but got ${registers.length} values`,
       );
     }
 
@@ -355,7 +355,7 @@ export class DAPWrapper {
   // Recurses otherwise.
   private async waitForHaltCore(
     halted: boolean,
-    deadline: number
+    deadline: number,
   ): Promise<void> {
     if (new Date().getTime() > deadline) {
       throw new Error("timeout");
@@ -379,7 +379,7 @@ export class DAPWrapper {
     await this.cortexM.writeMem32(
       CortexSpecialReg.NVIC_AIRCR,
       CortexSpecialReg.NVIC_AIRCR_VECTKEY |
-        CortexSpecialReg.NVIC_AIRCR_SYSRESETREQ
+        CortexSpecialReg.NVIC_AIRCR_SYSRESETREQ,
     );
 
     // wait for the system to come out of reset
@@ -400,7 +400,7 @@ export class DAPWrapper {
       const demcr = await this.cortexM.readMem32(CortexSpecialReg.DEMCR);
       await this.cortexM.writeMem32(
         CortexSpecialReg.DEMCR,
-        CortexSpecialReg.DEMCR | CortexSpecialReg.DEMCR_VC_CORERESET
+        CortexSpecialReg.DEMCR | CortexSpecialReg.DEMCR_VC_CORERESET,
       );
 
       await this.softwareReset();

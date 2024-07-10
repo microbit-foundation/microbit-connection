@@ -48,11 +48,11 @@ export class BluetoothDeviceWrapper {
 
   constructor(
     public readonly device: BluetoothDevice,
-    private logging: Logging = new NullLogging()
+    private logging: Logging = new NullLogging(),
   ) {
     device.addEventListener(
       "gattserverdisconnected",
-      this.handleDisconnectEvent
+      this.handleDisconnectEvent,
     );
   }
 
@@ -63,7 +63,7 @@ export class BluetoothDeviceWrapper {
     });
     if (this.duringExplicitConnectDisconnect) {
       this.logging.log(
-        "Skipping connect attempt when one is already in progress"
+        "Skipping connect attempt when one is already in progress",
       );
       // Wait for the gattConnectPromise while showing a "connecting" dialog.
       // If the user clicks disconnect while the automatic reconnect is in progress,
@@ -74,7 +74,7 @@ export class BluetoothDeviceWrapper {
     this.duringExplicitConnectDisconnect++;
     if (this.device.gatt === undefined) {
       throw new Error(
-        "BluetoothRemoteGATTServer for micro:bit device is undefined"
+        "BluetoothRemoteGATTServer for micro:bit device is undefined",
       );
     }
     try {
@@ -93,7 +93,7 @@ export class BluetoothDeviceWrapper {
             // Do we still want to be connected?
             if (!this.connecting) {
               this.logging.log(
-                "Bluetooth GATT server connect after timeout, triggering disconnect"
+                "Bluetooth GATT server connect after timeout, triggering disconnect",
               );
               this.disconnectPromise = (async () => {
                 await this.disconnectInternal(false);
@@ -101,7 +101,7 @@ export class BluetoothDeviceWrapper {
               })();
             } else {
               this.logging.log(
-                "Bluetooth GATT server connected when connecting"
+                "Bluetooth GATT server connected when connecting",
               );
             }
           })
@@ -112,7 +112,7 @@ export class BluetoothDeviceWrapper {
             } else {
               this.logging.error(
                 "Bluetooth GATT server connect error after our timeout",
-                e
+                e,
               );
               return undefined;
             }
@@ -127,7 +127,7 @@ export class BluetoothDeviceWrapper {
         const gattConnectResult = await Promise.race([
           this.gattConnectPromise,
           new Promise<"timeout">((resolve) =>
-            setTimeout(() => resolve("timeout"), connectTimeoutDuration)
+            setTimeout(() => resolve("timeout"), connectTimeoutDuration),
           ),
         ]);
         if (gattConnectResult === "timeout") {
@@ -161,7 +161,7 @@ export class BluetoothDeviceWrapper {
 
   private async disconnectInternal(userTriggered: boolean): Promise<void> {
     this.logging.log(
-      `Bluetooth disconnect ${userTriggered ? "(user triggered)" : "(programmatic)"}`
+      `Bluetooth disconnect ${userTriggered ? "(user triggered)" : "(programmatic)"}`,
     );
     this.duringExplicitConnectDisconnect++;
     try {
@@ -175,7 +175,7 @@ export class BluetoothDeviceWrapper {
       this.duringExplicitConnectDisconnect--;
     }
     this.reconnectReadyPromise = new Promise((resolve) =>
-      setTimeout(resolve, 3_500)
+      setTimeout(resolve, 3_500),
     );
   }
 
@@ -198,19 +198,19 @@ export class BluetoothDeviceWrapper {
     try {
       if (!this.duringExplicitConnectDisconnect) {
         this.logging.log(
-          "Bluetooth GATT disconnected... automatically trying reconnect"
+          "Bluetooth GATT disconnected... automatically trying reconnect",
         );
         // stateOnReconnectionAttempt();
         await this.reconnect();
       } else {
         this.logging.log(
-          "Bluetooth GATT disconnect ignored during explicit disconnect"
+          "Bluetooth GATT disconnect ignored during explicit disconnect",
         );
       }
     } catch (e) {
       this.logging.error(
         "Bluetooth connect triggered by disconnect listener failed",
-        e
+        e,
       );
     }
   };
@@ -227,10 +227,10 @@ export class BluetoothDeviceWrapper {
     const serviceMeta = profile.deviceInformation;
     try {
       const deviceInfo = await this.assertGattServer().getPrimaryService(
-        serviceMeta.id
+        serviceMeta.id,
       );
       const characteristic = await deviceInfo.getCharacteristic(
-        serviceMeta.characteristics.modelNumber.id
+        serviceMeta.characteristics.modelNumber.id,
       );
       const modelNumberBytes = await characteristic.readValue();
       const modelNumber = new TextDecoder().decode(modelNumberBytes);
@@ -252,7 +252,7 @@ export class BluetoothDeviceWrapper {
 
 export const createBluetoothDeviceWrapper = async (
   device: BluetoothDevice,
-  logging: Logging
+  logging: Logging,
 ): Promise<BluetoothDeviceWrapper | undefined> => {
   try {
     // Reuse our connection objects for the same device as they

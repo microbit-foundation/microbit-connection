@@ -10,23 +10,23 @@ export type SplittedMessages = {
 };
 
 enum MessageTypes {
-  Command = 'C',
-  Response = 'R',
-  Periodic = 'P',
+  Command = "C",
+  Response = "R",
+  Periodic = "P",
 }
 
 export enum CommandTypes {
-  Handshake = 'HS',
-  RadioFrequency = 'RF',
-  RemoteMbId = 'RMBID',
-  SoftwareVersion = 'SWVER',
-  HardwareVersion = 'HWVER',
-  Zstart = 'ZSTART',
-  Stop = 'STOP',
+  Handshake = "HS",
+  RadioFrequency = "RF",
+  RemoteMbId = "RMBID",
+  SoftwareVersion = "SWVER",
+  HardwareVersion = "HWVER",
+  Zstart = "ZSTART",
+  Stop = "STOP",
 }
 
 enum ResponseExtraTypes {
-  Error = 'ERROR',
+  Error = "ERROR",
 }
 
 export type ResponseTypes = CommandTypes | ResponseExtraTypes;
@@ -67,16 +67,17 @@ export const splitMessages = (message: string): SplittedMessages => {
   if (!message) {
     return {
       messages: [],
-      remainingInput: '',
+      remainingInput: "",
     };
   }
-  let messages = message.split('\n');
-  let remainingInput = messages.pop() || '';
+  let messages = message.split("\n");
+  let remainingInput = messages.pop() || "";
 
   // Throw away any empty messages and messages that don't start with a valid type
   messages = messages.filter(
     (msg: string) =>
-      msg.length > 0 && Object.values(MessageTypes).includes(msg[0] as MessageTypes),
+      msg.length > 0 &&
+      Object.values(MessageTypes).includes(msg[0] as MessageTypes),
   );
 
   // Any remaining input will be the start of the next message, so if it doesn't start
@@ -85,7 +86,7 @@ export const splitMessages = (message: string): SplittedMessages => {
     remainingInput.length > 0 &&
     !Object.values(MessageTypes).includes(remainingInput[0] as MessageTypes)
   ) {
-    remainingInput = '';
+    remainingInput = "";
   }
 
   return {
@@ -94,26 +95,30 @@ export const splitMessages = (message: string): SplittedMessages => {
   };
 };
 
-export const processResponseMessage = (message: string): MessageResponse | undefined => {
+export const processResponseMessage = (
+  message: string,
+): MessageResponse | undefined => {
   // Regex for a message response with 3 groups:
   // id    -> The message ID, 1-8 hex characters
   // cmd   -> The command type, a string, only capital letters, matching CommandTypes
   // value -> The response value, empty string or a word, number,
   //          or version (e.g 1.2.3) depending on the command type
   const responseMatch =
-    /^R\[(?<id>[0-9A-Fa-f]{1,8})\](?<cmd>[A-Z]+)\[(?<value>-?[\w.]*)\]$/.exec(message);
+    /^R\[(?<id>[0-9A-Fa-f]{1,8})\](?<cmd>[A-Z]+)\[(?<value>-?[\w.]*)\]$/.exec(
+      message,
+    );
   if (!responseMatch || !responseMatch.groups) {
     return undefined;
   }
-  const messageId = parseInt(responseMatch.groups['id'], 16);
+  const messageId = parseInt(responseMatch.groups["id"], 16);
   if (isNaN(messageId)) {
     return undefined;
   }
-  const responseType = responseMatch.groups['cmd'] as ResponseTypes;
+  const responseType = responseMatch.groups["cmd"] as ResponseTypes;
   if (!Object.values(ResponseTypes).includes(responseType)) {
     return undefined;
   }
-  let value: string | number = responseMatch.groups['value'];
+  let value: string | number = responseMatch.groups["value"];
   switch (responseType) {
     // Commands with numeric values
     case ResponseTypes.Handshake:
@@ -129,7 +134,7 @@ export const processResponseMessage = (message: string): MessageResponse | undef
     // Commands without values
     case ResponseTypes.Zstart:
     case ResponseTypes.Stop:
-      if (value !== '') {
+      if (value !== "") {
         return undefined;
       }
       break;
@@ -178,7 +183,10 @@ export const processPeriodicMessage = (
   };
 };
 
-const generateCommand = (cmdType: CommandTypes, cmdData: string = ''): MessageCmd => {
+const generateCommand = (
+  cmdType: CommandTypes,
+  cmdData: string = "",
+): MessageCmd => {
   // Generate an random (enough) ID with max value of 8 hex digits
   const msgID = Math.floor(Math.random() * 0xffffffff);
   return {
@@ -194,12 +202,12 @@ export const generateCmdHandshake = (): MessageCmd => {
 };
 
 export const generateCmdStart = (sensors: MicrobitSensors): MessageCmd => {
-  let cmdData = '';
+  let cmdData = "";
   if (sensors.accelerometer) {
-    cmdData += 'A';
+    cmdData += "A";
   }
   if (sensors.buttons) {
-    cmdData += 'B';
+    cmdData += "B";
   }
   return generateCommand(CommandTypes.Zstart, cmdData);
 };
@@ -210,14 +218,14 @@ export const generateCmdStop = (): MessageCmd => {
 
 export const generateCmdRadioFrequency = (frequency: number): MessageCmd => {
   if (frequency < 0 || frequency > 83) {
-    throw new Error('Radio frequency out of range');
+    throw new Error("Radio frequency out of range");
   }
   return generateCommand(CommandTypes.RadioFrequency, frequency.toString());
 };
 
 export const generateCmdRemoteMbId = (remoteMicrobitId: number): MessageCmd => {
   if (remoteMicrobitId < 0 || remoteMicrobitId > 0xffffffff) {
-    throw new Error('Remote micro:bit ID out of range');
+    throw new Error("Remote micro:bit ID out of range");
   }
   return generateCommand(CommandTypes.RemoteMbId, remoteMicrobitId.toString());
 };

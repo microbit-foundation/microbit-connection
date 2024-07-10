@@ -101,7 +101,7 @@ const stackAddr = 0x20001000;
 export class PartialFlashing {
   constructor(
     private dapwrapper: DAPWrapper,
-    private logging: Logging
+    private logging: Logging,
   ) {}
 
   private log(v: any): void {
@@ -120,11 +120,11 @@ export class PartialFlashing {
       dataAddr,
       0,
       this.dapwrapper.pageSize,
-      this.dapwrapper.numPages
+      this.dapwrapper.numPages,
     );
     return this.dapwrapper.readBlockAsync(
       dataAddr,
-      this.dapwrapper.numPages * 2
+      this.dapwrapper.numPages * 2,
     );
   }
 
@@ -136,7 +136,7 @@ export class PartialFlashing {
     await Promise.all([
       this.dapwrapper.cortexM.writeCoreRegister(
         CoreRegister.PC,
-        loadAddr + 4 + 1
+        loadAddr + 4 + 1,
       ),
       this.dapwrapper.cortexM.writeCoreRegister(CoreRegister.LR, loadAddr + 1),
       this.dapwrapper.cortexM.writeCoreRegister(CoreRegister.SP, stackAddr),
@@ -144,7 +144,7 @@ export class PartialFlashing {
       this.dapwrapper.cortexM.writeCoreRegister(1, addr),
       this.dapwrapper.cortexM.writeCoreRegister(
         2,
-        this.dapwrapper.pageSize >> 2
+        this.dapwrapper.pageSize >> 2,
       ),
     ]);
     return this.dapwrapper.cortexM.resume(false);
@@ -155,7 +155,7 @@ export class PartialFlashing {
   private async partialFlashPageAsync(
     page: Page,
     nextPage: Page,
-    i: number
+    i: number,
   ): Promise<void> {
     // TODO: This short-circuits UICR, do we need to update this?
     if (page.targetAddr >= 0x10000000) {
@@ -190,7 +190,7 @@ export class PartialFlashing {
   // Write pages of data to micro:bit ROM.
   private async partialFlashCoreAsync(
     pages: Page[],
-    updateProgress: ProgressCallback
+    updateProgress: ProgressCallback,
   ) {
     this.log("Partial flash");
     for (let i = 0; i < pages.length; ++i) {
@@ -206,7 +206,7 @@ export class PartialFlashing {
   private async partialFlashAsync(
     boardId: BoardId,
     dataSource: FlashDataSource,
-    updateProgress: ProgressCallback
+    updateProgress: ProgressCallback,
   ): Promise<boolean> {
     const flashBytes = await dataSource.partialFlashData(boardId);
     const checksums = await this.getFlashChecksumsAsync();
@@ -252,7 +252,7 @@ export class PartialFlashing {
   async fullFlashAsync(
     boardId: BoardId,
     dataSource: FlashDataSource,
-    updateProgress: ProgressCallback
+    updateProgress: ProgressCallback,
   ) {
     this.log("Full flash");
 
@@ -271,7 +271,7 @@ export class PartialFlashing {
     } finally {
       this.dapwrapper.daplink.removeListener(
         DAPLink.EVENT_PROGRESS,
-        fullFlashProgress
+        fullFlashProgress,
       );
     }
   }
@@ -281,7 +281,7 @@ export class PartialFlashing {
   async flashAsync(
     boardId: BoardId,
     dataSource: FlashDataSource,
-    updateProgress: ProgressCallback
+    updateProgress: ProgressCallback,
   ): Promise<boolean> {
     let resetPromise = (async () => {
       // Reset micro:bit to ensure interface responds correctly.
@@ -303,7 +303,7 @@ export class PartialFlashing {
         return await this.partialFlashAsync(
           boardId,
           dataSource,
-          updateProgress
+          updateProgress,
         );
       } catch (e) {
         if (e instanceof TimeoutError) {

@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import { resolve } from "path";
-import {
-  loadEnv,
-} from "vite";
+import { loadEnv } from "vite";
 import { configDefaults, defineConfig, UserConfig } from "vitest/config";
 
 export default defineConfig(({ mode }) => {
@@ -17,16 +15,16 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       lib: {
         // Could also be a dictionary or array of multiple entry points
-        entry: resolve(__dirname, 'lib/main.ts'),
-        name: 'MicrobitConnection',
+        entry: resolve(__dirname, "lib/main.ts"),
+        name: "MicrobitConnection",
         // the proper extensions will be added
-        fileName: 'microbit-connection',
+        fileName: "microbit-connection",
       },
     },
     test: {
       exclude: [...configDefaults.exclude, "**/e2e/**"],
       environment: "jsdom",
-      setupFiles: "./src/setupTests.ts",
+      setupFiles: "./lib/setupTests.ts",
       mockReset: true,
     },
   };

@@ -13,7 +13,7 @@ import { ConnectionStatus, ConnectionStatusEvent } from "./device";
 import { MicrobitWebUSBConnection } from "./webusb";
 import { beforeAll, expect, vi, describe, it } from "vitest";
 
-vi.mock("./dap-wrapper", () => ({
+vi.mock("./webusb-device-wrapper", () => ({
   DAPWrapper: class DapWrapper {
     startSerial = vi.fn().mockReturnValue(Promise.resolve());
     reconnectAsync = vi.fn();

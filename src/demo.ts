@@ -23,7 +23,7 @@ const connect = document.querySelector("#webusb > .connect")!;
 const disconnect = document.querySelector("#webusb > .disconnect")!;
 const flash = document.querySelector("#webusb > .flash")!;
 const fileInput = document.querySelector(
-  "#webusb input[type=file]"
+  "#webusb input[type=file]",
 )! as HTMLInputElement;
 const statusParagraph = document.querySelector("#webusb > .status")!;
 const connection = new MicrobitWebUSBConnection();

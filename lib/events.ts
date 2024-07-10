@@ -13,7 +13,7 @@
  * @template T The type of event to listen for (has to be keyof `M`).
  */
 export type TypedEventListener<M, T extends keyof M> = (
-  evt: M[T]
+  evt: M[T],
 ) => void | Promise<void>;
 
 /**
@@ -90,7 +90,7 @@ export interface TypedEventTarget<M extends ValueIsEvent<M>> {
   addEventListener: <T extends keyof M & string>(
     type: T,
     listener: TypedEventListenerOrEventListenerObject<M, T> | null,
-    options?: boolean | AddEventListenerOptions
+    options?: boolean | AddEventListenerOptions,
   ) => void;
 
   /** Removes the event listener in target's event listener list with the same
@@ -98,7 +98,7 @@ export interface TypedEventTarget<M extends ValueIsEvent<M>> {
   removeEventListener: <T extends keyof M & string>(
     type: T,
     callback: TypedEventListenerOrEventListenerObject<M, T> | null,
-    options?: EventListenerOptions | boolean
+    options?: EventListenerOptions | boolean,
   ) => void;
 
   /**

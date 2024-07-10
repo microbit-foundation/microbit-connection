@@ -91,7 +91,7 @@ export class MicrobitWebBluetoothConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    }
+    },
   ): Promise<void> {
     throw new Error("Unsupported");
   }
@@ -163,7 +163,7 @@ export class MicrobitWebBluetoothConnection
       }
       this.connection = await createBluetoothDeviceWrapper(
         device,
-        this.logging
+        this.logging,
       );
     }
     // TODO: timeout unification?
@@ -194,7 +194,7 @@ export class MicrobitWebBluetoothConnection
           ],
         }),
         new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
+          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration),
         ),
       ]);
       if (result === "timeout") {

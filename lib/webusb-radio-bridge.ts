@@ -18,7 +18,7 @@ export class MicrobitRadioBridgeConnection {
   private responseMap = new Map<
     number,
     (
-      value: protocol.MessageResponse | PromiseLike<protocol.MessageResponse>
+      value: protocol.MessageResponse | PromiseLike<protocol.MessageResponse>,
     ) => void
   >();
 
@@ -34,7 +34,7 @@ export class MicrobitRadioBridgeConnection {
   constructor(
     private usb: MicrobitWebUSBConnection,
     private logging: Logging,
-    private remoteDeviceId: number
+    private remoteDeviceId: number,
   ) {}
 
   async connect(): Promise<void> {
@@ -44,7 +44,7 @@ export class MicrobitRadioBridgeConnection {
     });
     if (this.isConnecting) {
       this.logging.log(
-        "Skipping connect attempt when one is already in progress"
+        "Skipping connect attempt when one is already in progress",
       );
       return;
     }
@@ -90,7 +90,7 @@ export class MicrobitRadioBridgeConnection {
             return;
           }
           const responseResolve = this.responseMap.get(
-            messageResponse.messageId
+            messageResponse.messageId,
           );
           if (responseResolve) {
             this.responseMap.delete(messageResponse.messageId);
@@ -125,7 +125,7 @@ export class MicrobitRadioBridgeConnection {
 
       this.logging.log(`Serial: using remote device id ${this.remoteDeviceId}`);
       const remoteMbIdCommand = protocol.generateCmdRemoteMbId(
-        this.remoteDeviceId
+        this.remoteDeviceId,
       );
       const remoteMbIdResponse =
         await this.sendCmdWaitResponse(remoteMbIdCommand);
@@ -134,7 +134,7 @@ export class MicrobitRadioBridgeConnection {
         remoteMbIdResponse.value !== this.remoteDeviceId
       ) {
         throw new BridgeError(
-          `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`
+          `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`,
         );
       }
 
@@ -157,7 +157,7 @@ export class MicrobitRadioBridgeConnection {
         const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
         if (startCmdResponse.type === protocol.ResponseTypes.Error) {
           throw new RemoteError(
-            `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`
+            `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
           );
         }
 
@@ -226,14 +226,14 @@ export class MicrobitRadioBridgeConnection {
   async handleReconnect(): Promise<void> {
     if (this.isConnecting) {
       this.logging.log(
-        "Serial disconnect ignored... reconnect already in progress"
+        "Serial disconnect ignored... reconnect already in progress",
       );
       return;
     }
     try {
       this.stopConnectionCheck();
       this.logging.log(
-        "Serial disconnected... automatically trying to reconnect"
+        "Serial disconnected... automatically trying to reconnect",
       );
       this.responseMap.clear();
       await this.usb.stopSerial();
@@ -242,7 +242,7 @@ export class MicrobitRadioBridgeConnection {
     } catch (e) {
       this.logging.error(
         "Serial connect triggered by disconnect listener failed",
-        e
+        e,
       );
     } finally {
       this.isConnecting = false;
@@ -257,7 +257,7 @@ export class MicrobitRadioBridgeConnection {
   }
 
   private async sendCmdWaitResponse(
-    cmd: protocol.MessageCmd
+    cmd: protocol.MessageCmd,
   ): Promise<protocol.MessageResponse> {
     const responsePromise = new Promise<protocol.MessageResponse>(
       (resolve, reject) => {
@@ -266,7 +266,7 @@ export class MicrobitRadioBridgeConnection {
           this.responseMap.delete(cmd.messageId);
           reject(new Error(`Timeout waiting for response ${cmd.messageId}`));
         }, 1_000);
-      }
+      },
     );
     await this.usb.serialWrite(cmd.message);
     return responsePromise;
@@ -304,11 +304,11 @@ export class MicrobitRadioBridgeConnection {
             });
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
-      }
+      },
     );
     if (handshakeResult.value !== protocol.version) {
       throw new BridgeError(
-        `Handshake failed. Unexpected protocol version ${protocol.version}`
+        `Handshake failed. Unexpected protocol version ${protocol.version}`,
       );
     }
   }
@@ -317,13 +317,13 @@ export class MicrobitRadioBridgeConnection {
 export const startSerialConnection = async (
   logging: Logging,
   usb: MicrobitWebUSBConnection,
-  remoteDeviceId: number
+  remoteDeviceId: number,
 ): Promise<MicrobitRadioBridgeConnection | undefined> => {
   try {
     const serial = new MicrobitRadioBridgeConnection(
       usb,
       logging,
-      remoteDeviceId
+      remoteDeviceId,
     );
     await serial.connect();
     return serial;
