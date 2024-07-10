@@ -91,7 +91,7 @@ export class MicrobitWebBluetoothConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    },
+    }
   ): Promise<void> {
     throw new Error("Unsupported");
   }
@@ -157,13 +157,13 @@ export class MicrobitWebBluetoothConnection
 
   private async connectInternal(options: ConnectOptions): Promise<void> {
     if (!this.connection) {
-      const device = await this.chooseDevice();
+      const device = await this.chooseDevice(options);
       if (!device) {
         return;
       }
       this.connection = await createBluetoothDeviceWrapper(
         device,
-        this.logging,
+        this.logging
       );
     }
     // TODO: timeout unification?
@@ -171,7 +171,9 @@ export class MicrobitWebBluetoothConnection
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async chooseDevice(): Promise<BluetoothDevice | undefined> {
+  private async chooseDevice(
+    options: ConnectOptions
+  ): Promise<BluetoothDevice | undefined> {
     if (this.device) {
       return this.device;
     }
@@ -181,20 +183,28 @@ export class MicrobitWebBluetoothConnection
       // TODO: give control over this to the caller
       const result = await Promise.race([
         navigator.bluetooth.requestDevice({
-          // TODO: this is limiting
-          filters: [{ namePrefix: `BBC micro:bit [${name}]` }],
+          filters: [
+            {
+              namePrefix: options.name
+                ? `BBC micro:bit [${options.name}]`
+                : "BBC micro:bit",
+            },
+          ],
           optionalServices: [
-            // TODO: include everything or perhaps parameterise?
-            profile.uart.id,
             profile.accelerometer.id,
-            profile.deviceInformation.id,
-            profile.led.id,
-            profile.io.id,
             profile.button.id,
+            profile.deviceInformation.id,
+            profile.dfuControl.id,
+            profile.event.id,
+            profile.ioPin.id,
+            profile.led.id,
+            profile.magnetometer.id,
+            profile.temperature.id,
+            profile.uart.id,
           ],
         }),
         new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration),
+          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
         ),
       ]);
       if (result === "timeout") {

@@ -6,11 +6,19 @@
 import "./demo.css";
 import { MicrobitWebUSBConnection } from "../lib/webusb";
 import { HexFlashDataSource } from "../lib/hex-flash-data-source";
-import { ConnectionStatus } from "../lib/device";
+import { ConnectionStatus, DeviceConnection } from "../lib/device";
+import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-  <section id="webusb">
-    <h2>WebUSB</h2>
+  <section id="flash">
+    <h2>Connect and flash</h2>
+    <label><div>Name</div>
+      <input id="name" type="text">
+    </label>
+    <select class="transport">
+      <option value="usb">WebUSB</option>
+      <option value="bluetooth">Web Bluetooth</option>
+    </select>
     <button class="connect">Connect</button>
     <button class="disconnect">Disconnect</button>
     <p class="status"></p>
@@ -19,18 +27,38 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   </section>
 `;
 
-const connect = document.querySelector("#webusb > .connect")!;
-const disconnect = document.querySelector("#webusb > .disconnect")!;
-const flash = document.querySelector("#webusb > .flash")!;
+const transport = document.querySelector(
+  "#flash > .transport"
+)! as HTMLSelectElement;
+const connect = document.querySelector("#flash > .connect")!;
+const disconnect = document.querySelector("#flash > .disconnect")!;
+const flash = document.querySelector("#flash > .flash")!;
 const fileInput = document.querySelector(
-  "#webusb input[type=file]",
+  "#flash input[type=file]"
 )! as HTMLInputElement;
-const statusParagraph = document.querySelector("#webusb > .status")!;
-const connection = new MicrobitWebUSBConnection();
+const statusParagraph = document.querySelector("#flash > .status")!;
+
+const usb = new MicrobitWebUSBConnection();
+const bluetooth = new MicrobitWebBluetoothConnection();
+let connection: DeviceConnection = usb;
+
 const initialisePromise = connection.initialize();
 const displayStatus = (status: ConnectionStatus) => {
   statusParagraph.textContent = status.toString();
 };
+transport.addEventListener("change", (e) => {
+  switch (transport.value) {
+    case "bluetooth": {
+      connection = bluetooth;
+      break;
+    }
+    case "usb": {
+      connection = usb;
+      break;
+    }
+  }
+});
+
 connection.addEventListener("status", (event) => {
   displayStatus(event.status);
 });

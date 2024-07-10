@@ -111,6 +111,8 @@ export interface FlashDataSource {
 
 export interface ConnectOptions {
   serial?: boolean;
+  // Name filter used for Web Bluetooth
+  name?: string;
 }
 
 export type BoardVersion = "V1" | "V2";
@@ -216,7 +218,7 @@ export interface DeviceConnection
        * The partial parameter reports the flash type currently in progress.
        */
       progress: (percentage: number | undefined, partial: boolean) => void;
-    },
+    }
   ): Promise<void>;
 
   /**
