@@ -106,11 +106,6 @@ export interface FlashDataSource {
    * @throws HexGenerationError if we cannot generate hex data.
    */
   fullFlashData(boardId: BoardId): Promise<Uint8Array>;
-
-  /**
-   * The file system represented by file name keys and data values.
-   */
-  files(): Promise<Record<string, Uint8Array>>;
 }
 
 export interface ConnectOptions {
