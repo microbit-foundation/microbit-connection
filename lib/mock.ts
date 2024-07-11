@@ -83,7 +83,7 @@ export class MockDeviceConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    }
+    },
   ): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
     options.progress(0.5);

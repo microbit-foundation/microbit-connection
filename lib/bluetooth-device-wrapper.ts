@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { AccelerometerService } from "./accelerometer-service";
 import { profile } from "./bluetooth-profile";
 import { BoardVersion } from "./device";
 import { Logging, NullLogging } from "./logging";
+import { TypedServiceEventDispatcher } from "./service-events";
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
@@ -43,12 +45,20 @@ export class BluetoothDeviceWrapper {
   private connecting = false;
   private isReconnect = false;
   private reconnectReadyPromise: Promise<void> | undefined;
+  private accelerometerService: AccelerometerService | undefined;
 
   boardVersion: BoardVersion | undefined;
+  serviceListeners = {
+    accelerometerdatachanged: {
+      notifying: false,
+      service: this.getAccelerometerService,
+    },
+  };
 
   constructor(
     public readonly device: BluetoothDevice,
     private logging: Logging = new NullLogging(),
+    private dispatchTypedEvent: TypedServiceEventDispatcher,
   ) {
     device.addEventListener(
       "gattserverdisconnected",
@@ -138,6 +148,14 @@ export class BluetoothDeviceWrapper {
         this.connecting = false;
       }
 
+      // Restart notifications for services and characteristics
+      // the user has listened to.
+      for (const serviceListener of Object.values(this.serviceListeners)) {
+        if (serviceListener.notifying) {
+          serviceListener.service.call(this);
+        }
+      }
+
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
         message: "Bluetooth connect success",
@@ -172,6 +190,7 @@ export class BluetoothDeviceWrapper {
       this.logging.error("Bluetooth GATT disconnect error (ignored)", e);
       // We might have already lost the connection.
     } finally {
+      this.disposeServices();
       this.duringExplicitConnectDisconnect--;
     }
     this.reconnectReadyPromise = new Promise((resolve) =>
@@ -201,6 +220,7 @@ export class BluetoothDeviceWrapper {
           "Bluetooth GATT disconnected... automatically trying reconnect",
         );
         // stateOnReconnectionAttempt();
+        this.disposeServices();
         await this.reconnect();
       } else {
         this.logging.log(
@@ -248,18 +268,35 @@ export class BluetoothDeviceWrapper {
       throw new Error("Could not read model number");
     }
   }
+
+  async getAccelerometerService(): Promise<AccelerometerService> {
+    if (!this.accelerometerService) {
+      const gattServer = this.assertGattServer();
+      this.accelerometerService = await AccelerometerService.createService(
+        gattServer,
+        this.dispatchTypedEvent,
+        this.serviceListeners.accelerometerdatachanged.notifying,
+      );
+    }
+    return this.accelerometerService;
+  }
+
+  private disposeServices() {
+    this.accelerometerService = undefined;
+  }
 }
 
 export const createBluetoothDeviceWrapper = async (
   device: BluetoothDevice,
   logging: Logging,
+  dispatchTypedEvent: TypedServiceEventDispatcher,
 ): Promise<BluetoothDeviceWrapper | undefined> => {
   try {
     // Reuse our connection objects for the same device as they
     // track the GATT connect promise that never resolves.
     const bluetooth =
       deviceIdToWrapper.get(device.id) ??
-      new BluetoothDeviceWrapper(device, logging);
+      new BluetoothDeviceWrapper(device, logging, dispatchTypedEvent);
     deviceIdToWrapper.set(device.id, bluetooth);
     await bluetooth.connect();
     return bluetooth;
