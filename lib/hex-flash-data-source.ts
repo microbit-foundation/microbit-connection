@@ -1,8 +1,5 @@
 import { BoardId } from "./board-id";
-import {
-  FlashDataSource,
-  HexGenerationError as FlashDataError,
-} from "./device";
+import { FlashDataSource, FlashDataError as FlashDataError } from "./device";
 import {
   isUniversalHex,
   separateUniversalHex,

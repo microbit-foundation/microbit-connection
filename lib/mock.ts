@@ -13,8 +13,8 @@ import {
   FlashEvent,
   SerialDataEvent,
   ConnectionStatusEvent,
-  WebUSBError,
-  WebUSBErrorCode,
+  DeviceError,
+  DeviceErrorCode,
 } from "./device";
 
 /**
@@ -32,7 +32,7 @@ export class MockDeviceConnection
     ? ConnectionStatus.NO_AUTHORIZED_DEVICE
     : ConnectionStatus.NOT_SUPPORTED;
 
-  private connectResults: WebUSBErrorCode[] = [];
+  private connectResults: DeviceErrorCode[] = [];
 
   constructor() {
     super();
@@ -44,7 +44,7 @@ export class MockDeviceConnection
     this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
   }
 
-  mockConnect(code: WebUSBErrorCode) {
+  mockConnect(code: DeviceErrorCode) {
     this.connectResults.push(code);
   }
 
@@ -55,7 +55,7 @@ export class MockDeviceConnection
   async connect(): Promise<ConnectionStatus> {
     const next = this.connectResults.shift();
     if (next) {
-      throw new WebUSBError({ code: next, message: "Mocked failure" });
+      throw new DeviceError({ code: next, message: "Mocked failure" });
     }
 
     this.setStatus(ConnectionStatus.CONNECTED);
@@ -83,7 +83,7 @@ export class MockDeviceConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    },
+    }
   ): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
     options.progress(0.5);

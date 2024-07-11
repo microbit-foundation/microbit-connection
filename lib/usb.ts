@@ -16,13 +16,13 @@ import {
   AfterRequestDevice,
   FlashDataSource,
   FlashEvent,
-  HexGenerationError,
+  FlashDataError,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
   BeforeRequestDevice,
   ConnectionStatusEvent,
-  WebUSBError,
+  DeviceError,
 } from "./device";
 import { TypedEventTarget } from "./events";
 
@@ -326,7 +326,7 @@ export class MicrobitWebUSBConnection
     try {
       return await f();
     } catch (e: any) {
-      if (e instanceof HexGenerationError) {
+      if (e instanceof FlashDataError) {
         throw e;
       }
 
@@ -413,18 +413,18 @@ export class MicrobitWebUSBConnection
 }
 
 const genericErrorSuggestingReconnect = (e: any) =>
-  new WebUSBError({
+  new DeviceError({
     code: "reconnect-microbit",
     message: e.message,
   });
 
 // tslint:disable-next-line: no-any
-const enrichedError = (err: any): WebUSBError => {
-  if (err instanceof WebUSBError) {
+const enrichedError = (err: any): DeviceError => {
+  if (err instanceof DeviceError) {
     return err;
   }
   if (err instanceof TimeoutError) {
-    return new WebUSBError({
+    return new DeviceError({
       code: "timeout-error",
       message: err.message,
     });
@@ -440,22 +440,22 @@ const enrichedError = (err: any): WebUSBError => {
       // These messages changed to be prefixed in 2023 so we've relaxed the checks.
       if (/No valid interfaces found/.test(err.message)) {
         // This comes from DAPjs's WebUSB open.
-        return new WebUSBError({
+        return new DeviceError({
           code: "update-req",
           message: err.message,
         });
       } else if (/No device selected/.test(err.message)) {
-        return new WebUSBError({
+        return new DeviceError({
           code: "no-device-selected",
           message: err.message,
         });
       } else if (/Unable to claim interface/.test(err.message)) {
-        return new WebUSBError({
+        return new DeviceError({
           code: "clear-connect",
           message: err.message,
         });
       } else if (err.name === "device-disconnected") {
-        return new WebUSBError({
+        return new DeviceError({
           code: "device-disconnected",
           message: err.message,
         });

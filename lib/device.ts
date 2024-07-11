@@ -11,7 +11,7 @@ import { BoardId } from "./board-id";
  *
  * New members may be added over time.
  */
-export type WebUSBErrorCode =
+export type DeviceErrorCode =
   /**
    * Device not selected, e.g. because the user cancelled the dialog.
    */
@@ -46,18 +46,23 @@ export type WebUSBErrorCode =
  * The message is the underlying message text and will usually be in
  * English.
  */
-export class WebUSBError extends Error {
-  code: WebUSBErrorCode;
-  constructor({ code, message }: { code: WebUSBErrorCode; message?: string }) {
+export class DeviceError extends Error {
+  code: DeviceErrorCode;
+  constructor({ code, message }: { code: DeviceErrorCode; message?: string }) {
     super(message);
     this.code = code;
   }
 }
 
 /**
- * Tracks WebUSB connection status.
+ * Tracks connection status,
  */
 export enum ConnectionStatus {
+  /**
+   * Determining whether the connection type is supported requires
+   * initialize() to complete.
+   */
+  SUPPORT_NOT_KNOWN,
   /**
    * Not supported.
    */
@@ -79,16 +84,7 @@ export enum ConnectionStatus {
   CONNECTED = "CONNECTED",
 }
 
-/**
- * Tracks user connection action.
- */
-export enum ConnectionAction {
-  FLASH = "FLASH",
-  CONNECT = "CONNECT",
-  DISCONNECT = "DISCONNECT",
-}
-
-export class HexGenerationError extends Error {}
+export class FlashDataError extends Error {}
 
 export interface FlashDataSource {
   /**
@@ -99,14 +95,14 @@ export interface FlashDataSource {
    * This interface is quite confusing and worth revisiting.
    *
    * @param boardId the id of the board.
-   * @throws HexGenerationError if we cannot generate hex data.
+   * @throws FlashDataError if we cannot generate hex data.
    */
   partialFlashData(boardId: BoardId): Promise<Uint8Array>;
 
   /**
    * @param boardId the id of the board.
    * @returns A board-specific (non-universal) Intel Hex file for the given board id.
-   * @throws HexGenerationError if we cannot generate hex data.
+   * @throws FlashDataError if we cannot generate hex data.
    */
   fullFlashData(boardId: BoardId): Promise<string>;
 }
