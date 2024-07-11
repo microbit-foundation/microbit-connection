@@ -8,6 +8,7 @@ import { MicrobitWebUSBConnection } from "../lib/webusb";
 import { HexFlashDataSource } from "../lib/hex-flash-data-source";
 import { ConnectionStatus, DeviceConnection } from "../lib/device";
 import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
+import { AccelerometerDataEvent } from "../lib/accelerometer";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <section id="flash">
@@ -24,6 +25,11 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <p class="status"></p>
     <label><div>File to flash</div><input type="file"/></label>
     <button class="flash">Flash</button>
+    <div class="acc-controls">
+      <button class="acc-data-get">Get accelerometer data</button>
+      <button class="acc-data-listen">Listen to accelerometer data</button>
+      <button class="acc-data-stop">Stop accelerometer data</button>
+    </div>
   </section>
 `;
 
@@ -37,6 +43,15 @@ const fileInput = document.querySelector(
   "#flash input[type=file]"
 )! as HTMLInputElement;
 const statusParagraph = document.querySelector("#flash > .status")!;
+const accDataGet = document.querySelector(
+  "#flash > .acc-controls > .acc-data-get"
+)!;
+const accDataListen = document.querySelector(
+  "#flash >  .acc-controls >  .acc-data-listen"
+)!;
+const accDataStop = document.querySelector(
+  "#flash >  .acc-controls > .acc-data-stop"
+)!;
 
 let connection: DeviceConnection = new MicrobitWebUSBConnection();
 const displayStatus = (status: ConnectionStatus) => {
@@ -84,4 +99,27 @@ flash.addEventListener("click", async () => {
       },
     });
   }
+});
+
+accDataGet.addEventListener("click", async () => {
+  const acc = await connection.getAccelerometer();
+  const data = await acc?.getData();
+  console.log("Get accelerometer data", data);
+});
+
+const accChangedListener = (event: AccelerometerDataEvent) => {
+  console.log(event.data);
+};
+
+accDataListen.addEventListener("click", async () => {
+  const acc = await connection.getAccelerometer();
+  console.log("Stream accelerometer data");
+  acc?.addEventListener("accelerometerdatachanged", accChangedListener);
+  acc?.startNotifications();
+});
+
+accDataStop.addEventListener("click", async () => {
+  const acc = await connection.getAccelerometer();
+  acc?.removeEventListener("accelerometerdatachanged", accChangedListener);
+  acc?.stopNotifications();
 });

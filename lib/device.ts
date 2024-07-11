@@ -5,6 +5,7 @@
  */
 import { TypedEventTarget } from "./events";
 import { BoardId } from "./board-id";
+import { Accelerometer } from "./accelerometer";
 
 /**
  * Specific identified error types.
@@ -242,4 +243,6 @@ export interface DeviceConnection
    * Clear device to enable chooseDevice.
    */
   clearDevice(): void;
+
+  getAccelerometer(): Promise<Accelerometer | undefined>;
 }

@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
+import { Accelerometer } from "./accelerometer";
 import {
   BluetoothDeviceWrapper,
   createBluetoothDeviceWrapper,
@@ -134,6 +135,10 @@ export class MicrobitWebBluetoothConnection
         message: "disconnected",
       });
     }
+  }
+
+  async getAccelerometer(): Promise<Accelerometer | undefined> {
+    return this.connection?.getAccelerometerService();
   }
 
   private setStatus(newStatus: ConnectionStatus) {

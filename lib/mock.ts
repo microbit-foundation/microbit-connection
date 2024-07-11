@@ -16,6 +16,7 @@ import {
   WebUSBError,
   WebUSBErrorCode,
 } from "./device";
+import { Accelerometer } from "./accelerometer";
 
 /**
  * A mock device used during end-to-end testing.
@@ -83,7 +84,7 @@ export class MockDeviceConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    },
+    }
   ): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
     options.progress(0.5);
@@ -111,5 +112,9 @@ export class MockDeviceConnection
 
   mockWebUsbNotSupported(): void {
     this.setStatus(ConnectionStatus.NOT_SUPPORTED);
+  }
+
+  getAccelerometer(): Promise<Accelerometer | undefined> {
+    return Promise.resolve(undefined);
   }
 }

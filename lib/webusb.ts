@@ -25,6 +25,7 @@ import {
   WebUSBError,
 } from "./device";
 import { TypedEventTarget } from "./events";
+import { Accelerometer } from "./accelerometer";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
@@ -124,14 +125,14 @@ export class MicrobitWebUSBConnection
           }
         }, assumePageIsStayingOpenDelay);
       },
-      { once: true },
+      { once: true }
     );
   };
 
   private logging: Logging;
 
   constructor(
-    options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() },
+    options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() }
   ) {
     super();
     this.logging = options.logging;
@@ -150,7 +151,7 @@ export class MicrobitWebUSBConnection
       if (window.document) {
         window.document.addEventListener(
           "visibilitychange",
-          this.visibilityChangeListener,
+          this.visibilityChangeListener
         );
       }
     }
@@ -165,7 +166,7 @@ export class MicrobitWebUSBConnection
       if (window.document) {
         window.document.removeEventListener(
           "visibilitychange",
-          this.visibilityChangeListener,
+          this.visibilityChangeListener
         );
       }
     }
@@ -193,13 +194,13 @@ export class MicrobitWebUSBConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    },
+    }
   ): Promise<void> {
     this.flashing = true;
     try {
       const startTime = new Date().getTime();
       await this.withEnrichedErrors(() =>
-        this.flashInternal(dataSource, options),
+        this.flashInternal(dataSource, options)
       );
       this.dispatchTypedEvent("flash", new FlashEvent());
 
@@ -221,7 +222,7 @@ export class MicrobitWebUSBConnection
     options: {
       partial: boolean;
       progress: (percentage: number | undefined, partial: boolean) => void;
-    },
+    }
   ): Promise<void> {
     this.log("Stopping serial before flash");
     await this.stopSerialInternal();
@@ -333,7 +334,7 @@ export class MicrobitWebUSBConnection
       // Log error to console for feedback
       this.log("An error occurred whilst attempting to use WebUSB.");
       this.log(
-        "Details of the error can be found below, and may be useful when trying to replicate and debug the error.",
+        "Details of the error can be found below, and may be useful when trying to replicate and debug the error."
       );
       this.log(e);
 
@@ -409,6 +410,10 @@ export class MicrobitWebUSBConnection
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
+  }
+
+  async getAccelerometer(): Promise<Accelerometer | undefined> {
+    return Promise.resolve(undefined);
   }
 }
 
