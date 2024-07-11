@@ -4,6 +4,8 @@ import {
   isUniversalHex,
   separateUniversalHex,
 } from "@microbit/microbit-universal-hex";
+
+// I think we'd end up with two independently bundled copies of this for clients who also depend on microbit-fs.
 import MemoryMap from "nrf-intel-hex";
 
 export class HexFlashDataSource implements FlashDataSource {
