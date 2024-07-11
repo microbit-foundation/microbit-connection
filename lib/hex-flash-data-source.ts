@@ -12,10 +12,12 @@ export class HexFlashDataSource implements FlashDataSource {
   constructor(private hex: string) {}
 
   partialFlashData(boardId: BoardId): Promise<Uint8Array> {
-    // Perhaps this would make more sense if we actually worked with a MemoryMap?
-    // That's what microbit-fs is using internally.
+    // Perhaps this would make more sense if we returned a MemoryMap?
     // Then the partial flashing code could be given everything including UICR without
     // passing a very large Uint8Array.
+
+    // Or use MM inside PF and return a (partial) hex string in the microbit-fs case?
+
     const part = this.matchingPart(boardId);
     const hex = MemoryMap.fromHex(part);
     const keys = Array.from(hex.keys()).filter((k) => k < 0x10000000);
