@@ -1,5 +1,8 @@
 import { BoardId } from "./board-id";
-import { FlashDataSource, HexGenerationError } from "./device";
+import {
+  FlashDataSource,
+  HexGenerationError as FlashDataError,
+} from "./device";
 import {
   isUniversalHex,
   separateUniversalHex,
@@ -23,11 +26,11 @@ export class HexFlashDataSource implements FlashDataSource {
     const keys = Array.from(hex.keys()).filter((k) => k < 0x10000000);
     const lastKey = keys[keys.length - 1];
     if (lastKey === undefined) {
-      throw new HexGenerationError("Empty hex");
+      throw new FlashDataError("Empty hex");
     }
     const lastPart = hex.get(lastKey);
     if (!lastPart) {
-      throw new HexGenerationError("Empty hex");
+      throw new FlashDataError("Empty hex");
     }
     const length = lastKey + lastPart.length;
     const data = hex.slicePad(0, length, 0);
@@ -44,7 +47,7 @@ export class HexFlashDataSource implements FlashDataSource {
       const parts = separateUniversalHex(this.hex);
       const matching = parts.find((p) => p.boardId == boardId.normalize().id);
       if (!matching) {
-        throw new HexGenerationError("No matching part");
+        throw new FlashDataError("No matching part");
       }
       return matching.hex;
     }
