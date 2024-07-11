@@ -1,4 +1,4 @@
-import { MicrobitWebUSBConnection } from "./webusb";
+import { MicrobitWebUSBConnection } from "./usb";
 import { MicrobitWebBluetoothConnection } from "./bluetooth";
 import { BoardId } from "./board-id";
 import type { DeviceConnection } from "./device";

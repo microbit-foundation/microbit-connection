@@ -10,7 +10,7 @@
  * with a tweak to Buffer.
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device";
-import { MicrobitWebUSBConnection } from "./webusb";
+import { MicrobitWebUSBConnection } from "./usb";
 import { beforeAll, expect, vi, describe, it } from "vitest";
 
 vi.mock("./webusb-device-wrapper", () => ({

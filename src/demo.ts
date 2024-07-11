@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import "./demo.css";
-import { MicrobitWebUSBConnection } from "../lib/webusb";
+import { MicrobitWebUSBConnection } from "../lib/usb";
 import { HexFlashDataSource } from "../lib/hex-flash-data-source";
 import { ConnectionStatus, DeviceConnection } from "../lib/device";
 import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
