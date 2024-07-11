@@ -96,6 +96,8 @@ export interface FlashDataSource {
    * This can be generated from microbit-fs directly (via getIntelHexBytes())
    * or from an existing Intel Hex via slicePad.
    *
+   * This interface is quite confusing and worth revisiting.
+   *
    * @param boardId the id of the board.
    * @throws HexGenerationError if we cannot generate hex data.
    */

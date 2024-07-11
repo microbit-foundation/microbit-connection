@@ -78,7 +78,7 @@ flash.addEventListener("click", async () => {
   if (file) {
     const text = await file.text();
     await connection.flash(new HexFlashDataSource(text), {
-      partial: false,
+      partial: true,
       progress: (percentage: number | undefined) => {
         console.log(percentage);
       },
