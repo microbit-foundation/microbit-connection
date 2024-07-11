@@ -221,7 +221,7 @@ export interface DeviceConnection
        * The partial parameter reports the flash type currently in progress.
        */
       progress: (percentage: number | undefined, partial: boolean) => void;
-    }
+    },
   ): Promise<void>;
 
   /**

@@ -34,23 +34,23 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 `;
 
 const transport = document.querySelector(
-  "#flash > .transport"
+  "#flash > .transport",
 )! as HTMLSelectElement;
 const connect = document.querySelector("#flash > .connect")!;
 const disconnect = document.querySelector("#flash > .disconnect")!;
 const flash = document.querySelector("#flash > .flash")!;
 const fileInput = document.querySelector(
-  "#flash input[type=file]"
+  "#flash input[type=file]",
 )! as HTMLInputElement;
 const statusParagraph = document.querySelector("#flash > .status")!;
 const accDataGet = document.querySelector(
-  "#flash > .acc-controls > .acc-data-get"
+  "#flash > .acc-controls > .acc-data-get",
 )!;
 const accDataListen = document.querySelector(
-  "#flash >  .acc-controls >  .acc-data-listen"
+  "#flash >  .acc-controls >  .acc-data-listen",
 )!;
 const accDataStop = document.querySelector(
-  "#flash >  .acc-controls > .acc-data-stop"
+  "#flash >  .acc-controls > .acc-data-stop",
 )!;
 
 let connection: DeviceConnection = new MicrobitWebUSBConnection();

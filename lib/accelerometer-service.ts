@@ -20,12 +20,12 @@ export class AccelerometerService
   constructor(
     private accelerometerDataCharacteristic: BluetoothRemoteGATTCharacteristic,
     // @ts-ignore temporarily unused characteristic
-    private accelerometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic
+    private accelerometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
   ) {
     super();
     this.accelerometerDataCharacteristic.addEventListener(
       "characteristicvaluechanged",
-      this.dataListener
+      this.dataListener,
     );
   }
 
@@ -34,19 +34,19 @@ export class AccelerometerService
       return this.accelerometerInstance;
     }
     const accelerometerService = await gattServer.getPrimaryService(
-      profile.accelerometer.id
+      profile.accelerometer.id,
     );
     const accelerometerDataCharacteristic =
       await accelerometerService.getCharacteristic(
-        profile.accelerometer.characteristics.data.id
+        profile.accelerometer.characteristics.data.id,
       );
     const accelerometerPeriodCharacteristic =
       await accelerometerService.getCharacteristic(
-        profile.accelerometer.characteristics.period.id
+        profile.accelerometer.characteristics.period.id,
       );
     this.accelerometerInstance = new AccelerometerService(
       accelerometerDataCharacteristic,
-      accelerometerPeriodCharacteristic
+      accelerometerPeriodCharacteristic,
     );
     return this.accelerometerInstance;
   }
@@ -70,7 +70,7 @@ export class AccelerometerService
     const data = this.dataViewToData(target.value);
     this.dispatchTypedEvent(
       "accelerometerdatachanged",
-      new AccelerometerDataEvent(data)
+      new AccelerometerDataEvent(data),
     );
   };
 
