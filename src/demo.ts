@@ -38,26 +38,28 @@ const fileInput = document.querySelector(
 )! as HTMLInputElement;
 const statusParagraph = document.querySelector("#flash > .status")!;
 
-const usb = new MicrobitWebUSBConnection();
-const bluetooth = new MicrobitWebBluetoothConnection();
-let connection: DeviceConnection = usb;
-
-const initialisePromise = connection.initialize();
+let connection: DeviceConnection = new MicrobitWebUSBConnection();
 const displayStatus = (status: ConnectionStatus) => {
   statusParagraph.textContent = status.toString();
 };
-transport.addEventListener("change", (e) => {
+const switchTransport = async () => {
+  await connection.disconnect();
+  connection.dispose();
+
   switch (transport.value) {
     case "bluetooth": {
-      connection = bluetooth;
+      connection = new MicrobitWebBluetoothConnection();
       break;
     }
     case "usb": {
-      connection = usb;
+      connection = new MicrobitWebUSBConnection();
       break;
     }
   }
-});
+  await connection.initialize();
+};
+transport.addEventListener("change", switchTransport);
+void switchTransport();
 
 connection.addEventListener("status", (event) => {
   displayStatus(event.status);
@@ -65,11 +67,9 @@ connection.addEventListener("status", (event) => {
 displayStatus(connection.status);
 
 connect.addEventListener("click", async () => {
-  await initialisePromise;
   await connection.connect();
 });
 disconnect.addEventListener("click", async () => {
-  await initialisePromise;
   await connection.disconnect();
 });
 
