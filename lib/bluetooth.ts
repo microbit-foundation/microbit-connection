@@ -3,25 +3,27 @@
  *
  * SPDX-License-Identifier: MIT
  */
+import { AccelerometerData } from "./accelerometer";
 import {
   BluetoothDeviceWrapper,
   createBluetoothDeviceWrapper,
 } from "./bluetooth-device-wrapper";
 import { profile } from "./bluetooth-profile";
 import {
+  AfterRequestDevice,
+  BeforeRequestDevice,
   BoardVersion,
   ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  AfterRequestDevice,
   FlashDataSource,
   SerialResetEvent,
-  BeforeRequestDevice,
 } from "./device";
 import { TypedEventTarget } from "./events";
 import { Logging, NullLogging } from "./logging";
+import { ServiceConnectionEventMap, TypedServiceEvent } from "./service-events";
 
 const requestDeviceTimeoutDuration: number = 30000;
 
@@ -33,7 +35,7 @@ export interface MicrobitWebBluetoothConnectionOptions {
  * A Bluetooth connection to a micro:bit device.
  */
 export class MicrobitWebBluetoothConnection
-  extends TypedEventTarget<DeviceConnectionEventMap>
+  extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements DeviceConnection
 {
   // TODO: when do we call getAvailable() ?
@@ -50,9 +52,20 @@ export class MicrobitWebBluetoothConnection
   private logging: Logging;
   connection: BluetoothDeviceWrapper | undefined;
 
+  private _addEventListener = this.addEventListener;
+  private _removeEventListener = this.removeEventListener;
+
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
+    this.addEventListener = (type, ...args) => {
+      this._addEventListener(type, ...args);
+      this.startNotifications(type);
+    };
+    this.removeEventListener = (type, ...args) => {
+      this.stopNotifications(type);
+      this._removeEventListener(type, ...args);
+    };
   }
 
   private log(v: any) {
@@ -91,7 +104,7 @@ export class MicrobitWebBluetoothConnection
        * A progress callback. Called with undefined when the process is complete or has failed.
        */
       progress: (percentage: number | undefined) => void;
-    }
+    },
   ): Promise<void> {
     throw new Error("Unsupported");
   }
@@ -163,16 +176,18 @@ export class MicrobitWebBluetoothConnection
       }
       this.connection = await createBluetoothDeviceWrapper(
         device,
-        this.logging
+        this.logging,
+        (type, event) => this.dispatchTypedEvent(type, event),
       );
     }
     // TODO: timeout unification?
-    this.connection?.connect();
+    // Connection happens inside createBluetoothDeviceWrapper.
+    // await this.connection?.connect();
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
   private async chooseDevice(
-    options: ConnectOptions
+    options: ConnectOptions,
   ): Promise<BluetoothDevice | undefined> {
     if (this.device) {
       return this.device;
@@ -204,7 +219,7 @@ export class MicrobitWebBluetoothConnection
           ],
         }),
         new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
+          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration),
         ),
       ]);
       if (result === "timeout") {
@@ -219,6 +234,62 @@ export class MicrobitWebBluetoothConnection
       return undefined;
     } finally {
       this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
+    }
+  }
+
+  async getAccelerometerData(): Promise<AccelerometerData | undefined> {
+    const accelerometerService =
+      await this.connection?.getAccelerometerService();
+    return accelerometerService?.getData();
+  }
+
+  async getAccelerometerPeriod(): Promise<number | undefined> {
+    const accelerometerService =
+      await this.connection?.getAccelerometerService();
+    return accelerometerService?.getPeriod();
+  }
+
+  async setAccelerometerPeriod(value: number): Promise<void> {
+    const accelerometerService =
+      await this.connection?.getAccelerometerService();
+    accelerometerService?.setPeriod(value);
+  }
+
+  private async startAccelerometerNotifications() {
+    const accelerometerService =
+      await this.connection?.getAccelerometerService();
+    accelerometerService?.startNotifications();
+    if (this.connection) {
+      this.connection.serviceListeners.accelerometerdatachanged.notifying =
+        true;
+    }
+  }
+
+  private async stopAccelerometerNotifications() {
+    const accelerometerService =
+      await this.connection?.getAccelerometerService();
+    if (this.connection) {
+      this.connection.serviceListeners.accelerometerdatachanged.notifying =
+        false;
+    }
+    accelerometerService?.stopNotifications();
+  }
+
+  private async startNotifications(type: string) {
+    switch (type as TypedServiceEvent) {
+      case "accelerometerdatachanged": {
+        this.startAccelerometerNotifications();
+        break;
+      }
+    }
+  }
+
+  private async stopNotifications(type: string) {
+    switch (type as TypedServiceEvent) {
+      case "accelerometerdatachanged": {
+        this.stopAccelerometerNotifications();
+        break;
+      }
     }
   }
 }

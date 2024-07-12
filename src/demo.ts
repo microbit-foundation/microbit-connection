@@ -6,8 +6,13 @@
 import "./demo.css";
 import { MicrobitWebUSBConnection } from "../lib/usb";
 import { HexFlashDataSource } from "../lib/hex-flash-data-source";
-import { ConnectionStatus, DeviceConnection } from "../lib/device";
+import {
+  ConnectionStatus,
+  ConnectionStatusEvent,
+  DeviceConnection,
+} from "../lib/device";
 import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
+import { AccelerometerDataEvent } from "../lib/accelerometer";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <section id="flash">
@@ -24,47 +29,85 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <p class="status"></p>
     <label><div>File to flash</div><input type="file"/></label>
     <button class="flash">Flash</button>
+    <div class="acc-data-controls">
+      <button class="acc-data-get">Get accelerometer data</button>
+      <button class="acc-data-listen">Listen to accelerometer data</button>
+      <button class="acc-data-stop">Stop accelerometer data</button>
+    </div>
+    <div class="acc-period-controls">
+      <button class="acc-period-get">Get accelerometer period</button>
+      <label style="display: inline;">Set period
+        <input class="acc-period-input" type="number">
+      </label>
+      <button class="acc-period-set">Set accelerometer period</button>
+      <div>
   </section>
 `;
 
 const transport = document.querySelector(
-  "#flash > .transport"
+  "#flash > .transport",
 )! as HTMLSelectElement;
 const connect = document.querySelector("#flash > .connect")!;
 const disconnect = document.querySelector("#flash > .disconnect")!;
 const flash = document.querySelector("#flash > .flash")!;
 const fileInput = document.querySelector(
-  "#flash input[type=file]"
+  "#flash input[type=file]",
 )! as HTMLInputElement;
 const statusParagraph = document.querySelector("#flash > .status")!;
+const accDataGet = document.querySelector(
+  "#flash > .acc-data-controls > .acc-data-get",
+)!;
+const accDataListen = document.querySelector(
+  "#flash >  .acc-data-controls >  .acc-data-listen",
+)!;
+const accDataStop = document.querySelector(
+  "#flash >  .acc-data-controls > .acc-data-stop",
+)!;
+const accPeriodGet = document.querySelector(
+  "#flash > .acc-period-controls > .acc-period-get",
+)!;
+const accPeriodInput = document.querySelector(
+  "#flash > .acc-period-controls .acc-period-input",
+)! as HTMLInputElement;
+const accPeriodSet = document.querySelector(
+  "#flash > .acc-period-controls > .acc-period-set",
+)!;
 
-let connection: DeviceConnection = new MicrobitWebUSBConnection();
 const displayStatus = (status: ConnectionStatus) => {
   statusParagraph.textContent = status.toString();
 };
+const handleDisplayStatusChange = (event: ConnectionStatusEvent) => {
+  displayStatus(event.status);
+};
+const initConnectionStatusDisplay = () => {
+  displayStatus(connection.status);
+  connection.addEventListener("status", handleDisplayStatusChange);
+};
+
+let connection: DeviceConnection = new MicrobitWebUSBConnection();
+
+initConnectionStatusDisplay();
+
 const switchTransport = async () => {
   await connection.disconnect();
   connection.dispose();
+  connection.removeEventListener("status", handleDisplayStatusChange);
 
   switch (transport.value) {
     case "bluetooth": {
       connection = new MicrobitWebBluetoothConnection();
+      initConnectionStatusDisplay();
       break;
     }
     case "usb": {
       connection = new MicrobitWebUSBConnection();
+      initConnectionStatusDisplay();
       break;
     }
   }
   await connection.initialize();
 };
 transport.addEventListener("change", switchTransport);
-void switchTransport();
-
-connection.addEventListener("status", (event) => {
-  displayStatus(event.status);
-});
-displayStatus(connection.status);
 
 connect.addEventListener("click", async () => {
   await connection.connect();
@@ -83,5 +126,68 @@ flash.addEventListener("click", async () => {
         console.log(percentage);
       },
     });
+  }
+});
+
+accDataGet.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    const data = await connection.getAccelerometerData();
+    console.log("Get accelerometer data", data);
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
+  }
+});
+
+const accChangedListener = (event: AccelerometerDataEvent) => {
+  console.log(event.data);
+};
+
+accDataListen.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    connection?.addEventListener(
+      "accelerometerdatachanged",
+      accChangedListener,
+    );
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
+  }
+});
+
+accDataStop.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    connection?.removeEventListener(
+      "accelerometerdatachanged",
+      accChangedListener,
+    );
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
+  }
+});
+
+accPeriodGet.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    const period = await connection.getAccelerometerPeriod();
+    console.log("Get accelerometer period", period);
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
+  }
+});
+
+accPeriodSet.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    const period = parseInt(accPeriodInput.value);
+    await connection.setAccelerometerPeriod(period);
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
   }
 });
