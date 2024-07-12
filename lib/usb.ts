@@ -5,25 +5,24 @@
  */
 import { Logging, NullLogging } from "./logging";
 import { withTimeout, TimeoutError } from "./async-util";
-import { DAPWrapper } from "./dap-wrapper";
-import { PartialFlashing } from "./partial-flashing";
+import { DAPWrapper } from "./usb-device-wrapper";
+import { PartialFlashing } from "./usb-partial-flashing";
 import {
   BoardVersion,
   ConnectionStatus,
   ConnectOptions,
   DeviceConnection,
   DeviceConnectionEventMap,
-  EndUSBSelect,
+  AfterRequestDevice,
   FlashDataSource,
   FlashEvent,
-  HexGenerationError,
-  MicrobitWebUSBConnectionOptions,
+  FlashDataError,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
-  StartUSBSelect,
+  BeforeRequestDevice,
   ConnectionStatusEvent,
-  WebUSBError,
+  DeviceError,
 } from "./device";
 import { TypedEventTarget } from "./events";
 
@@ -33,6 +32,13 @@ export const isChromeOS105 = (): boolean => {
   const userAgent = navigator.userAgent;
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
+
+export interface MicrobitWebUSBConnectionOptions {
+  // We should copy this type when extracting a library, and make it optional.
+  // Coupling for now to make it easy to evolve.
+
+  logging: Logging;
+}
 
 /**
  * A WebUSB connection to a micro:bit device.
@@ -63,7 +69,7 @@ export class MicrobitWebUSBConnection
   private serialReadInProgress: Promise<void> | undefined;
 
   private serialListener = (data: string) => {
-    this.dispatchTypedEvent("serial_data", new SerialDataEvent(data));
+    this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
   };
 
   private flashing: boolean = false;
@@ -172,12 +178,8 @@ export class MicrobitWebUSBConnection
     });
   }
 
-  getBoardVersion(): BoardVersion | null {
-    if (!this.connection) {
-      return null;
-    }
-    const boardId = this.connection.boardSerialInfo.id;
-    return boardId.isV1() ? "V1" : boardId.isV2() ? "V2" : null;
+  getBoardVersion(): BoardVersion | undefined {
+    return this.connection?.boardSerialInfo?.id.toBoardVersion();
   }
 
   async flash(
@@ -277,7 +279,7 @@ export class MicrobitWebUSBConnection
       .startSerial(this.serialListener)
       .then(() => this.log("Finished listening for serial data"))
       .catch((e) => {
-        this.dispatchTypedEvent("serial_error", new SerialErrorEvent(e));
+        this.dispatchTypedEvent("serialerror", new SerialErrorEvent(e));
       });
   }
 
@@ -286,7 +288,7 @@ export class MicrobitWebUSBConnection
       this.connection.stopSerial(this.serialListener);
       await this.serialReadInProgress;
       this.serialReadInProgress = undefined;
-      this.dispatchTypedEvent("serial_reset", new SerialResetEvent());
+      this.dispatchTypedEvent("serialreset", new SerialResetEvent());
     }
   }
 
@@ -324,7 +326,7 @@ export class MicrobitWebUSBConnection
     try {
       return await f();
     } catch (e: any) {
-      if (e instanceof HexGenerationError) {
+      if (e instanceof FlashDataError) {
         throw e;
       }
 
@@ -401,28 +403,28 @@ export class MicrobitWebUSBConnection
     if (this.device) {
       return this.device;
     }
-    this.dispatchTypedEvent("start_usb_select", new StartUSBSelect());
+    this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
     });
-    this.dispatchTypedEvent("end_usb_select", new EndUSBSelect());
+    this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
   }
 }
 
 const genericErrorSuggestingReconnect = (e: any) =>
-  new WebUSBError({
+  new DeviceError({
     code: "reconnect-microbit",
     message: e.message,
   });
 
 // tslint:disable-next-line: no-any
-const enrichedError = (err: any): WebUSBError => {
-  if (err instanceof WebUSBError) {
+const enrichedError = (err: any): DeviceError => {
+  if (err instanceof DeviceError) {
     return err;
   }
   if (err instanceof TimeoutError) {
-    return new WebUSBError({
+    return new DeviceError({
       code: "timeout-error",
       message: err.message,
     });
@@ -438,22 +440,22 @@ const enrichedError = (err: any): WebUSBError => {
       // These messages changed to be prefixed in 2023 so we've relaxed the checks.
       if (/No valid interfaces found/.test(err.message)) {
         // This comes from DAPjs's WebUSB open.
-        return new WebUSBError({
+        return new DeviceError({
           code: "update-req",
           message: err.message,
         });
       } else if (/No device selected/.test(err.message)) {
-        return new WebUSBError({
+        return new DeviceError({
           code: "no-device-selected",
           message: err.message,
         });
       } else if (/Unable to claim interface/.test(err.message)) {
-        return new WebUSBError({
+        return new DeviceError({
           code: "clear-connect",
           message: err.message,
         });
       } else if (err.name === "device-disconnected") {
-        return new WebUSBError({
+        return new DeviceError({
           code: "device-disconnected",
           message: err.message,
         });

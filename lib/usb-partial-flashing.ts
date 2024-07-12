@@ -48,7 +48,7 @@ import { DAPLink } from "dapjs";
 import { Logging } from "./logging";
 import { withTimeout, TimeoutError } from "./async-util";
 import { BoardId } from "./board-id";
-import { DAPWrapper } from "./dap-wrapper";
+import { DAPWrapper } from "./usb-device-wrapper";
 import { FlashDataSource } from "./device";
 import {
   CoreRegister,
@@ -56,7 +56,7 @@ import {
   Page,
   pageAlignBlocks,
   read32FromUInt8Array,
-} from "./partial-flashing-utils";
+} from "./usb-partial-flashing-utils";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 
@@ -99,7 +99,10 @@ const stackAddr = 0x20001000;
  * Intented to be used for a single flash with a pre-connected DAPWrapper.
  */
 export class PartialFlashing {
-  constructor(private dapwrapper: DAPWrapper, private logging: Logging) {}
+  constructor(
+    private dapwrapper: DAPWrapper,
+    private logging: Logging
+  ) {}
 
   private log(v: any): void {
     this.logging.log(v);
@@ -260,7 +263,7 @@ export class PartialFlashing {
     try {
       const data = await dataSource.fullFlashData(boardId);
       await this.dapwrapper.transport.open();
-      await this.dapwrapper.daplink.flash(data);
+      await this.dapwrapper.daplink.flash(new TextEncoder().encode(data));
       this.logging.event({
         type: "WebUSB-info",
         message: "full-flash-successful",

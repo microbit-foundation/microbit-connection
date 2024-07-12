@@ -12,15 +12,16 @@ export interface Event {
 
 export interface Logging {
   event(event: Event): void;
-  error(e: any): void;
+  error(message: string, e: unknown): void;
   log(e: any): void;
 }
 
 export class NullLogging implements Logging {
-  event(_event: Event): void {
-  }
-  error(_e: any): void {
+  event(_event: Event): void {}
+  error(_m: string, _e: unknown): void {
+    console.error(_m, _e);
   }
   log(_e: any): void {
+    console.log(_e);
   }
 }

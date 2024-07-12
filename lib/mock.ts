@@ -13,8 +13,8 @@ import {
   FlashEvent,
   SerialDataEvent,
   ConnectionStatusEvent,
-  WebUSBError,
-  WebUSBErrorCode,
+  DeviceError,
+  DeviceErrorCode,
 } from "./device";
 
 /**
@@ -32,7 +32,7 @@ export class MockDeviceConnection
     ? ConnectionStatus.NO_AUTHORIZED_DEVICE
     : ConnectionStatus.NOT_SUPPORTED;
 
-  private connectResults: WebUSBErrorCode[] = [];
+  private connectResults: DeviceErrorCode[] = [];
 
   constructor() {
     super();
@@ -41,10 +41,10 @@ export class MockDeviceConnection
   }
 
   mockSerialWrite(data: string) {
-    this.dispatchTypedEvent("serial_data", new SerialDataEvent(data));
+    this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
   }
 
-  mockConnect(code: WebUSBErrorCode) {
+  mockConnect(code: DeviceErrorCode) {
     this.connectResults.push(code);
   }
 
@@ -55,14 +55,14 @@ export class MockDeviceConnection
   async connect(): Promise<ConnectionStatus> {
     const next = this.connectResults.shift();
     if (next) {
-      throw new WebUSBError({ code: next, message: "Mocked failure" });
+      throw new DeviceError({ code: next, message: "Mocked failure" });
     }
 
     this.setStatus(ConnectionStatus.CONNECTED);
     return this.status;
   }
 
-  getBoardVersion(): BoardVersion | null {
+  getBoardVersion(): BoardVersion | undefined {
     return "V2";
   }
 

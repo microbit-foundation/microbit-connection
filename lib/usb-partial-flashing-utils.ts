@@ -83,7 +83,10 @@ export const regRequest = (regId: number, isWrite: boolean = false): number => {
 };
 
 export class Page {
-  constructor(readonly targetAddr: number, readonly data: Uint8Array) {}
+  constructor(
+    readonly targetAddr: number,
+    readonly data: Uint8Array,
+  ) {}
 }
 
 // Split buffer into pages, each of pageSize size.
@@ -91,7 +94,7 @@ export class Page {
 export const pageAlignBlocks = (
   buffer: Uint8Array,
   targetAddr: number,
-  pageSize: number
+  pageSize: number,
 ): Page[] => {
   let unaligned = new Uint8Array(buffer);
   let pages = [];
@@ -114,7 +117,7 @@ export const pageAlignBlocks = (
 export const onlyChanged = (
   pages: Page[],
   checksums: Uint8Array,
-  pageSize: number
+  pageSize: number,
 ): Page[] => {
   return pages.filter((page) => {
     let idx = page.targetAddr / pageSize;

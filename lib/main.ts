@@ -1,4 +1,13 @@
-import { MicrobitWebUSBConnection } from "./webusb";
+import { MicrobitWebUSBConnection } from "./usb";
+import { MicrobitWebBluetoothConnection } from "./bluetooth";
+import { BoardId } from "./board-id";
+import type { DeviceConnection } from "./device";
+import { HexFlashDataSource } from "./hex-flash-data-source";
 
-// TODO: more!
-export { MicrobitWebUSBConnection };
+export {
+  MicrobitWebUSBConnection,
+  MicrobitWebBluetoothConnection,
+  BoardId,
+  DeviceConnection,
+  HexFlashDataSource,
+};

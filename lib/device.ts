@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 import { TypedEventTarget } from "./events";
-import { Logging } from "./logging";
 import { BoardId } from "./board-id";
 
 /**
@@ -12,7 +11,7 @@ import { BoardId } from "./board-id";
  *
  * New members may be added over time.
  */
-export type WebUSBErrorCode =
+export type DeviceErrorCode =
   /**
    * Device not selected, e.g. because the user cancelled the dialog.
    */
@@ -47,25 +46,23 @@ export type WebUSBErrorCode =
  * The message is the underlying message text and will usually be in
  * English.
  */
-export class WebUSBError extends Error {
-  code: WebUSBErrorCode;
-  constructor({ code, message }: { code: WebUSBErrorCode; message?: string }) {
+export class DeviceError extends Error {
+  code: DeviceErrorCode;
+  constructor({ code, message }: { code: DeviceErrorCode; message?: string }) {
     super(message);
     this.code = code;
   }
 }
 
-export interface MicrobitWebUSBConnectionOptions {
-  // We should copy this type when extracting a library, and make it optional.
-  // Coupling for now to make it easy to evolve.
-
-  logging: Logging;
-}
-
 /**
- * Tracks WebUSB connection status.
+ * Tracks connection status,
  */
 export enum ConnectionStatus {
+  /**
+   * Determining whether the connection type is supported requires
+   * initialize() to complete.
+   */
+  SUPPORT_NOT_KNOWN,
   /**
    * Not supported.
    */
@@ -87,42 +84,33 @@ export enum ConnectionStatus {
   CONNECTED = "CONNECTED",
 }
 
-/**
- * Tracks user connection action.
- */
-export enum ConnectionAction {
-  FLASH = "FLASH",
-  CONNECT = "CONNECT",
-  DISCONNECT = "DISCONNECT",
-}
-
-export class HexGenerationError extends Error {}
+export class FlashDataError extends Error {}
 
 export interface FlashDataSource {
   /**
-   * The data required for a partial flash.
+   * For now we only support partially flashing contiguous data.
+   * This can be generated from microbit-fs directly (via getIntelHexBytes())
+   * or from an existing Intel Hex via slicePad.
+   *
+   * This interface is quite confusing and worth revisiting.
    *
    * @param boardId the id of the board.
-   * @throws HexGenerationError if we cannot generate hex data.
+   * @throws FlashDataError if we cannot generate hex data.
    */
   partialFlashData(boardId: BoardId): Promise<Uint8Array>;
 
   /**
-   * A full hex.
-   *
    * @param boardId the id of the board.
-   * @throws HexGenerationError if we cannot generate hex data.
+   * @returns A board-specific (non-universal) Intel Hex file for the given board id.
+   * @throws FlashDataError if we cannot generate hex data.
    */
-  fullFlashData(boardId: BoardId): Promise<Uint8Array>;
-
-  /**
-   * The file system represented by file name keys and data values.
-   */
-  files(): Promise<Record<string, Uint8Array>>;
+  fullFlashData(boardId: BoardId): Promise<string>;
 }
 
 export interface ConnectOptions {
   serial?: boolean;
+  // Name filter used for Web Bluetooth
+  name?: string;
 }
 
 export type BoardVersion = "V1" | "V2";
@@ -135,19 +123,19 @@ export class ConnectionStatusEvent extends Event {
 
 export class SerialDataEvent extends Event {
   constructor(public readonly data: string) {
-    super("serial_data");
+    super("serialdata");
   }
 }
 
 export class SerialResetEvent extends Event {
   constructor() {
-    super("serial_reset");
+    super("serialreset");
   }
 }
 
 export class SerialErrorEvent extends Event {
   constructor(public readonly error: unknown) {
-    super("serial_error");
+    super("serialerror");
   }
 }
 
@@ -157,26 +145,26 @@ export class FlashEvent extends Event {
   }
 }
 
-export class StartUSBSelect extends Event {
+export class BeforeRequestDevice extends Event {
   constructor() {
-    super("start_usb_select");
+    super("beforerequestdevice");
   }
 }
 
-export class EndUSBSelect extends Event {
+export class AfterRequestDevice extends Event {
   constructor() {
-    super("end_usb_select");
+    super("afterrequestdevice");
   }
 }
 
 export class DeviceConnectionEventMap {
   "status": ConnectionStatusEvent;
-  "serial_data": SerialDataEvent;
-  "serial_reset": Event;
-  "serial_error": Event;
+  "serialdata": SerialDataEvent;
+  "serialreset": Event;
+  "serialerror": Event;
   "flash": Event;
-  "start_usb_select": Event;
-  "end_usb_select": Event;
+  "beforerequestdevice": Event;
+  "afterrequestdevice": Event;
 }
 
 export interface DeviceConnection
@@ -205,7 +193,7 @@ export interface DeviceConnection
    *
    * @returns the board version or null if there is no connection.
    */
-  getBoardVersion(): BoardVersion | null;
+  getBoardVersion(): BoardVersion | undefined;
 
   /**
    * Flash the micro:bit.

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { BoardVersion } from "./device";
+
 /**
  * Validates micro:bit board IDs.
  */
@@ -15,6 +17,10 @@ export class BoardId {
     if (!this.isV1() && !this.isV2()) {
       throw new Error(`Could not recognise the Board ID ${id.toString(16)}`);
     }
+  }
+
+  toBoardVersion(): BoardVersion {
+    return this.isV1() ? "V1" : "V2";
   }
 
   isV1(): boolean {

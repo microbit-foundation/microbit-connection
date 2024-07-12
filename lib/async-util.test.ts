@@ -10,7 +10,7 @@ describe("withTimeout", () => {
   it("times out", async () => {
     const neverResolves = new Promise(() => {});
     await expect(() => withTimeout(neverResolves, 0)).rejects.toThrowError(
-      TimeoutError
+      TimeoutError,
     );
   });
   it("returns the value", async () => {

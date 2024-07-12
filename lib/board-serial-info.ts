@@ -9,7 +9,7 @@ export class BoardSerialInfo {
   constructor(
     public id: BoardId,
     public familyId: string,
-    public hic: string
+    public hic: string,
   ) {}
   static parse(device: USBDevice, log: (msg: string) => void) {
     const serial = device.serialNumber;
