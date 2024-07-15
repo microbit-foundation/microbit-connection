@@ -93,22 +93,6 @@ export class MicrobitWebBluetoothConnection
     return this.connection?.boardVersion;
   }
 
-  async flash(
-    dataSource: FlashDataSource,
-    options: {
-      /**
-       * True to use a partial flash where possible, false to force a full flash.
-       */
-      partial: boolean;
-      /**
-       * A progress callback. Called with undefined when the process is complete or has failed.
-       */
-      progress: (percentage: number | undefined) => void;
-    },
-  ): Promise<void> {
-    throw new Error("Unsupported");
-  }
-
   // @ts-ignore
   private async startSerialInternal() {
     if (!this.connection) {
@@ -177,7 +161,7 @@ export class MicrobitWebBluetoothConnection
       this.connection = await createBluetoothDeviceWrapper(
         device,
         this.logging,
-        (type, event) => this.dispatchTypedEvent(type, event),
+        (type, event) => this.dispatchTypedEvent(type, event)
       );
     }
     // TODO: timeout unification?
@@ -187,7 +171,7 @@ export class MicrobitWebBluetoothConnection
   }
 
   private async chooseDevice(
-    options: ConnectOptions,
+    options: ConnectOptions
   ): Promise<BluetoothDevice | undefined> {
     if (this.device) {
       return this.device;
@@ -219,7 +203,7 @@ export class MicrobitWebBluetoothConnection
           ],
         }),
         new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration),
+          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration)
         ),
       ]);
       if (result === "timeout") {
