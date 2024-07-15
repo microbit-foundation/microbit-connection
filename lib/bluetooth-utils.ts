@@ -1,4 +1,4 @@
-import { GattOperation } from "./bluetooth-device-wrapper";
+import { GattOperation } from "./bluetooth-device-wrapper.js";
 
 export const createGattOperationPromise = (
   fn: () => Promise<DataView>,

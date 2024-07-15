@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { DapVal } from "./constants";
+import { DapVal } from "./constants.js";
 
 // Represents the micro:bit's core registers
 // Drawn from https://armmbed.github.io/dapjs/docs/enums/coreregister.html

@@ -45,18 +45,18 @@
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
 import { DAPLink } from "dapjs";
-import { Logging } from "./logging";
-import { withTimeout, TimeoutError } from "./async-util";
-import { BoardId } from "./board-id";
-import { DAPWrapper } from "./usb-device-wrapper";
-import { FlashDataSource } from "./device";
+import { Logging } from "./logging.js";
+import { withTimeout, TimeoutError } from "./async-util.js";
+import { BoardId } from "./board-id.js";
+import { DAPWrapper } from "./usb-device-wrapper.js";
+import { FlashDataSource } from "./device.js";
 import {
   CoreRegister,
   onlyChanged,
   Page,
   pageAlignBlocks,
   read32FromUInt8Array,
-} from "./usb-partial-flashing-utils";
+} from "./usb-partial-flashing-utils.js";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 

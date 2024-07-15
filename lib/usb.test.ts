@@ -9,8 +9,8 @@
  * It might be we could create a custom environment that was web but
  * with a tweak to Buffer.
  */
-import { ConnectionStatus, ConnectionStatusEvent } from "./device";
-import { MicrobitWebUSBConnection } from "./usb";
+import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
+import { MicrobitWebUSBConnection } from "./usb.js";
 import { beforeAll, expect, vi, describe, it } from "vitest";
 
 vi.mock("./webusb-device-wrapper", () => ({

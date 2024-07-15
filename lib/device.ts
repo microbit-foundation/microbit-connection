@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TypedEventTarget } from "./events";
-import { BoardId } from "./board-id";
+import { TypedEventTarget } from "./events.js";
+import { BoardId } from "./board-id.js";
 
 /**
  * Specific identified error types.
@@ -201,7 +201,7 @@ export interface DeviceConnection
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
    */
-  flash(
+  flash?(
     dataSource: FlashDataSource,
     options: {
       /**

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { BoardId } from "./board-id";
+import { BoardId } from "./board-id.js";
 
 export class BoardSerialInfo {
   constructor(

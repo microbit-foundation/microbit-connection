@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { AccelerometerData } from "./accelerometer";
+import { AccelerometerData } from "./accelerometer.js";
 import {
   BluetoothDeviceWrapper,
   createBluetoothDeviceWrapper,
-} from "./bluetooth-device-wrapper";
-import { profile } from "./bluetooth-profile";
+} from "./bluetooth-device-wrapper.js";
+import { profile } from "./bluetooth-profile.js";
 import {
   AfterRequestDevice,
   BeforeRequestDevice,
@@ -18,12 +18,14 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  FlashDataSource,
   SerialResetEvent,
-} from "./device";
-import { TypedEventTarget } from "./events";
-import { Logging, NullLogging } from "./logging";
-import { ServiceConnectionEventMap, TypedServiceEvent } from "./service-events";
+} from "./device.js";
+import { TypedEventTarget } from "./events.js";
+import { Logging, NullLogging } from "./logging.js";
+import {
+  ServiceConnectionEventMap,
+  TypedServiceEvent,
+} from "./service-events.js";
 
 const requestDeviceTimeoutDuration: number = 30000;
 
@@ -91,22 +93,6 @@ export class MicrobitWebBluetoothConnection
 
   getBoardVersion(): BoardVersion | undefined {
     return this.connection?.boardVersion;
-  }
-
-  async flash(
-    dataSource: FlashDataSource,
-    options: {
-      /**
-       * True to use a partial flash where possible, false to force a full flash.
-       */
-      partial: boolean;
-      /**
-       * A progress callback. Called with undefined when the process is complete or has failed.
-       */
-      progress: (percentage: number | undefined) => void;
-    },
-  ): Promise<void> {
-    throw new Error("Unsupported");
   }
 
   // @ts-ignore

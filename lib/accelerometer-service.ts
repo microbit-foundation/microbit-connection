@@ -1,11 +1,11 @@
-import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer";
-import { GattOperation } from "./bluetooth-device-wrapper";
-import { profile } from "./bluetooth-profile";
-import { createGattOperationPromise } from "./bluetooth-utils";
+import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
+import { GattOperation } from "./bluetooth-device-wrapper.js";
+import { profile } from "./bluetooth-profile.js";
+import { createGattOperationPromise } from "./bluetooth-utils.js";
 import {
   CharacteristicDataTarget,
   TypedServiceEventDispatcher,
-} from "./service-events";
+} from "./service-events.js";
 
 export class AccelerometerService {
   constructor(
