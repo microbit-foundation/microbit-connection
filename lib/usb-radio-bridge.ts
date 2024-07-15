@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { MicrobitWebUSBConnection } from "./usb";
-import * as protocol from "./usb-serial-protocol";
-import { Logging } from "./logging";
+import { MicrobitWebUSBConnection } from "./usb.js";
+import * as protocol from "./usb-serial-protocol.js";
+import { Logging } from "./logging.js";
 
 const connectTimeoutDuration: number = 10000;
 

@@ -1,4 +1,4 @@
-import { AccelerometerDataEvent } from "./accelerometer";
+import { AccelerometerDataEvent } from "./accelerometer.js";
 
 export class ServiceConnectionEventMap {
   "accelerometerdatachanged": AccelerometerDataEvent;

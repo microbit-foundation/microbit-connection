@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { AccelerometerData } from "./accelerometer";
+import { AccelerometerData } from "./accelerometer.js";
 import {
   BluetoothDeviceWrapper,
   createBluetoothDeviceWrapper,
-} from "./bluetooth-device-wrapper";
-import { profile } from "./bluetooth-profile";
+} from "./bluetooth-device-wrapper.js";
+import { profile } from "./bluetooth-profile.js";
 import {
   AfterRequestDevice,
   BeforeRequestDevice,
@@ -19,10 +19,13 @@ import {
   DeviceConnection,
   DeviceConnectionEventMap,
   SerialResetEvent,
-} from "./device";
-import { TypedEventTarget } from "./events";
-import { Logging, NullLogging } from "./logging";
-import { ServiceConnectionEventMap, TypedServiceEvent } from "./service-events";
+} from "./device.js";
+import { TypedEventTarget } from "./events.js";
+import { Logging, NullLogging } from "./logging.js";
+import {
+  ServiceConnectionEventMap,
+  TypedServiceEvent,
+} from "./service-events.js";
 
 const requestDeviceTimeoutDuration: number = 30000;
 

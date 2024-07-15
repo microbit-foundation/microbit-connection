@@ -1,6 +1,6 @@
-import { MicrobitWebUSBConnection } from "./usb";
-import { MicrobitWebBluetoothConnection } from "./bluetooth";
-import { BoardId } from "./board-id";
+import { MicrobitWebUSBConnection } from "./usb.js";
+import { MicrobitWebBluetoothConnection } from "./bluetooth.js";
+import { BoardId } from "./board-id.js";
 import {
   DeviceConnection,
   AfterRequestDevice,
@@ -18,8 +18,8 @@ import {
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
-} from "./device";
-import { HexFlashDataSource } from "./hex-flash-data-source";
+} from "./device.js";
+import { HexFlashDataSource } from "./hex-flash-data-source.js";
 
 export {
   MicrobitWebUSBConnection,

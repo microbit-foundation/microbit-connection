@@ -1,9 +1,9 @@
-import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer";
-import { profile } from "./bluetooth-profile";
+import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
+import { profile } from "./bluetooth-profile.js";
 import {
   CharacteristicDataTarget,
   TypedServiceEventDispatcher,
-} from "./service-events";
+} from "./service-events.js";
 
 export class AccelerometerService {
   constructor(

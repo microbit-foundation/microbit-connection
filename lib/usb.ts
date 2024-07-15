@@ -3,10 +3,10 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { Logging, NullLogging } from "./logging";
-import { withTimeout, TimeoutError } from "./async-util";
-import { DAPWrapper } from "./usb-device-wrapper";
-import { PartialFlashing } from "./usb-partial-flashing";
+import { Logging, NullLogging } from "./logging.js";
+import { withTimeout, TimeoutError } from "./async-util.js";
+import { DAPWrapper } from "./usb-device-wrapper.js";
+import { PartialFlashing } from "./usb-partial-flashing.js";
 import {
   BoardVersion,
   ConnectionStatus,
@@ -23,8 +23,8 @@ import {
   BeforeRequestDevice,
   ConnectionStatusEvent,
   DeviceError,
-} from "./device";
-import { TypedEventTarget } from "./events";
+} from "./device.js";
+import { TypedEventTarget } from "./events.js";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2

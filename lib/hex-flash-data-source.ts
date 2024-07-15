@@ -1,12 +1,10 @@
-import { BoardId } from "./board-id";
-import { FlashDataSource, FlashDataError as FlashDataError } from "./device";
+import MemoryMap from "nrf-intel-hex";
+import { BoardId } from "./board-id.js";
+import { FlashDataSource, FlashDataError as FlashDataError } from "./device.js";
 import {
   isUniversalHex,
   separateUniversalHex,
 } from "@microbit/microbit-universal-hex";
-
-// I think we'd end up with two independently bundled copies of this for clients who also depend on microbit-fs.
-import MemoryMap from "nrf-intel-hex";
 
 export class HexFlashDataSource implements FlashDataSource {
   constructor(private hex: string) {}
@@ -19,7 +17,15 @@ export class HexFlashDataSource implements FlashDataSource {
     // Or use MM inside PF and return a (partial) hex string in the microbit-fs case?
 
     const part = this.matchingPart(boardId);
-    const hex = MemoryMap.fromHex(part);
+
+    // Cludge for a packaging issue
+    const fromHex: (
+      hexText: string,
+      maxBlockSize?: number,
+    ) => MemoryMap.default =
+      (MemoryMap as any).fromHex ?? MemoryMap.default.fromHex;
+
+    const hex = fromHex(part);
     const keys = Array.from(hex.keys()).filter((k) => k < 0x10000000);
     const lastKey = keys[keys.length - 1];
     if (lastKey === undefined) {

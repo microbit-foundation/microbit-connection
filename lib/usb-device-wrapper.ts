@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import { CortexM, DAPLink, WebUSB } from "dapjs";
-import { Logging } from "./logging";
+import { Logging } from "./logging.js";
 import {
   ApReg,
   CortexSpecialReg,
@@ -12,14 +12,14 @@ import {
   DapCmd,
   DapVal,
   FICR,
-} from "./constants";
+} from "./constants.js";
 import {
   apReg,
   bufferConcat,
   CoreRegister,
   regRequest,
-} from "./usb-partial-flashing-utils";
-import { BoardSerialInfo } from "./board-serial-info";
+} from "./usb-partial-flashing-utils.js";
+import { BoardSerialInfo } from "./board-serial-info.js";
 
 export class DAPWrapper {
   transport: WebUSB;

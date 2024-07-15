@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import { describe, expect, it } from "vitest";
-import { TimeoutError, withTimeout } from "./async-util";
+import { TimeoutError, withTimeout } from "./async-util.js";
 
 describe("withTimeout", () => {
   it("times out", async () => {

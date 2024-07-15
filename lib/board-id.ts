@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { BoardVersion } from "./device";
+import { BoardVersion } from "./device.js";
 
 /**
  * Validates micro:bit board IDs.

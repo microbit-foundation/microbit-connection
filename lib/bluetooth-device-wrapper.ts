@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { AccelerometerService } from "./accelerometer-service";
-import { profile } from "./bluetooth-profile";
-import { BoardVersion } from "./device";
-import { Logging, NullLogging } from "./logging";
-import { TypedServiceEventDispatcher } from "./service-events";
+import { AccelerometerService } from "./accelerometer-service.js";
+import { profile } from "./bluetooth-profile.js";
+import { BoardVersion } from "./device.js";
+import { Logging, NullLogging } from "./logging.js";
+import { TypedServiceEventDispatcher } from "./service-events.js";
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
