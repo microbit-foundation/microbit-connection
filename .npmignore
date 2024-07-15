@@ -5,6 +5,7 @@
 tsconfig.*.json
 
 # Test files
+setupTests.js
 **/*.test.js
 **/*.test.js.map
 **/*.test.d.ts
