@@ -35,7 +35,11 @@ export type DeviceErrorCode =
   /**
    * This is the fallback error case suggesting that the user reconnects their device.
    */
-  | "reconnect-microbit";
+  | "reconnect-microbit"
+  /**
+   * Error occured during serial or bluetooth communication.
+   */
+  | "background-comms-error";
 
 /**
  * Error type used for all interactions with this module.

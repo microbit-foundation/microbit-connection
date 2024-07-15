@@ -1,15 +1,18 @@
-import { GattOperation } from "./bluetooth-device-wrapper";
+import { GattOperationCallback } from "./bluetooth-device-wrapper";
 
-export const createGattOperationPromise = (
-  fn: () => Promise<DataView>,
-): {
-  gattOperation: GattOperation;
-  gattOperationPromise: Promise<DataView>;
+export const createGattOperationPromise = (): {
+  callback: GattOperationCallback;
+  gattOperationPromise: Promise<DataView | void>;
 } => {
-  let resolve: (value: DataView) => void;
-  const gattOperationPromise = new Promise<DataView>((res) => {
+  let resolve: (result: DataView | void) => void;
+  let reject: () => void;
+  const gattOperationPromise = new Promise<DataView | void>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  const gattOperation: GattOperation = async () => resolve(await fn());
-  return { gattOperation, gattOperationPromise };
+  const callback = {
+    resolve: resolve!,
+    reject: reject!,
+  };
+  return { callback, gattOperationPromise };
 };

@@ -56,20 +56,22 @@ export class AccelerometerService {
   }
 
   async getData(): Promise<AccelerometerData> {
-    const { gattOperation, gattOperationPromise } = createGattOperationPromise(
-      () => this.accelerometerDataCharacteristic.readValue(),
-    );
-    this.queueGattOperation(gattOperation);
-    const dataView = await gattOperationPromise;
+    const { callback, gattOperationPromise } = createGattOperationPromise();
+    this.queueGattOperation({
+      callback,
+      operation: () => this.accelerometerDataCharacteristic.readValue(),
+    });
+    const dataView = (await gattOperationPromise) as DataView;
     return this.dataViewToData(dataView);
   }
 
   async getPeriod(): Promise<number> {
-    const { gattOperation, gattOperationPromise } = createGattOperationPromise(
-      () => this.accelerometerPeriodCharacteristic.readValue(),
-    );
-    this.queueGattOperation(gattOperation);
-    const dataView = await gattOperationPromise;
+    const { callback, gattOperationPromise } = createGattOperationPromise();
+    this.queueGattOperation({
+      callback,
+      operation: () => this.accelerometerPeriodCharacteristic.readValue(),
+    });
+    const dataView = (await gattOperationPromise) as DataView;
     return dataView.getUint16(0, true);
   }
 
@@ -82,13 +84,16 @@ export class AccelerometerService {
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
     // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
+    const { callback } = createGattOperationPromise();
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
-    this.queueGattOperation(() =>
-      this.accelerometerPeriodCharacteristic.writeValueWithoutResponse(
-        dataView,
-      ),
-    );
+    this.queueGattOperation({
+      callback,
+      operation: () =>
+        this.accelerometerPeriodCharacteristic.writeValueWithoutResponse(
+          dataView,
+        ),
+    });
   }
 
   private addDataEventListener(): void {
