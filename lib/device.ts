@@ -201,7 +201,7 @@ export interface DeviceConnection
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
    */
-  flash(
+  flash?(
     dataSource: FlashDataSource,
     options: {
       /**

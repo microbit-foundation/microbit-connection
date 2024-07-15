@@ -185,13 +185,7 @@ export class MicrobitWebUSBConnection
   async flash(
     dataSource: FlashDataSource,
     options: {
-      /**
-       * True to use a partial flash where possible, false to force a full flash.
-       */
       partial: boolean;
-      /**
-       * A progress callback. Called with undefined when the process is complete or has failed.
-       */
       progress: (percentage: number | undefined) => void;
     },
   ): Promise<void> {

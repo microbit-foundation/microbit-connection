@@ -18,7 +18,6 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  FlashDataSource,
   SerialResetEvent,
 } from "./device";
 import { TypedEventTarget } from "./events";
@@ -91,22 +90,6 @@ export class MicrobitWebBluetoothConnection
 
   getBoardVersion(): BoardVersion | undefined {
     return this.connection?.boardVersion;
-  }
-
-  async flash(
-    dataSource: FlashDataSource,
-    options: {
-      /**
-       * True to use a partial flash where possible, false to force a full flash.
-       */
-      partial: boolean;
-      /**
-       * A progress callback. Called with undefined when the process is complete or has failed.
-       */
-      progress: (percentage: number | undefined) => void;
-    },
-  ): Promise<void> {
-    throw new Error("Unsupported");
   }
 
   // @ts-ignore
