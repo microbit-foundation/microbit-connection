@@ -8,7 +8,10 @@ import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
 import { BoardVersion, DeviceError } from "./device.js";
 import { Logging, NullLogging } from "./logging.js";
-import { TypedServiceEventDispatcher } from "./service-events.js";
+import {
+  ServiceConnectionEventMap,
+  TypedServiceEventDispatcher,
+} from "./service-events.js";
 
 export interface GattOperationCallback {
   resolve: (result: DataView | void) => void;
@@ -63,7 +66,7 @@ export class BluetoothDeviceWrapper {
   private accelerometerService: AccelerometerService | undefined;
 
   boardVersion: BoardVersion | undefined;
-  serviceListeners = {
+  serviceListenerState = {
     accelerometerdatachanged: {
       notifying: false,
       service: this.getAccelerometerService,
@@ -79,11 +82,20 @@ export class BluetoothDeviceWrapper {
     public readonly device: BluetoothDevice,
     private logging: Logging = new NullLogging(),
     private dispatchTypedEvent: TypedServiceEventDispatcher,
+    private addedServiceListeners: Record<
+      keyof ServiceConnectionEventMap,
+      boolean
+    >,
   ) {
     device.addEventListener(
       "gattserverdisconnected",
       this.handleDisconnectEvent,
     );
+    for (const [key, value] of Object.entries(this.addedServiceListeners)) {
+      this.serviceListenerState[
+        key as keyof ServiceConnectionEventMap
+      ].notifying = value;
+    }
   }
 
   async connect(): Promise<void> {
@@ -170,9 +182,9 @@ export class BluetoothDeviceWrapper {
 
       // Restart notifications for services and characteristics
       // the user has listened to.
-      for (const serviceListener of Object.values(this.serviceListeners)) {
+      for (const serviceListener of Object.values(this.serviceListenerState)) {
         if (serviceListener.notifying) {
-          serviceListener.service.call(this);
+          serviceListener.service.call(this, { listenerInit: true });
         }
       }
 
@@ -338,14 +350,19 @@ export class BluetoothDeviceWrapper {
     this.gattOperations = { busy: false, queue: [] };
   }
 
-  async getAccelerometerService(): Promise<AccelerometerService> {
+  async getAccelerometerService(
+    options: {
+      listenerInit: boolean;
+    } = { listenerInit: false },
+  ): Promise<AccelerometerService | undefined> {
     if (!this.accelerometerService) {
       const gattServer = this.assertGattServer();
       this.accelerometerService = await AccelerometerService.createService(
         gattServer,
         this.dispatchTypedEvent,
-        this.serviceListeners.accelerometerdatachanged.notifying,
+        this.serviceListenerState.accelerometerdatachanged.notifying,
         this.queueGattOperation.bind(this),
+        options?.listenerInit,
       );
     }
     return this.accelerometerService;
@@ -361,13 +378,19 @@ export const createBluetoothDeviceWrapper = async (
   device: BluetoothDevice,
   logging: Logging,
   dispatchTypedEvent: TypedServiceEventDispatcher,
+  addedServiceListeners: Record<keyof ServiceConnectionEventMap, boolean>,
 ): Promise<BluetoothDeviceWrapper | undefined> => {
   try {
     // Reuse our connection objects for the same device as they
     // track the GATT connect promise that never resolves.
     const bluetooth =
       deviceIdToWrapper.get(device.id) ??
-      new BluetoothDeviceWrapper(device, logging, dispatchTypedEvent);
+      new BluetoothDeviceWrapper(
+        device,
+        logging,
+        dispatchTypedEvent,
+        addedServiceListeners,
+      );
     deviceIdToWrapper.set(device.id, bluetooth);
     await bluetooth.connect();
     return bluetooth;

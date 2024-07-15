@@ -57,6 +57,10 @@ export class MicrobitWebBluetoothConnection
   private _addEventListener = this.addEventListener;
   private _removeEventListener = this.removeEventListener;
 
+  private addedServiceListeners = {
+    accelerometerdatachanged: false,
+  };
+
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
@@ -164,6 +168,7 @@ export class MicrobitWebBluetoothConnection
         device,
         this.logging,
         this.dispatchTypedEvent.bind(this),
+        this.addedServiceListeners,
       );
     }
     // TODO: timeout unification?
@@ -242,12 +247,15 @@ export class MicrobitWebBluetoothConnection
   }
 
   private async startAccelerometerNotifications() {
-    const accelerometerService =
-      await this.connection?.getAccelerometerService();
+    const accelerometerService = await this.connection?.getAccelerometerService(
+      { listenerInit: true },
+    );
     accelerometerService?.startNotifications();
     if (this.connection) {
-      this.connection.serviceListeners.accelerometerdatachanged.notifying =
+      this.connection.serviceListenerState.accelerometerdatachanged.notifying =
         true;
+    } else {
+      this.addedServiceListeners.accelerometerdatachanged = true;
     }
   }
 
@@ -255,8 +263,10 @@ export class MicrobitWebBluetoothConnection
     const accelerometerService =
       await this.connection?.getAccelerometerService();
     if (this.connection) {
-      this.connection.serviceListeners.accelerometerdatachanged.notifying =
+      this.connection.serviceListenerState.accelerometerdatachanged.notifying =
         false;
+    } else {
+      this.addedServiceListeners.accelerometerdatachanged = false;
     }
     accelerometerService?.stopNotifications();
   }

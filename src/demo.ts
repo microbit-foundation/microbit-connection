@@ -7,6 +7,7 @@ import "./demo.css";
 import { MicrobitWebUSBConnection } from "../lib/usb";
 import { HexFlashDataSource } from "../lib/hex-flash-data-source";
 import {
+  BackgroundErrorEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -79,29 +80,35 @@ const displayStatus = (status: ConnectionStatus) => {
 const handleDisplayStatusChange = (event: ConnectionStatusEvent) => {
   displayStatus(event.status);
 };
-const initConnectionStatusDisplay = () => {
+const backgroundErrorListener = (event: BackgroundErrorEvent) => {
+  console.error("Handled error:", event.errorMessage);
+};
+
+const initConnectionListeners = () => {
   displayStatus(connection.status);
   connection.addEventListener("status", handleDisplayStatusChange);
+  connection.addEventListener("backgrounderror", backgroundErrorListener);
 };
 
 let connection: DeviceConnection = new MicrobitWebUSBConnection();
 
-initConnectionStatusDisplay();
+initConnectionListeners();
 
 const switchTransport = async () => {
   await connection.disconnect();
   connection.dispose();
   connection.removeEventListener("status", handleDisplayStatusChange);
+  connection.removeEventListener("backgrounderror", backgroundErrorListener);
 
   switch (transport.value) {
     case "bluetooth": {
       connection = new MicrobitWebBluetoothConnection();
-      initConnectionStatusDisplay();
+      initConnectionListeners();
       break;
     }
     case "usb": {
       connection = new MicrobitWebUSBConnection();
-      initConnectionStatusDisplay();
+      initConnectionListeners();
       break;
     }
   }
@@ -120,23 +127,14 @@ flash.addEventListener("click", async () => {
   const file = fileInput.files?.item(0);
   if (file) {
     const text = await file.text();
-    await connection.flash(new HexFlashDataSource(text), {
-      partial: true,
-      progress: (percentage: number | undefined) => {
-        console.log(percentage);
-      },
-    });
-  }
-});
-
-accDataGet.addEventListener("click", async () => {
-  if (connection instanceof MicrobitWebBluetoothConnection) {
-    const data = await connection.getAccelerometerData();
-    console.log("Get accelerometer data", data);
-  } else {
-    throw new Error(
-      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
-    );
+    if (connection.flash) {
+      await connection.flash(new HexFlashDataSource(text), {
+        partial: true,
+        progress: (percentage: number | undefined) => {
+          console.log(percentage);
+        },
+      });
+    }
   }
 });
 
@@ -170,10 +168,29 @@ accDataStop.addEventListener("click", async () => {
   }
 });
 
+accDataGet.addEventListener("click", async () => {
+  if (connection instanceof MicrobitWebBluetoothConnection) {
+    try {
+      const data = await connection.getAccelerometerData();
+      console.log("Get accelerometer data", data);
+    } catch (err) {
+      console.error("Handled error:", err);
+    }
+  } else {
+    throw new Error(
+      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+    );
+  }
+});
+
 accPeriodGet.addEventListener("click", async () => {
   if (connection instanceof MicrobitWebBluetoothConnection) {
-    const period = await connection.getAccelerometerPeriod();
-    console.log("Get accelerometer period", period);
+    try {
+      const period = await connection.getAccelerometerPeriod();
+      console.log("Get accelerometer period", period);
+    } catch (err) {
+      console.error("Handled error:", err);
+    }
   } else {
     throw new Error(
       "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
@@ -183,8 +200,12 @@ accPeriodGet.addEventListener("click", async () => {
 
 accPeriodSet.addEventListener("click", async () => {
   if (connection instanceof MicrobitWebBluetoothConnection) {
-    const period = parseInt(accPeriodInput.value);
-    await connection.setAccelerometerPeriod(period);
+    try {
+      const period = parseInt(accPeriodInput.value);
+      await connection.setAccelerometerPeriod(period);
+    } catch (err) {
+      console.error("Handled error:", err);
+    }
   } else {
     throw new Error(
       "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",

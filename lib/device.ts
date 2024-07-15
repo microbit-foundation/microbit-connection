@@ -39,7 +39,11 @@ export type DeviceErrorCode =
   /**
    * Error occured during serial or bluetooth communication.
    */
-  | "background-comms-error";
+  | "background-comms-error"
+  /**
+   * Bluetooth service is missing on device.
+   */
+  | "service-missing";
 
 /**
  * Error type used for all interactions with this module.
@@ -161,6 +165,12 @@ export class AfterRequestDevice extends Event {
   }
 }
 
+export class BackgroundErrorEvent extends Event {
+  constructor(public readonly errorMessage: string) {
+    super("backgrounderror");
+  }
+}
+
 export class DeviceConnectionEventMap {
   "status": ConnectionStatusEvent;
   "serialdata": SerialDataEvent;
@@ -169,6 +179,7 @@ export class DeviceConnectionEventMap {
   "flash": Event;
   "beforerequestdevice": Event;
   "afterrequestdevice": Event;
+  "backgrounderror": BackgroundErrorEvent;
 }
 
 export interface DeviceConnection
