@@ -6,9 +6,24 @@
 
 import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
-import { BoardVersion } from "./device.js";
+import { BoardVersion, DeviceError } from "./device.js";
 import { Logging, NullLogging } from "./logging.js";
 import { TypedServiceEventDispatcher } from "./service-events.js";
+
+export interface GattOperationCallback {
+  resolve: (result: DataView | void) => void;
+  reject: (error: DeviceError) => void;
+}
+
+export interface GattOperation {
+  operation: () => Promise<DataView | void>;
+  callback: GattOperationCallback;
+}
+
+interface GattOperations {
+  busy: boolean;
+  queue: GattOperation[];
+}
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
@@ -53,6 +68,11 @@ export class BluetoothDeviceWrapper {
       notifying: false,
       service: this.getAccelerometerService,
     },
+  };
+
+  private gattOperations: GattOperations = {
+    busy: false,
+    queue: [],
   };
 
   constructor(
@@ -212,8 +232,6 @@ export class BluetoothDeviceWrapper {
   }
 
   handleDisconnectEvent = async (): Promise<void> => {
-    // this.outputWriteQueue = { busy: false, queue: [] };
-
     try {
       if (!this.duringExplicitConnectDisconnect) {
         this.logging.log(
@@ -269,6 +287,57 @@ export class BluetoothDeviceWrapper {
     }
   }
 
+  private queueGattOperation(gattOperation: GattOperation) {
+    this.gattOperations.queue.push(gattOperation);
+    this.processGattOperationQueue();
+  }
+
+  private processGattOperationQueue = (): void => {
+    if (!this.device.gatt?.connected) {
+      // No longer connected. Drop queue.
+      this.clearGattQueueOnDisconnect();
+      return;
+    }
+    if (this.gattOperations.busy) {
+      // We will finish processing the current operation, then
+      // pick up processing the queue in the finally block.
+      return;
+    }
+    const gattOperation = this.gattOperations.queue.shift();
+    if (!gattOperation) {
+      return;
+    }
+    this.gattOperations.busy = true;
+    gattOperation
+      .operation()
+      .then((result) => {
+        gattOperation.callback.resolve(result);
+      })
+      .catch((err) => {
+        gattOperation.callback.reject(
+          new DeviceError({ code: "background-comms-error", message: err }),
+        );
+        this.logging.error("Error processing gatt operations queue", err);
+      })
+      .finally(() => {
+        this.gattOperations.busy = false;
+        this.processGattOperationQueue();
+      });
+  };
+
+  private clearGattQueueOnDisconnect() {
+    this.gattOperations.queue.forEach((op) => {
+      op.callback.reject(
+        new DeviceError({
+          code: "device-disconnected",
+          message:
+            "Error processing gatt operations queue - device disconnected",
+        }),
+      );
+    });
+    this.gattOperations = { busy: false, queue: [] };
+  }
+
   async getAccelerometerService(): Promise<AccelerometerService> {
     if (!this.accelerometerService) {
       const gattServer = this.assertGattServer();
@@ -276,6 +345,7 @@ export class BluetoothDeviceWrapper {
         gattServer,
         this.dispatchTypedEvent,
         this.serviceListeners.accelerometerdatachanged.notifying,
+        this.queueGattOperation.bind(this),
       );
     }
     return this.accelerometerService;
@@ -283,6 +353,7 @@ export class BluetoothDeviceWrapper {
 
   private disposeServices() {
     this.accelerometerService = undefined;
+    this.clearGattQueueOnDisconnect();
   }
 }
 

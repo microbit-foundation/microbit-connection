@@ -1,5 +1,7 @@
 import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
+import { GattOperation } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
+import { createGattOperationPromise } from "./bluetooth-utils.js";
 import {
   CharacteristicDataTarget,
   TypedServiceEventDispatcher,
@@ -11,6 +13,7 @@ export class AccelerometerService {
     private accelerometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
     private dispatchTypedEvent: TypedServiceEventDispatcher,
     private isNotifying: boolean,
+    private queueGattOperation: (gattOperation: GattOperation) => void,
   ) {
     this.addDataEventListener();
     if (this.isNotifying) {
@@ -22,6 +25,7 @@ export class AccelerometerService {
     gattServer: BluetoothRemoteGATTServer,
     dispatcher: TypedServiceEventDispatcher,
     isNotifying: boolean,
+    queueGattOperation: (gattOperation: GattOperation) => void,
   ): Promise<AccelerometerService> {
     const accelerometerService = await gattServer.getPrimaryService(
       profile.accelerometer.id,
@@ -39,6 +43,7 @@ export class AccelerometerService {
       accelerometerPeriodCharacteristic,
       dispatcher,
       isNotifying,
+      queueGattOperation,
     );
   }
 
@@ -51,12 +56,22 @@ export class AccelerometerService {
   }
 
   async getData(): Promise<AccelerometerData> {
-    const dataView = await this.accelerometerDataCharacteristic.readValue();
+    const { callback, gattOperationPromise } = createGattOperationPromise();
+    this.queueGattOperation({
+      callback,
+      operation: () => this.accelerometerDataCharacteristic.readValue(),
+    });
+    const dataView = (await gattOperationPromise) as DataView;
     return this.dataViewToData(dataView);
   }
 
   async getPeriod(): Promise<number> {
-    const dataView = await this.accelerometerPeriodCharacteristic.readValue();
+    const { callback, gattOperationPromise } = createGattOperationPromise();
+    this.queueGattOperation({
+      callback,
+      operation: () => this.accelerometerPeriodCharacteristic.readValue(),
+    });
+    const dataView = (await gattOperationPromise) as DataView;
     return dataView.getUint16(0, true);
   }
 
@@ -69,11 +84,16 @@ export class AccelerometerService {
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
     // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
+    const { callback } = createGattOperationPromise();
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
-    await this.accelerometerPeriodCharacteristic.writeValueWithoutResponse(
-      dataView,
-    );
+    this.queueGattOperation({
+      callback,
+      operation: () =>
+        this.accelerometerPeriodCharacteristic.writeValueWithoutResponse(
+          dataView,
+        ),
+    });
   }
 
   private addDataEventListener(): void {
