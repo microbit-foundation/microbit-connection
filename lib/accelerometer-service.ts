@@ -2,6 +2,7 @@ import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
 import { GattOperation } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
 import { createGattOperationPromise } from "./bluetooth-utils.js";
+import { BackgroundErrorEvent, DeviceError } from "./device.js";
 import {
   CharacteristicDataTarget,
   TypedServiceEventDispatcher,
@@ -26,10 +27,24 @@ export class AccelerometerService {
     dispatcher: TypedServiceEventDispatcher,
     isNotifying: boolean,
     queueGattOperation: (gattOperation: GattOperation) => void,
-  ): Promise<AccelerometerService> {
-    const accelerometerService = await gattServer.getPrimaryService(
-      profile.accelerometer.id,
-    );
+    listenerInit: boolean,
+  ): Promise<AccelerometerService | undefined> {
+    let accelerometerService: BluetoothRemoteGATTService;
+    try {
+      accelerometerService = await gattServer.getPrimaryService(
+        profile.accelerometer.id,
+      );
+    } catch (err) {
+      if (listenerInit) {
+        dispatcher("backgrounderror", new BackgroundErrorEvent(err as string));
+        return;
+      } else {
+        throw new DeviceError({
+          code: "service-missing",
+          message: err as string,
+        });
+      }
+    }
     const accelerometerDataCharacteristic =
       await accelerometerService.getCharacteristic(
         profile.accelerometer.characteristics.data.id,
