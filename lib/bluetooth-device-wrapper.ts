@@ -30,7 +30,11 @@ const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 const connectTimeoutDuration: number = 10000;
 
 function findPlatform(): string | undefined {
-  const navigator: any = window.navigator;
+  const navigator: any =
+    typeof window !== "undefined" ? window.navigator : undefined;
+  if (!navigator) {
+    return "unknown";
+  }
   const platform = navigator.userAgentData?.platform;
   if (platform) {
     return platform;
