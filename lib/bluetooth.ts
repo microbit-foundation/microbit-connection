@@ -18,7 +18,6 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  FlashDataSource,
   SerialResetEvent,
 } from "./device";
 import { TypedEventTarget } from "./events";
