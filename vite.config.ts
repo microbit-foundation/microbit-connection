@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     test: {
-      exclude: [...configDefaults.exclude, "**/e2e/**"],
+      exclude: [...configDefaults.exclude, "**/e2e/**", "build"],
       environment: "jsdom",
       setupFiles: "./lib/setupTests.ts",
       mockReset: true,
