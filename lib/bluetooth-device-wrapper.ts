@@ -6,11 +6,19 @@
 
 import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
-import { BoardVersion } from "./device.js";
+import { BoardVersion, DeviceError } from "./device.js";
 import { Logging, NullLogging } from "./logging.js";
 import { TypedServiceEventDispatcher } from "./service-events.js";
 
-export type GattOperation = () => Promise<void>;
+export interface GattOperationCallback {
+  resolve: (result: DataView | void) => void;
+  reject: (error: DeviceError) => void;
+}
+
+export interface GattOperation {
+  operation: () => Promise<DataView | void>;
+  callback: GattOperationCallback;
+}
 
 interface GattOperations {
   busy: boolean;
@@ -287,7 +295,7 @@ export class BluetoothDeviceWrapper {
   private processGattOperationQueue = (): void => {
     if (!this.device.gatt?.connected) {
       // No longer connected. Drop queue.
-      this.gattOperations = { busy: false, queue: [] };
+      this.clearGattQueueOnDisconnect();
       return;
     }
     if (this.gattOperations.busy) {
@@ -300,8 +308,15 @@ export class BluetoothDeviceWrapper {
       return;
     }
     this.gattOperations.busy = true;
-    gattOperation()
+    gattOperation
+      .operation()
+      .then((result) => {
+        gattOperation.callback.resolve(result);
+      })
       .catch((err) => {
+        gattOperation.callback.reject(
+          new DeviceError({ code: "background-comms-error", message: err }),
+        );
         this.logging.error("Error processing gatt operations queue", err);
       })
       .finally(() => {
@@ -309,6 +324,19 @@ export class BluetoothDeviceWrapper {
         this.processGattOperationQueue();
       });
   };
+
+  private clearGattQueueOnDisconnect() {
+    this.gattOperations.queue.forEach((op) => {
+      op.callback.reject(
+        new DeviceError({
+          code: "device-disconnected",
+          message:
+            "Error processing gatt operations queue - device disconnected",
+        }),
+      );
+    });
+    this.gattOperations = { busy: false, queue: [] };
+  }
 
   async getAccelerometerService(): Promise<AccelerometerService> {
     if (!this.accelerometerService) {
@@ -325,7 +353,7 @@ export class BluetoothDeviceWrapper {
 
   private disposeServices() {
     this.accelerometerService = undefined;
-    this.gattOperations = { busy: false, queue: [] };
+    this.clearGattQueueOnDisconnect();
   }
 }
 
