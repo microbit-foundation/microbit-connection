@@ -10,6 +10,13 @@ import { BoardVersion } from "./device";
 import { Logging, NullLogging } from "./logging";
 import { TypedServiceEventDispatcher } from "./service-events";
 
+export type GattOperation = () => Promise<void>;
+
+interface GattOperations {
+  busy: boolean;
+  queue: GattOperation[];
+}
+
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
 const connectTimeoutDuration: number = 10000;
@@ -53,6 +60,11 @@ export class BluetoothDeviceWrapper {
       notifying: false,
       service: this.getAccelerometerService,
     },
+  };
+
+  private gattOperations: GattOperations = {
+    busy: false,
+    queue: [],
   };
 
   constructor(
@@ -212,8 +224,6 @@ export class BluetoothDeviceWrapper {
   }
 
   handleDisconnectEvent = async (): Promise<void> => {
-    // this.outputWriteQueue = { busy: false, queue: [] };
-
     try {
       if (!this.duringExplicitConnectDisconnect) {
         this.logging.log(
@@ -269,6 +279,37 @@ export class BluetoothDeviceWrapper {
     }
   }
 
+  private queueGattOperation(gattOperation: GattOperation) {
+    this.gattOperations.queue.push(gattOperation);
+    this.processGattOperationQueue();
+  }
+
+  private processGattOperationQueue = (): void => {
+    if (!this.device.gatt?.connected) {
+      // No longer connected. Drop queue.
+      this.gattOperations = { busy: false, queue: [] };
+      return;
+    }
+    if (this.gattOperations.busy) {
+      // We will finish processing the current operation, then
+      // pick up processing the queue in the finally block.
+      return;
+    }
+    const gattOperation = this.gattOperations.queue.shift();
+    if (!gattOperation) {
+      return;
+    }
+    this.gattOperations.busy = true;
+    gattOperation()
+      .catch((err) => {
+        this.logging.error("Error processing gatt operations queue", err);
+      })
+      .finally(() => {
+        this.gattOperations.busy = false;
+        this.processGattOperationQueue();
+      });
+  };
+
   async getAccelerometerService(): Promise<AccelerometerService> {
     if (!this.accelerometerService) {
       const gattServer = this.assertGattServer();
@@ -276,6 +317,7 @@ export class BluetoothDeviceWrapper {
         gattServer,
         this.dispatchTypedEvent,
         this.serviceListeners.accelerometerdatachanged.notifying,
+        this.queueGattOperation.bind(this),
       );
     }
     return this.accelerometerService;
@@ -283,6 +325,7 @@ export class BluetoothDeviceWrapper {
 
   private disposeServices() {
     this.accelerometerService = undefined;
+    this.gattOperations = { busy: false, queue: [] };
   }
 }
 

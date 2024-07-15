@@ -177,7 +177,7 @@ export class MicrobitWebBluetoothConnection
       this.connection = await createBluetoothDeviceWrapper(
         device,
         this.logging,
-        (type, event) => this.dispatchTypedEvent(type, event),
+        this.dispatchTypedEvent.bind(this),
       );
     }
     // TODO: timeout unification?
