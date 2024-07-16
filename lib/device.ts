@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 import { TypedEventTarget } from "./events.js";
-import { BoardId } from "./board-id.js";
 
 /**
  * Specific identified error types.
@@ -94,26 +93,9 @@ export enum ConnectionStatus {
 
 export class FlashDataError extends Error {}
 
-export interface FlashDataSource {
-  /**
-   * For now we only support partially flashing contiguous data.
-   * This can be generated from microbit-fs directly (via getIntelHexBytes())
-   * or from an existing Intel Hex via slicePad.
-   *
-   * This interface is quite confusing and worth revisiting.
-   *
-   * @param boardId the id of the board.
-   * @throws FlashDataError if we cannot generate hex data.
-   */
-  partialFlashData(boardId: BoardId): Promise<Uint8Array>;
-
-  /**
-   * @param boardId the id of the board.
-   * @returns A board-specific (non-universal) Intel Hex file for the given board id.
-   * @throws FlashDataError if we cannot generate hex data.
-   */
-  fullFlashData(boardId: BoardId): Promise<string>;
-}
+export type FlashDataSource = (
+  boardVersion: BoardVersion,
+) => Promise<string | Uint8Array>;
 
 export interface ConnectOptions {
   serial?: boolean;

@@ -61,4 +61,13 @@ export class BoardId {
   static parse(value: string): BoardId {
     return new BoardId(parseInt(value, 16));
   }
+
+  static forVersion(boardVersion: BoardVersion): BoardId {
+    switch (boardVersion) {
+      case "V1":
+        return this.v1Normalized;
+      case "V2":
+        return this.v2Normalized;
+    }
+  }
 }
