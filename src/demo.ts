@@ -5,7 +5,7 @@
  */
 import "./demo.css";
 import { MicrobitWebUSBConnection } from "../lib/usb";
-import { createUniversalHexDataSource } from "../lib/hex-flash-data-source";
+import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
 import {
   BackgroundErrorEvent,
   ConnectionStatus,
@@ -128,7 +128,7 @@ flash.addEventListener("click", async () => {
   if (file) {
     const text = await file.text();
     if (connection.flash) {
-      await connection.flash(createUniversalHexDataSource(text), {
+      await connection.flash(createUniversalHexFlashDataSource(text), {
         partial: true,
         progress: (percentage: number | undefined) => {
           console.log(percentage);

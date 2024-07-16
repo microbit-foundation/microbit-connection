@@ -14,7 +14,7 @@ import {
  *
  * @param universalHex A hex file, potentially universal.
  */
-export const createUniversalHexDataSource = (
+export const createUniversalHexFlashDataSource = (
   universalHex: string,
 ): FlashDataSource => {
   return (boardVersion: BoardVersion) => {
