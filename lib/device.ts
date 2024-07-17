@@ -116,7 +116,6 @@ export interface FlashDataSource {
 }
 
 export interface ConnectOptions {
-  serial?: boolean;
   // Name filter used for Web Bluetooth
   name?: string;
 }
