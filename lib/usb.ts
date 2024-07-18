@@ -3,32 +3,27 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { Logging, NullLogging } from "./logging.js";
-import { withTimeout, TimeoutError } from "./async-util.js";
-import { DAPWrapper } from "./usb-device-wrapper.js";
-import { PartialFlashing } from "./usb-partial-flashing.js";
+import { TimeoutError, withTimeout } from "./async-util.js";
 import {
+  AfterRequestDevice,
+  BeforeRequestDevice,
   BoardVersion,
   ConnectionStatus,
-  ConnectOptions,
+  ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  AfterRequestDevice,
+  DeviceError,
+  FlashDataError,
   FlashDataSource,
   FlashEvent,
-  FlashDataError,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
-  BeforeRequestDevice,
-  ConnectionStatusEvent,
-  DeviceError,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
-
-interface InternalConnectOptions extends ConnectOptions {
-  serial?: boolean;
-}
+import { Logging, NullLogging } from "./logging.js";
+import { DAPWrapper } from "./usb-device-wrapper.js";
+import { PartialFlashing } from "./usb-partial-flashing.js";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
@@ -66,11 +61,8 @@ export class MicrobitWebUSBConnection
    */
   private connection: DAPWrapper | undefined;
 
-  /**
-   * DAPLink gives us a promise that lasts as long as we're serial reading.
-   * When stopping serial we await it to be sure we're done.
-   */
-  private serialReadInProgress: Promise<void> | undefined;
+  private serialState: boolean = false;
+  private serialStateChange: Promise<void> | undefined;
 
   private serialListener = (data: string) => {
     this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
@@ -139,8 +131,8 @@ export class MicrobitWebUSBConnection
   private _addEventListener = this.addEventListener;
   private _removeEventListener = this.removeEventListener;
 
-  private addedListeners = {
-    serialdata: false,
+  private addedListeners: Record<string, number> = {
+    serialdata: 0,
   };
 
   constructor(
@@ -148,13 +140,18 @@ export class MicrobitWebUSBConnection
   ) {
     super();
     this.logging = options.logging;
+    // TODO: this doesn't account for the rules around add/remove call equivalence
     this.addEventListener = (type, ...args) => {
       this._addEventListener(type, ...args);
-      this.startNotifications(type);
+      if (++this.addedListeners[type] === 1 && !this.flashing) {
+        this.startNotifications(type);
+      }
     };
     this.removeEventListener = (type, ...args) => {
-      this.stopNotifications(type);
       this._removeEventListener(type, ...args);
+      if (--this.addedListeners[type] === 0) {
+        this.stopNotifications(type);
+      }
     };
   }
 
@@ -192,9 +189,9 @@ export class MicrobitWebUSBConnection
     }
   }
 
-  async connect(options: ConnectOptions = {}): Promise<ConnectionStatus> {
+  async connect(): Promise<ConnectionStatus> {
     return this.withEnrichedErrors(async () => {
-      await this.connectInternal(options);
+      await this.connectInternal();
       return this.status;
     });
   }
@@ -241,9 +238,7 @@ export class MicrobitWebUSBConnection
     this.log("Stopping serial before flash");
     await this.stopSerialInternal();
     this.log("Reconnecting before flash");
-    await this.connectInternal({
-      serial: false,
-    });
+    await this.connectInternal();
     if (!this.connection) {
       throw new Error("Must be connected now");
     }
@@ -275,8 +270,6 @@ export class MicrobitWebUSBConnection
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
-        // This might not strictly be "reinstating". We should make this
-        // behaviour configurable when pulling out a library.
         if (this.addedListeners.serialdata) {
           this.log("Reinstating serial after flash");
           if (this.connection.daplink) {
@@ -289,30 +282,42 @@ export class MicrobitWebUSBConnection
   }
 
   private async startSerialInternal() {
-    if (!this.connection) {
-      // As connecting then starting serial are async we could disconnect between them,
-      // so handle this gracefully.
-      return;
-    }
-    if (this.serialReadInProgress) {
-      await this.stopSerialInternal();
-    }
-    // This is async but won't return until we stop serial so we error handle with an event.
-    this.serialReadInProgress = this.connection
-      .startSerial(this.serialListener)
-      .then(() => this.log("Finished listening for serial data"))
-      .catch((e) => {
-        this.dispatchTypedEvent("serialerror", new SerialErrorEvent(e));
-      });
+    const prev = this.serialStateChange;
+    this.serialStateChange = (async () => {
+      await prev;
+
+      if (!this.connection || this.serialState) {
+        return;
+      }
+      this.log("Starting serial");
+      this.serialState = true;
+      this.connection
+        .startSerial(this.serialListener)
+        .then(() => {
+          this.log("Finished listening for serial data");
+        })
+        .catch((e) => {
+          this.dispatchTypedEvent("serialerror", new SerialErrorEvent(e));
+        })
+        .finally(() => {
+          this.serialState = false;
+        });
+    })();
+    await this.serialStateChange;
   }
 
   private async stopSerialInternal() {
-    if (this.connection && this.serialReadInProgress) {
+    const prev = this.serialStateChange;
+    this.serialStateChange = (async () => {
+      await prev;
+
+      if (!this.connection || !this.serialState) {
+        return;
+      }
       this.connection.stopSerial(this.serialListener);
-      await this.serialReadInProgress;
-      this.serialReadInProgress = undefined;
       this.dispatchTypedEvent("serialreset", new SerialResetEvent());
-    }
+    })();
+    await this.serialStateChange;
   }
 
   async disconnect(): Promise<void> {
@@ -410,15 +415,13 @@ export class MicrobitWebUSBConnection
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
-  private async connectInternal(
-    options: InternalConnectOptions,
-  ): Promise<void> {
+  private async connectInternal(): Promise<void> {
     if (!this.connection) {
       const device = await this.chooseDevice();
       this.connection = new DAPWrapper(device, this.logging);
     }
     await withTimeout(this.connection.reconnectAsync(), 10_000);
-    if (this.addedListeners.serialdata && options.serial !== false) {
+    if (this.addedListeners.serialdata && !this.flashing) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
@@ -440,7 +443,6 @@ export class MicrobitWebUSBConnection
     switch (type as keyof DeviceConnectionEventMap) {
       case "serialdata": {
         this.startSerialInternal();
-        this.addedListeners.serialdata = true;
         break;
       }
     }
@@ -450,7 +452,6 @@ export class MicrobitWebUSBConnection
     switch (type as keyof DeviceConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
-        this.addedListeners.serialdata = false;
         break;
       }
     }

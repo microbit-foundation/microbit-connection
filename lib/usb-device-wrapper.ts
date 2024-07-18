@@ -120,7 +120,7 @@ export class DAPWrapper {
       // Changing the baud rate causes a micro:bit reset, so only do it if necessary
       await this.daplink.setSerialBaudrate(115200);
     }
-    this.daplink.on(DAPLink.EVENT_SERIAL_DATA, listener);
+    this.daplink.addListener(DAPLink.EVENT_SERIAL_DATA, listener);
     await this.daplink.startSerialRead(1);
   }
 
