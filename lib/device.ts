@@ -98,7 +98,6 @@ export type FlashDataSource = (
 ) => Promise<string | Uint8Array>;
 
 export interface ConnectOptions {
-  serial?: boolean;
   // Name filter used for Web Bluetooth
   name?: string;
 }

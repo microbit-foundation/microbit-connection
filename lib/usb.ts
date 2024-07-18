@@ -26,6 +26,10 @@ import {
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 
+interface InternalConnectOptions extends ConnectOptions {
+  serial?: boolean;
+}
+
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
 export const isChromeOS105 = (): boolean => {
@@ -120,7 +124,9 @@ export class MicrobitWebUSBConnection
         setTimeout(() => {
           if (this.status === ConnectionStatus.CONNECTED) {
             this.unloading = false;
-            this.startSerialInternal();
+            if (this.addedListeners.serialdata) {
+              this.startSerialInternal();
+            }
           }
         }, assumePageIsStayingOpenDelay);
       },
@@ -130,11 +136,26 @@ export class MicrobitWebUSBConnection
 
   private logging: Logging;
 
+  private _addEventListener = this.addEventListener;
+  private _removeEventListener = this.removeEventListener;
+
+  private addedListeners = {
+    serialdata: false,
+  };
+
   constructor(
     options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() },
   ) {
     super();
     this.logging = options.logging;
+    this.addEventListener = (type, ...args) => {
+      this._addEventListener(type, ...args);
+      this.startNotifications(type);
+    };
+    this.removeEventListener = (type, ...args) => {
+      this.stopNotifications(type);
+      this._removeEventListener(type, ...args);
+    };
   }
 
   private log(v: any) {
@@ -256,10 +277,12 @@ export class MicrobitWebUSBConnection
       } else {
         // This might not strictly be "reinstating". We should make this
         // behaviour configurable when pulling out a library.
-        this.log("Reinstating serial after flash");
-        if (this.connection.daplink) {
-          await this.connection.daplink.connect();
-          await this.startSerialInternal();
+        if (this.addedListeners.serialdata) {
+          this.log("Reinstating serial after flash");
+          if (this.connection.daplink) {
+            await this.connection.daplink.connect();
+            await this.startSerialInternal();
+          }
         }
       }
     }
@@ -387,13 +410,15 @@ export class MicrobitWebUSBConnection
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
-  private async connectInternal(options: ConnectOptions): Promise<void> {
+  private async connectInternal(
+    options: InternalConnectOptions,
+  ): Promise<void> {
     if (!this.connection) {
       const device = await this.chooseDevice();
       this.connection = new DAPWrapper(device, this.logging);
     }
     await withTimeout(this.connection.reconnectAsync(), 10_000);
-    if (options.serial === undefined || options.serial) {
+    if (this.addedListeners.serialdata && options.serial !== false) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
@@ -409,6 +434,26 @@ export class MicrobitWebUSBConnection
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
+  }
+
+  private async startNotifications(type: string) {
+    switch (type as keyof DeviceConnectionEventMap) {
+      case "serialdata": {
+        this.startSerialInternal();
+        this.addedListeners.serialdata = true;
+        break;
+      }
+    }
+  }
+
+  private async stopNotifications(type: string) {
+    switch (type as keyof DeviceConnectionEventMap) {
+      case "serialdata": {
+        this.stopSerialInternal();
+        this.addedListeners.serialdata = false;
+        break;
+      }
+    }
   }
 }
 

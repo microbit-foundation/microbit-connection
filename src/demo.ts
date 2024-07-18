@@ -11,6 +11,7 @@ import {
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
+  SerialDataEvent,
 } from "../lib/device";
 import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
 import { AccelerometerDataEvent } from "../lib/accelerometer";
@@ -30,6 +31,10 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <p class="status"></p>
     <label><div>File to flash</div><input type="file"/></label>
     <button class="flash">Flash</button>
+    <div class="serial-controls">
+      <button class="serial-listen">Listen to serial</button>
+      <button class="serial-stop">Stop serial data</button>
+    </div>
     <div class="acc-data-controls">
       <button class="acc-data-get">Get accelerometer data</button>
       <button class="acc-data-listen">Listen to accelerometer data</button>
@@ -72,6 +77,12 @@ const accPeriodInput = document.querySelector(
 )! as HTMLInputElement;
 const accPeriodSet = document.querySelector(
   "#flash > .acc-period-controls > .acc-period-set",
+)!;
+const serialListen = document.querySelector(
+  "#flash >  .serial-controls >  .serial-listen",
+)!;
+const serialStop = document.querySelector(
+  "#flash >  .serial-controls > .serial-stop",
 )!;
 
 const displayStatus = (status: ConnectionStatus) => {
@@ -211,4 +222,24 @@ accPeriodSet.addEventListener("click", async () => {
       "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
     );
   }
+});
+
+let data = "";
+const serialDataListener = (event: SerialDataEvent) => {
+  for (const char of event.data) {
+    if (char === "\n") {
+      console.log(data);
+      data = "";
+    } else {
+      data += char;
+    }
+  }
+};
+
+serialListen.addEventListener("click", async () => {
+  connection.addEventListener("serialdata", serialDataListener);
+});
+
+serialStop.addEventListener("click", async () => {
+  connection.removeEventListener("serialdata", serialDataListener);
 });
