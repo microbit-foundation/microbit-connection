@@ -369,6 +369,6 @@ export class PartialFlashing {
       V1: 256 * 1024,
       V2: 512 * 1024,
     }[this.boardVersion];
-    return memoryMap.slicePad(0, flashSize, 0);
+    return memoryMap.slicePad(0, flashSize);
   }
 }
