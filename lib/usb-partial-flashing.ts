@@ -47,9 +47,7 @@
 import { DAPLink } from "dapjs";
 import { Logging } from "./logging.js";
 import { withTimeout, TimeoutError } from "./async-util.js";
-import { BoardId } from "./board-id.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
-import { FlashDataSource } from "./device.js";
 import {
   CoreRegister,
   onlyChanged,
@@ -57,6 +55,8 @@ import {
   pageAlignBlocks,
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
+import MemoryMap from "nrf-intel-hex";
+import { BoardVersion } from "./device.js";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 
@@ -102,6 +102,7 @@ export class PartialFlashing {
   constructor(
     private dapwrapper: DAPWrapper,
     private logging: Logging,
+    private boardVersion: BoardVersion,
   ) {}
 
   private log(v: any): void {
@@ -204,11 +205,11 @@ export class PartialFlashing {
   // Falls back to a full flash if partial flashing fails.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L335
   private async partialFlashAsync(
-    boardId: BoardId,
-    dataSource: FlashDataSource,
+    data: string | Uint8Array | MemoryMap.default,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
-    const flashBytes = await dataSource.partialFlashData(boardId);
+    const flashBytes = this.convertDataToPaddedBytes(data);
+
     const checksums = await this.getFlashChecksumsAsync();
     await this.dapwrapper.writeBlockAsync(loadAddr, flashPageBIN);
     let aligned = pageAlignBlocks(flashBytes, 0, this.dapwrapper.pageSize);
@@ -219,7 +220,7 @@ export class PartialFlashing {
     let partial: boolean | undefined;
     if (aligned.length > totalPages / 2) {
       try {
-        await this.fullFlashAsync(boardId, dataSource, updateProgress);
+        await this.fullFlashAsync(data, updateProgress);
         partial = false;
       } catch (e) {
         this.log(e);
@@ -234,7 +235,7 @@ export class PartialFlashing {
       } catch (e) {
         this.log(e);
         this.log("Partial flash failed, attempting full flash.");
-        await this.fullFlashAsync(boardId, dataSource, updateProgress);
+        await this.fullFlashAsync(data, updateProgress);
         partial = false;
       }
     }
@@ -250,8 +251,7 @@ export class PartialFlashing {
 
   // Perform full flash of micro:bit's ROM using daplink.
   async fullFlashAsync(
-    boardId: BoardId,
-    dataSource: FlashDataSource,
+    data: string | Uint8Array | MemoryMap.default,
     updateProgress: ProgressCallback,
   ) {
     this.log("Full flash");
@@ -261,7 +261,7 @@ export class PartialFlashing {
     };
     this.dapwrapper.daplink.on(DAPLink.EVENT_PROGRESS, fullFlashProgress);
     try {
-      const data = await dataSource.fullFlashData(boardId);
+      data = this.convertDataToHexString(data);
       await this.dapwrapper.transport.open();
       await this.dapwrapper.daplink.flash(new TextEncoder().encode(data));
       this.logging.event({
@@ -279,8 +279,7 @@ export class PartialFlashing {
   // Flash the micro:bit's ROM with the provided image, resetting the micro:bit first.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L439
   async flashAsync(
-    boardId: BoardId,
-    dataSource: FlashDataSource,
+    data: string | Uint8Array | MemoryMap.default,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
     let resetPromise = (async () => {
@@ -300,11 +299,7 @@ export class PartialFlashing {
         await withTimeout(resetPromise, 1000);
 
         this.log("Begin flashing");
-        return await this.partialFlashAsync(
-          boardId,
-          dataSource,
-          updateProgress,
-        );
+        return await this.partialFlashAsync(data, updateProgress);
       } catch (e) {
         if (e instanceof TimeoutError) {
           this.log("Resetting micro:bit timed out");
@@ -313,7 +308,7 @@ export class PartialFlashing {
             type: "WebUSB-info",
             message: "flash-failed/attempting-full-flash",
           });
-          await this.fullFlashAsync(boardId, dataSource, updateProgress);
+          await this.fullFlashAsync(data, updateProgress);
           return false;
         } else {
           throw e;
@@ -323,5 +318,57 @@ export class PartialFlashing {
       // NB cannot return Promises above!
       await this.dapwrapper.disconnectAsync();
     }
+  }
+
+  private convertDataToHexString(
+    data: string | Uint8Array | MemoryMap.default,
+  ): string {
+    if (typeof data === "string") {
+      return data;
+    }
+    if (data instanceof Uint8Array) {
+      return this.paddedBytesToHexString(data);
+    }
+    return data.asHexString();
+  }
+
+  private convertDataToPaddedBytes(
+    data: string | Uint8Array | MemoryMap.default,
+  ): Uint8Array {
+    if (data instanceof Uint8Array) {
+      return data;
+    }
+    if (typeof data === "string") {
+      return this.hexStringToPaddedBytes(data);
+    }
+    return this.memoryMapToPaddedBytes(data);
+  }
+
+  private hexStringToPaddedBytes(hex: string): Uint8Array {
+    // Cludge for a packaging issue
+    const fromHex: (
+      hexText: string,
+      maxBlockSize?: number,
+    ) => MemoryMap.default =
+      (MemoryMap as any).fromHex ?? MemoryMap.default.fromHex;
+
+    return this.memoryMapToPaddedBytes(fromHex(hex));
+  }
+
+  private paddedBytesToHexString(data: Uint8Array): string {
+    // Cludge for a packaging issue
+    const fromPaddedUint8Array: (data: Uint8Array) => MemoryMap.default =
+      (MemoryMap as any).fromPaddedUint8Array ??
+      MemoryMap.default.fromPaddedUint8Array;
+
+    return fromPaddedUint8Array(data).asHexString();
+  }
+
+  private memoryMapToPaddedBytes(memoryMap: MemoryMap.default): Uint8Array {
+    const flashSize = {
+      V1: 256 * 1024,
+      V2: 512 * 1024,
+    }[this.boardVersion];
+    return memoryMap.slicePad(0, flashSize);
   }
 }

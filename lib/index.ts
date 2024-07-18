@@ -19,13 +19,13 @@ import {
   SerialErrorEvent,
   SerialResetEvent,
 } from "./device.js";
-import { HexFlashDataSource } from "./hex-flash-data-source.js";
+import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
 
 export {
   MicrobitWebUSBConnection,
   MicrobitWebBluetoothConnection,
   BoardId,
-  HexFlashDataSource,
+  createUniversalHexFlashDataSource,
   AfterRequestDevice,
   BeforeRequestDevice,
   ConnectionStatus,
