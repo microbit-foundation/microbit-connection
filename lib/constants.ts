@@ -15,6 +15,8 @@
 export const FICR = {
   CODEPAGESIZE: 0x10000000 | 0x10,
   CODESIZE: 0x10000000 | 0x14,
+
+  DEVICE_ID_1: 0x10000000 | 0x64,
 };
 
 export const DapCmd = {

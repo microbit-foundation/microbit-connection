@@ -28,6 +28,7 @@ export class DAPWrapper {
 
   _pageSize: number | undefined;
   _numPages: number | undefined;
+  _deviceId: number | undefined;
 
   private loggedBoardSerialInfo: BoardSerialInfo | undefined;
 
@@ -60,6 +61,13 @@ export class DAPWrapper {
       throw new Error("numPages not defined until connected");
     }
     return this._numPages;
+  }
+
+  /**
+   * The number of pages. Undefined if we've not connected.
+   */
+  get deviceId() {
+    return this._deviceId;
   }
 
   get boardSerialInfo(): BoardSerialInfo {
@@ -112,6 +120,8 @@ export class DAPWrapper {
 
     this._pageSize = await this.cortexM.readMem32(FICR.CODEPAGESIZE);
     this._numPages = await this.cortexM.readMem32(FICR.CODESIZE);
+    // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
+    this._deviceId = await this.cortexM.readMem32(FICR.DEVICE_ID_1);
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {
