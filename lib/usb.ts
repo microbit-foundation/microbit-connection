@@ -231,8 +231,13 @@ export class MicrobitWebUSBConnection
     const progress = options.progress || (() => {});
 
     const boardId = this.connection.boardSerialInfo.id;
-    const data = await dataSource(boardId.toBoardVersion());
-    const flashing = new PartialFlashing(this.connection, this.logging);
+    const boardVersion = boardId.toBoardVersion();
+    const data = await dataSource(boardVersion);
+    const flashing = new PartialFlashing(
+      this.connection,
+      this.logging,
+      boardVersion,
+    );
     let wasPartial: boolean = false;
     try {
       if (partial) {

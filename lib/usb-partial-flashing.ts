@@ -56,6 +56,7 @@ import {
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
 import MemoryMap from "nrf-intel-hex";
+import { BoardVersion } from "./device.js";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 
@@ -101,6 +102,7 @@ export class PartialFlashing {
   constructor(
     private dapwrapper: DAPWrapper,
     private logging: Logging,
+    private boardVersion: BoardVersion,
   ) {}
 
   private log(v: any): void {
@@ -206,7 +208,7 @@ export class PartialFlashing {
     data: string | Uint8Array | MemoryMap.default,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
-    const flashBytes = convertDataToPaddedBytes(data);
+    const flashBytes = this.convertDataToPaddedBytes(data);
 
     const checksums = await this.getFlashChecksumsAsync();
     await this.dapwrapper.writeBlockAsync(loadAddr, flashPageBIN);
@@ -259,7 +261,7 @@ export class PartialFlashing {
     };
     this.dapwrapper.daplink.on(DAPLink.EVENT_PROGRESS, fullFlashProgress);
     try {
-      data = convertDataToHexString(data);
+      data = this.convertDataToHexString(data);
       await this.dapwrapper.transport.open();
       await this.dapwrapper.daplink.flash(new TextEncoder().encode(data));
       this.logging.event({
@@ -317,59 +319,56 @@ export class PartialFlashing {
       await this.dapwrapper.disconnectAsync();
     }
   }
-}
 
-function convertDataToHexString(
-  data: string | Uint8Array | MemoryMap.default,
-): string {
-  if (typeof data === "string") {
-    return data;
+  private convertDataToHexString(
+    data: string | Uint8Array | MemoryMap.default,
+  ): string {
+    if (typeof data === "string") {
+      return data;
+    }
+    if (data instanceof Uint8Array) {
+      return this.paddedBytesToHexString(data);
+    }
+    return data.asHexString();
   }
-  if (data instanceof Uint8Array) {
-    return paddedBytesToHexString(data);
+
+  private convertDataToPaddedBytes(
+    data: string | Uint8Array | MemoryMap.default,
+  ): Uint8Array {
+    if (data instanceof Uint8Array) {
+      return data;
+    }
+    if (typeof data === "string") {
+      return this.hexStringToPaddedBytes(data);
+    }
+    return this.memoryMapToPaddedBytes(data);
   }
-  return data.asHexString();
-}
 
-function convertDataToPaddedBytes(
-  data: string | Uint8Array | MemoryMap.default,
-): Uint8Array {
-  if (data instanceof Uint8Array) {
-    return data;
+  private hexStringToPaddedBytes(hex: string): Uint8Array {
+    // Cludge for a packaging issue
+    const fromHex: (
+      hexText: string,
+      maxBlockSize?: number,
+    ) => MemoryMap.default =
+      (MemoryMap as any).fromHex ?? MemoryMap.default.fromHex;
+
+    return this.memoryMapToPaddedBytes(fromHex(hex));
   }
-  if (typeof data === "string") {
-    return hexStringToPaddedBytes(data);
+
+  private paddedBytesToHexString(data: Uint8Array): string {
+    // Cludge for a packaging issue
+    const fromPaddedUint8Array: (data: Uint8Array) => MemoryMap.default =
+      (MemoryMap as any).fromPaddedUint8Array ??
+      MemoryMap.default.fromPaddedUint8Array;
+
+    return fromPaddedUint8Array(data).asHexString();
   }
-  return memoryMapToPaddedBytes(data);
-}
 
-function hexStringToPaddedBytes(hex: string): Uint8Array {
-  // Cludge for a packaging issue
-  const fromHex: (hexText: string, maxBlockSize?: number) => MemoryMap.default =
-    (MemoryMap as any).fromHex ?? MemoryMap.default.fromHex;
-
-  return memoryMapToPaddedBytes(fromHex(hex));
-}
-
-function paddedBytesToHexString(data: Uint8Array): string {
-  // Cludge for a packaging issue
-  const fromPaddedUint8Array: (data: Uint8Array) => MemoryMap.default =
-    (MemoryMap as any).fromPaddedUint8Array ??
-    MemoryMap.default.fromPaddedUint8Array;
-
-  return fromPaddedUint8Array(data).asHexString();
-}
-
-function memoryMapToPaddedBytes(memoryMap: MemoryMap.default): Uint8Array {
-  const keys = Array.from(memoryMap.keys()).filter((k) => k < 0x10000000);
-  const lastKey = keys[keys.length - 1];
-  if (lastKey === undefined) {
-    return new Uint8Array([]);
+  private memoryMapToPaddedBytes(memoryMap: MemoryMap.default): Uint8Array {
+    const flashSize = {
+      V1: 256 * 1024,
+      V2: 512 * 1024,
+    }[this.boardVersion];
+    return memoryMap.slicePad(0, flashSize, 0);
   }
-  const lastPart = memoryMap.get(lastKey);
-  if (!lastPart) {
-    return new Uint8Array([]);
-  }
-  const length = lastKey + lastPart.length;
-  return memoryMap.slicePad(0, length, 0);
 }
