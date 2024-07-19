@@ -350,7 +350,7 @@ export class MicrobitWebUSBConnection
   private setStatus(newStatus: ConnectionStatus) {
     this.status = newStatus;
     this.visibilityReconnect = false;
-    this.log("Device status " + newStatus);
+    this.log("USB connection status " + newStatus);
     this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
   }
 

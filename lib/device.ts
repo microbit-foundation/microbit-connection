@@ -69,7 +69,7 @@ export enum ConnectionStatus {
    * Determining whether the connection type is supported requires
    * initialize() to complete.
    */
-  SUPPORT_NOT_KNOWN,
+  SUPPORT_NOT_KNOWN = "SUPPORT_NOT_KNOWN",
   /**
    * Not supported.
    */
@@ -80,7 +80,7 @@ export enum ConnectionStatus {
    * This will be the case even when a device is physically connected
    * but has not been connected via the browser security UI.
    */
-  NO_AUTHORIZED_DEVICE = "NO_DEVICE",
+  NO_AUTHORIZED_DEVICE = "NO_AUTHORIZED_DEVICE",
   /**
    * Authorized device available but we haven't connected to it.
    */

@@ -40,10 +40,7 @@ export class MicrobitWebBluetoothConnection
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements DeviceConnection
 {
-  // TODO: when do we call getAvailable() ?
-  status: ConnectionStatus = navigator.bluetooth
-    ? ConnectionStatus.NO_AUTHORIZED_DEVICE
-    : ConnectionStatus.NOT_SUPPORTED;
+  status: ConnectionStatus = ConnectionStatus.SUPPORT_NOT_KNOWN;
 
   /**
    * The USB device we last connected to.
@@ -60,6 +57,13 @@ export class MicrobitWebBluetoothConnection
   private addedServiceListeners = {
     accelerometerdatachanged: false,
   };
+
+  private availabilityListener = (e: Event) => {
+    // TODO: is this called? is `value` correct?
+    const value = (e as any).value as boolean;
+    this.availability = value;
+  };
+  private availability: boolean | undefined;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -79,15 +83,23 @@ export class MicrobitWebBluetoothConnection
   }
 
   async initialize(): Promise<void> {
-    if (navigator.bluetooth) {
-      // TODO: availabilitychanged
-    }
+    navigator.bluetooth?.addEventListener(
+      "availabilitychanged",
+      this.availabilityListener,
+    );
+    this.availability = await navigator.bluetooth?.getAvailability();
+    this.setStatus(
+      this.availability
+        ? ConnectionStatus.NO_AUTHORIZED_DEVICE
+        : ConnectionStatus.NOT_SUPPORTED,
+    );
   }
 
   dispose() {
-    if (navigator.bluetooth) {
-      // TODO: availabilitychanged
-    }
+    navigator.bluetooth?.removeEventListener(
+      "availabilitychanged",
+      this.availabilityListener,
+    );
   }
 
   async connect(options: ConnectOptions = {}): Promise<ConnectionStatus> {
@@ -141,7 +153,7 @@ export class MicrobitWebBluetoothConnection
 
   private setStatus(newStatus: ConnectionStatus) {
     this.status = newStatus;
-    this.log("Device status " + newStatus);
+    this.log("Bluetooth connection status " + newStatus);
     this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
   }
 
