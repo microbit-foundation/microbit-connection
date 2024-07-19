@@ -20,6 +20,7 @@ import {
   SerialResetEvent,
 } from "./device.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
+import { AccelerometerDataEvent } from "./accelerometer.js";
 
 export {
   MicrobitWebUSBConnection,
@@ -40,6 +41,7 @@ export {
 };
 
 export type {
+  AccelerometerDataEvent,
   DeviceConnection,
   BoardVersion,
   ConnectOptions,
