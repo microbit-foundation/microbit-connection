@@ -221,7 +221,9 @@ export class BluetoothDeviceWrapper {
         this.connecting = false;
       }
 
-      this.events.forEach((e) => this.startNotifications(e));
+      Object.keys(this.events).forEach((e) =>
+        this.startNotifications(e as TypedServiceEvent),
+      );
 
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
@@ -385,16 +387,16 @@ export class BluetoothDeviceWrapper {
     this.gattOperations = { busy: false, queue: [] };
   }
 
-  private createService<T>(
+  private createService<T extends Service>(
     info: ServiceInfo<T>,
-    backgroundInit: boolean,
+    listenerInit: boolean,
   ): Promise<T | undefined> {
     const gattServer = this.assertGattServer();
     return info.create(
       gattServer,
       this.dispatchTypedEvent,
       this.queueGattOperation.bind(this),
-      false,
+      listenerInit,
     );
   }
 
@@ -406,19 +408,15 @@ export class BluetoothDeviceWrapper {
     return this.createService(this.accelerometer, false);
   }
 
-  async startNotifications(type: string) {
-    const serviceInfo = this.serviceInfo.find((s) =>
-      s.events.includes(type as TypedServiceEvent),
-    );
+  async startNotifications(type: TypedServiceEvent) {
+    const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
     if (serviceInfo?.service) {
       serviceInfo?.service.startNotifications(type);
     }
   }
 
-  async stopNotifications(type: string) {
-    const serviceInfo = this.serviceInfo.find((s) =>
-      s.events.includes(type as TypedServiceEvent),
-    );
+  async stopNotifications(type: TypedServiceEvent) {
+    const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
     if (serviceInfo?.service) {
       serviceInfo?.service.stopNotifications(type);
     }

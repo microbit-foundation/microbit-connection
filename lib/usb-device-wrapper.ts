@@ -385,7 +385,7 @@ export class DAPWrapper {
 
   // Resets the micro:bit in software by writing to NVIC_AIRCR.
   // Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/cortex/cortex.ts#L347
-  private async softwareReset() {
+  async softwareReset() {
     await this.cortexM.writeMem32(
       CortexSpecialReg.NVIC_AIRCR,
       CortexSpecialReg.NVIC_AIRCR_VECTKEY |

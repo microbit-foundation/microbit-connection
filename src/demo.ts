@@ -5,6 +5,7 @@
  */
 import "./demo.css";
 import { MicrobitWebUSBConnection } from "../lib/usb";
+import { MicrobitRadioBridgeConnection } from "../lib/usb-radio-bridge";
 import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
 import {
   BackgroundErrorEvent,
@@ -25,6 +26,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <select class="transport">
       <option value="usb">WebUSB</option>
       <option value="bluetooth">Web Bluetooth</option>
+      <option value="radio">WebUSB with serial radio bridge</option>
     </select>
     <button class="connect">Connect</button>
     <button class="disconnect">Disconnect</button>
@@ -122,6 +124,14 @@ const switchTransport = async () => {
       initConnectionListeners();
       break;
     }
+    case "radio": {
+      connection = new MicrobitRadioBridgeConnection(
+        new MicrobitWebUSBConnection(),
+        0,
+      );
+      initConnectionListeners();
+      break;
+    }
   }
   await connection.initialize();
 };
@@ -154,27 +164,33 @@ const accChangedListener = (event: AccelerometerDataEvent) => {
 };
 
 accDataListen.addEventListener("click", async () => {
-  if (connection instanceof MicrobitWebBluetoothConnection) {
+  if (
+    connection instanceof MicrobitWebBluetoothConnection ||
+    connection instanceof MicrobitRadioBridgeConnection
+  ) {
     connection?.addEventListener(
       "accelerometerdatachanged",
       accChangedListener,
     );
   } else {
     throw new Error(
-      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+      "`accelerometerdatachanged` is not supported on `MicrobitWebUSBConnection`",
     );
   }
 });
 
 accDataStop.addEventListener("click", async () => {
-  if (connection instanceof MicrobitWebBluetoothConnection) {
+  if (
+    connection instanceof MicrobitWebBluetoothConnection ||
+    connection instanceof MicrobitRadioBridgeConnection
+  ) {
     connection?.removeEventListener(
       "accelerometerdatachanged",
       accChangedListener,
     );
   } else {
     throw new Error(
-      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+      "`accelerometerdatachanged` is not supported on `MicrobitWebUSBConnection`",
     );
   }
 });
@@ -204,7 +220,7 @@ accPeriodGet.addEventListener("click", async () => {
     }
   } else {
     throw new Error(
-      "`getAccelerometerData` is not supported on `MicrobitWebUSBConnection`",
+      "`getAccelerometerPeriod` is not supported on `MicrobitWebUSBConnection`",
     );
   }
 });

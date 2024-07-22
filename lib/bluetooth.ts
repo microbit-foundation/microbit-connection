@@ -235,6 +235,6 @@ export class MicrobitWebBluetoothConnection
   async setAccelerometerPeriod(value: number): Promise<void> {
     const accelerometerService =
       await this.connection?.getAccelerometerService();
-    accelerometerService?.setPeriod(value);
+    return accelerometerService?.setPeriod(value);
   }
 }

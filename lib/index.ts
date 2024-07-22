@@ -1,5 +1,6 @@
 import { MicrobitWebUSBConnection } from "./usb.js";
 import { MicrobitWebBluetoothConnection } from "./bluetooth.js";
+import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
 import { BoardId } from "./board-id.js";
 import {
   DeviceConnection,
@@ -24,6 +25,7 @@ import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
 export {
   MicrobitWebUSBConnection,
   MicrobitWebBluetoothConnection,
+  MicrobitRadioBridgeConnection,
   BoardId,
   createUniversalHexFlashDataSource,
   AfterRequestDevice,

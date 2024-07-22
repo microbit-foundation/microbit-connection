@@ -104,7 +104,7 @@ export class AccelerometerService implements Service {
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
     // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
-    const { callback } = createGattOperationPromise();
+    const { callback, gattOperationPromise } = createGattOperationPromise();
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
     this.queueGattOperation({
@@ -114,9 +114,8 @@ export class AccelerometerService implements Service {
           dataView,
         ),
     });
+    await gattOperationPromise;
   }
-
-  private addDataEventListener(): void {}
 
   async startNotifications(type: TypedServiceEvent): Promise<void> {
     this.characteristicForEvent(type)?.startNotifications();
