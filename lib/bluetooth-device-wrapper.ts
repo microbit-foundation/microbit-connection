@@ -400,10 +400,6 @@ export class BluetoothDeviceWrapper {
     );
   }
 
-  async getButtonService(): Promise<ButtonService | undefined> {
-    return this.createService(this.buttons, false);
-  }
-
   async getAccelerometerService(): Promise<AccelerometerService | undefined> {
     return this.createService(this.accelerometer, false);
   }

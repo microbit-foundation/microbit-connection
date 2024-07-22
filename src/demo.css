@@ -40,6 +40,21 @@ h6 {
   overflow-wrap: break-word;
 }
 
+label {
+  display: block;
+  margin: 0.5em 0;
+}
+
+label>*:not(first-child) {
+  margin-left: 0.5em;
+}
+
+select,
+button,
+input {
+  margin: 0.5em 0.5em 0 0;
+}
+
 /* Custom styles */
 
 body {
@@ -64,10 +79,6 @@ section {
   padding: 1em;
 }
 
-label {
-  display: block;
-}
-
-* + * {
+*+* {
   margin-top: 1rem;
 }

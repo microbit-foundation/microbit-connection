@@ -26,6 +26,7 @@
   "dependencies": {
     "@microbit/microbit-universal-hex": "^0.2.2",
     "@types/web-bluetooth": "^0.0.20",
+    "crelt": "^1.0.6",
     "dapjs": "github:microbit-matt-hillsdon/dapjs#v2.3.0-microbit.2",
     "nrf-intel-hex": "^1.4.0"
   }

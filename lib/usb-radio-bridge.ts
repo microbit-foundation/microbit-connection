@@ -160,7 +160,7 @@ export class MicrobitRadioBridgeConnection
  */
 class RadioBridgeSerialSession {
   private unprocessedData = "";
-  private previousButtonState = { A: 0, B: 0 };
+  private previousButtonState = { buttonA: 0, buttonB: 0 };
   private onPeriodicMessageReceived: (() => void) | undefined;
   private lastReceivedMessageTimestamp: number | undefined;
   private connectionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
@@ -174,6 +174,7 @@ class RadioBridgeSerialSession {
     const { data } = event;
     const messages = protocol.splitMessages(this.unprocessedData + data);
     this.unprocessedData = messages.remainingInput;
+
     messages.messages.forEach(async (msg) => {
       this.lastReceivedMessageTimestamp = Date.now();
 
@@ -190,20 +191,8 @@ class RadioBridgeSerialSession {
             z: sensorData.accelerometerZ,
           }),
         );
-        if (sensorData.buttonA !== this.previousButtonState.A) {
-          this.previousButtonState.A = sensorData.buttonA;
-          this.dispatchTypedEvent(
-            "buttonachanged",
-            new ButtonEvent("buttonachanged", ButtonState.ShortPress),
-          );
-        }
-        if (sensorData.buttonB !== this.previousButtonState.B) {
-          this.previousButtonState.B = sensorData.buttonB;
-          this.dispatchTypedEvent(
-            "buttonbchanged",
-            new ButtonEvent("buttonbchanged", ButtonState.ShortPress),
-          );
-        }
+        this.processButton("buttonA", "buttonachanged", sensorData);
+        this.processButton("buttonB", "buttonbchanged", sensorData);
       } else {
         const messageResponse = protocol.processResponseMessage(msg);
         if (!messageResponse) {
@@ -217,6 +206,23 @@ class RadioBridgeSerialSession {
       }
     });
   };
+
+  private processButton(
+    button: "buttonA" | "buttonB",
+    type: "buttonachanged" | "buttonbchanged",
+    sensorData: protocol.MicrobitSensorState,
+  ) {
+    if (sensorData[button] !== this.previousButtonState[button]) {
+      this.previousButtonState[button] = sensorData[button];
+      this.dispatchTypedEvent(
+        type,
+        new ButtonEvent(
+          type,
+          sensorData[button] ? ButtonState.ShortPress : ButtonState.NotPressed,
+        ),
+      );
+    }
+  }
 
   private responseMap = new Map<
     number,

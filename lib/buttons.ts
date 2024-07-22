@@ -8,7 +8,7 @@ export type ButtonEventType = "buttonachanged" | "buttonbchanged";
 
 export class ButtonEvent extends Event {
   constructor(
-    public readonly type: ButtonEventType,
+    type: ButtonEventType,
     public readonly state: ButtonState,
   ) {
     super(type);
