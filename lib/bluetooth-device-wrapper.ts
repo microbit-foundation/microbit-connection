@@ -6,10 +6,12 @@
 
 import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
+import { ButtonService } from "./button-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
 import { Logging, NullLogging } from "./logging.js";
 import {
   ServiceConnectionEventMap,
+  TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 
@@ -48,6 +50,46 @@ function findPlatform(): string | undefined {
 const platform = findPlatform();
 const isWindowsOS = platform && /^Win/.test(platform);
 
+export interface Service {
+  startNotifications(type: TypedServiceEvent): Promise<void>;
+  stopNotifications(type: TypedServiceEvent): Promise<void>;
+}
+
+class ServiceInfo<T extends Service> {
+  service: T | undefined;
+
+  constructor(
+    private serviceFactory: (
+      gattServer: BluetoothRemoteGATTServer,
+      dispatcher: TypedServiceEventDispatcher,
+      queueGattOperation: (gattOperation: GattOperation) => void,
+      listenerInit: boolean,
+    ) => Promise<T | undefined>,
+    public events: TypedServiceEvent[],
+  ) {}
+
+  async create(
+    gattServer: BluetoothRemoteGATTServer,
+    dispatcher: TypedServiceEventDispatcher,
+    queueGattOperation: (gattOperation: GattOperation) => void,
+    listenerInit: boolean,
+  ): Promise<T | undefined> {
+    this.service =
+      this.service ??
+      (await this.serviceFactory(
+        gattServer,
+        dispatcher,
+        queueGattOperation,
+        listenerInit,
+      ));
+    return this.service;
+  }
+
+  dispose() {
+    this.service = undefined;
+  }
+}
+
 export class BluetoothDeviceWrapper {
   // Used to avoid automatic reconnection during user triggered connect/disconnect
   // or reconnection itself.
@@ -67,15 +109,17 @@ export class BluetoothDeviceWrapper {
   private connecting = false;
   private isReconnect = false;
   private reconnectReadyPromise: Promise<void> | undefined;
-  private accelerometerService: AccelerometerService | undefined;
+
+  private accelerometer = new ServiceInfo(AccelerometerService.createService, [
+    "accelerometerdatachanged",
+  ]);
+  private buttons = new ServiceInfo(ButtonService.createService, [
+    "buttonachanged",
+    "buttonbchanged",
+  ]);
+  private serviceInfo = [this.accelerometer, this.buttons];
 
   boardVersion: BoardVersion | undefined;
-  serviceListenerState = {
-    accelerometerdatachanged: {
-      notifying: false,
-      service: this.getAccelerometerService,
-    },
-  };
 
   private gattOperations: GattOperations = {
     busy: false,
@@ -86,20 +130,13 @@ export class BluetoothDeviceWrapper {
     public readonly device: BluetoothDevice,
     private logging: Logging = new NullLogging(),
     private dispatchTypedEvent: TypedServiceEventDispatcher,
-    private addedServiceListeners: Record<
-      keyof ServiceConnectionEventMap,
-      boolean
-    >,
+    // We recreate this for the same connection and need to re-setup notifications for the old events
+    private events: Record<keyof ServiceConnectionEventMap, boolean>,
   ) {
     device.addEventListener(
       "gattserverdisconnected",
       this.handleDisconnectEvent,
     );
-    for (const [key, value] of Object.entries(this.addedServiceListeners)) {
-      this.serviceListenerState[
-        key as keyof ServiceConnectionEventMap
-      ].notifying = value;
-    }
   }
 
   async connect(): Promise<void> {
@@ -184,13 +221,7 @@ export class BluetoothDeviceWrapper {
         this.connecting = false;
       }
 
-      // Restart notifications for services and characteristics
-      // the user has listened to.
-      for (const serviceListener of Object.values(this.serviceListenerState)) {
-        if (serviceListener.notifying) {
-          serviceListener.service.call(this, { listenerInit: true });
-        }
-      }
+      this.events.forEach((e) => this.startNotifications(e));
 
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
@@ -354,26 +385,47 @@ export class BluetoothDeviceWrapper {
     this.gattOperations = { busy: false, queue: [] };
   }
 
-  async getAccelerometerService(
-    options: {
-      listenerInit: boolean;
-    } = { listenerInit: false },
-  ): Promise<AccelerometerService | undefined> {
-    if (!this.accelerometerService) {
-      const gattServer = this.assertGattServer();
-      this.accelerometerService = await AccelerometerService.createService(
-        gattServer,
-        this.dispatchTypedEvent,
-        this.serviceListenerState.accelerometerdatachanged.notifying,
-        this.queueGattOperation.bind(this),
-        options?.listenerInit,
-      );
+  private createService<T>(
+    info: ServiceInfo<T>,
+    backgroundInit: boolean,
+  ): Promise<T | undefined> {
+    const gattServer = this.assertGattServer();
+    return info.create(
+      gattServer,
+      this.dispatchTypedEvent,
+      this.queueGattOperation.bind(this),
+      false,
+    );
+  }
+
+  async getButtonService(): Promise<ButtonService | undefined> {
+    return this.createService(this.buttons, false);
+  }
+
+  async getAccelerometerService(): Promise<AccelerometerService | undefined> {
+    return this.createService(this.accelerometer, false);
+  }
+
+  async startNotifications(type: string) {
+    const serviceInfo = this.serviceInfo.find((s) =>
+      s.events.includes(type as TypedServiceEvent),
+    );
+    if (serviceInfo?.service) {
+      serviceInfo?.service.startNotifications(type);
     }
-    return this.accelerometerService;
+  }
+
+  async stopNotifications(type: string) {
+    const serviceInfo = this.serviceInfo.find((s) =>
+      s.events.includes(type as TypedServiceEvent),
+    );
+    if (serviceInfo?.service) {
+      serviceInfo?.service.stopNotifications(type);
+    }
   }
 
   private disposeServices() {
-    this.accelerometerService = undefined;
+    this.serviceInfo.forEach((s) => s.dispose());
     this.clearGattQueueOnDisconnect();
   }
 }

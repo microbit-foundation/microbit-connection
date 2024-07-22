@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * (c) 2023, Center for Computational Thinking and Design at Aarhus University and contributors
  *
@@ -8,13 +7,26 @@
 import { MicrobitWebUSBConnection } from "./usb.js";
 import * as protocol from "./usb-serial-protocol.js";
 import { Logging } from "./logging.js";
+import { TypedEventTarget } from "./events.js";
+import { DeviceConnection, DeviceConnectionEventMap } from "./device.js";
+import { ServiceConnectionEventMap } from "./service-events.js";
+import { AccelerometerDataEvent } from "./accelerometer.js";
+import { ButtonEvent, ButtonState } from "./buttons.js";
 
 const connectTimeoutDuration: number = 10000;
 
 class BridgeError extends Error {}
 class RemoteError extends Error {}
 
-export class MicrobitRadioBridgeConnection {
+/**
+ * Wraps around a USB connection to implement a subset of services over a serial protocol.
+ *
+ * When it connects/disconnects it affects the delegate connection.
+ */
+export class MicrobitRadioBridgeConnection
+  extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
+  implements DeviceConnection
+{
   private responseMap = new Map<
     number,
     (
@@ -32,7 +44,7 @@ export class MicrobitRadioBridgeConnection {
   private finalAttempt = false;
 
   constructor(
-    private usb: MicrobitWebUSBConnection,
+    private delegate: MicrobitWebUSBConnection,
     private logging: Logging,
     private remoteDeviceId: number,
   ) {}
@@ -49,6 +61,9 @@ export class MicrobitRadioBridgeConnection {
       return;
     }
     this.isConnecting = true;
+
+    await this.delegate.connect();
+
     let unprocessedData = "";
     let previousButtonState = { A: 0, B: 0 };
     let onPeriodicMessageRecieved: (() => void) | undefined;
@@ -66,24 +81,26 @@ export class MicrobitRadioBridgeConnection {
         // Messages are either periodic sensor data or command/response
         const sensorData = protocol.processPeriodicMessage(msg);
         if (sensorData) {
-          // stateOnReconnected();
-          // if (onPeriodicMessageRecieved) {
-          //   onPeriodicMessageRecieved();
-          //   onPeriodicMessageRecieved = undefined;
-          // }
-          // onAccelerometerChange(
-          //   sensorData.accelerometerX,
-          //   sensorData.accelerometerY,
-          //   sensorData.accelerometerZ
-          // );
-          // if (sensorData.buttonA !== previousButtonState.A) {
-          //   previousButtonState.A = sensorData.buttonA;
-          //   onButtonChange(sensorData.buttonA, "A");
-          // }
-          // if (sensorData.buttonB !== previousButtonState.B) {
-          //   previousButtonState.B = sensorData.buttonB;
-          //   onButtonChange(sensorData.buttonB, "B");
-          // }
+          this.dispatchTypedEvent(
+            "accelerometerdatachanged",
+            new AccelerometerDataEvent({
+              x: sensorData.accelerometerX,
+              y: sensorData.accelerometerY,
+              z: sensorData.accelerometerZ,
+            }),
+          );
+          if (sensorData.buttonA !== previousButtonState.A) {
+            previousButtonState.A = sensorData.buttonA;
+            this.dispatchTypedEvent(
+              "buttonachanged",
+              new ButtonEvent("buttonachanged", ButtonState.ShortPress),
+            );
+            onButtonChange(sensorData.buttonA, "A");
+          }
+          if (sensorData.buttonB !== previousButtonState.B) {
+            previousButtonState.B = sensorData.buttonB;
+            onButtonChange(sensorData.buttonB, "B");
+          }
         } else {
           const messageResponse = protocol.processResponseMessage(msg);
           if (!messageResponse) {
@@ -100,7 +117,7 @@ export class MicrobitRadioBridgeConnection {
       });
     };
     try {
-      await this.usb.startSerial(processMessage, handleError);
+      await this.delegate.startSerial(processMessage, handleError);
       await this.handshake();
       // stateOnConnected(DeviceRequestStates.INPUT);
 
@@ -138,42 +155,36 @@ export class MicrobitRadioBridgeConnection {
         );
       }
 
-      // For now we only support input state.
-      // TODO: when do we do this?
-      if (false) {
-        // Request the micro:bit to start sending the periodic messages
-        const startCmd = protocol.generateCmdStart({
-          accelerometer: true,
-          buttons: true,
-        });
-        const periodicMessagePromise = new Promise<void>((resolve, reject) => {
-          onPeriodicMessageRecieved = resolve;
-          setTimeout(() => {
-            onPeriodicMessageRecieved = undefined;
-            reject(new Error("Failed to receive data from remote micro:bit"));
-          }, 500);
-        });
+      // Request the micro:bit to start sending the periodic messages
+      const startCmd = protocol.generateCmdStart({
+        accelerometer: true,
+        buttons: true,
+      });
+      const periodicMessagePromise = new Promise<void>((resolve, reject) => {
+        onPeriodicMessageRecieved = resolve;
+        setTimeout(() => {
+          onPeriodicMessageRecieved = undefined;
+          reject(new Error("Failed to receive data from remote micro:bit"));
+        }, 500);
+      });
 
-        const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
-        if (startCmdResponse.type === protocol.ResponseTypes.Error) {
-          throw new RemoteError(
-            `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
-          );
-        }
-
-        if (this.isReconnect) {
-          await periodicMessagePromise;
-        } else {
-          periodicMessagePromise.catch(async (e) => {
-            this.logging.error("Failed to initialise serial protocol", e);
-            await this.disconnectInternal(false, "remote");
-            this.isConnecting = false;
-          });
-        }
+      const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
+      if (startCmdResponse.type === protocol.ResponseTypes.Error) {
+        throw new RemoteError(
+          `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
+        );
       }
 
-      // stateOnAssigned(DeviceRequestStates.INPUT, this.usb.getModelNumber());
-      // stateOnReady(DeviceRequestStates.INPUT);
+      if (this.isReconnect) {
+        await periodicMessagePromise;
+      } else {
+        periodicMessagePromise.catch(async (e) => {
+          this.logging.error("Failed to initialise serial protocol", e);
+          await this.disconnectInternal(false, "remote");
+          this.isConnecting = false;
+        });
+      }
+
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
         message: "Serial connect success",
@@ -211,7 +222,7 @@ export class MicrobitRadioBridgeConnection {
       // If this fails the remote micro:bit has already gone away.
     }
     this.responseMap.clear();
-    await this.usb.stopSerial();
+    await this.delegate.stopSerial();
     // stateOnDisconnected(
     //   DeviceRequestStates.INPUT,
     //   userDisconnect || this.finalAttempt
@@ -236,8 +247,8 @@ export class MicrobitRadioBridgeConnection {
         "Serial disconnected... automatically trying to reconnect",
       );
       this.responseMap.clear();
-      await this.usb.stopSerial();
-      await this.usb.softwareReset();
+      await this.delegate.stopSerial();
+      await this.delegate.softwareReset();
       await this.reconnect();
     } catch (e) {
       this.logging.error(
@@ -268,7 +279,7 @@ export class MicrobitRadioBridgeConnection {
         }, 1_000);
       },
     );
-    await this.usb.serialWrite(cmd.message);
+    await this.delegate.serialWrite(cmd.message);
     return responsePromise;
   }
 

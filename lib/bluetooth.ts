@@ -18,14 +18,10 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  SerialResetEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
-import {
-  ServiceConnectionEventMap,
-  TypedServiceEvent,
-} from "./service-events.js";
+import { ServiceConnectionEventMap } from "./service-events.js";
 
 const requestDeviceTimeoutDuration: number = 30000;
 
@@ -54,8 +50,10 @@ export class MicrobitWebBluetoothConnection
   private _addEventListener = this.addEventListener;
   private _removeEventListener = this.removeEventListener;
 
-  private addedServiceListeners = {
+  private activeEvents = {
     accelerometerdatachanged: false,
+    buttonachanged: false,
+    buttonbchanged: false,
   };
 
   private availabilityListener = (e: Event) => {
@@ -70,10 +68,10 @@ export class MicrobitWebBluetoothConnection
     this.logging = options.logging || new NullLogging();
     this.addEventListener = (type, ...args) => {
       this._addEventListener(type, ...args);
-      this.startNotifications(type);
+      this.connection?.startNotifications(type);
     };
     this.removeEventListener = (type, ...args) => {
-      this.stopNotifications(type);
+      this.connection?.stopNotifications(type);
       this._removeEventListener(type, ...args);
     };
   }
@@ -109,24 +107,6 @@ export class MicrobitWebBluetoothConnection
 
   getBoardVersion(): BoardVersion | undefined {
     return this.connection?.boardVersion;
-  }
-
-  // @ts-ignore
-  private async startSerialInternal() {
-    if (!this.connection) {
-      // As connecting then starting serial are async we could disconnect between them,
-      // so handle this gracefully.
-      return;
-    }
-    // TODO
-  }
-
-  // @ts-ignore
-  private async stopSerialInternal() {
-    if (this.connection) {
-      // TODO
-      this.dispatchTypedEvent("serialreset", new SerialResetEvent());
-    }
   }
 
   async disconnect(): Promise<void> {
@@ -180,7 +160,7 @@ export class MicrobitWebBluetoothConnection
         device,
         this.logging,
         this.dispatchTypedEvent.bind(this),
-        this.addedServiceListeners,
+        this.activeEvents,
       );
     }
     // TODO: timeout unification?
@@ -256,48 +236,5 @@ export class MicrobitWebBluetoothConnection
     const accelerometerService =
       await this.connection?.getAccelerometerService();
     accelerometerService?.setPeriod(value);
-  }
-
-  private async startAccelerometerNotifications() {
-    const accelerometerService = await this.connection?.getAccelerometerService(
-      { listenerInit: true },
-    );
-    accelerometerService?.startNotifications();
-    if (this.connection) {
-      this.connection.serviceListenerState.accelerometerdatachanged.notifying =
-        true;
-    } else {
-      this.addedServiceListeners.accelerometerdatachanged = true;
-    }
-  }
-
-  private async stopAccelerometerNotifications() {
-    const accelerometerService =
-      await this.connection?.getAccelerometerService();
-    if (this.connection) {
-      this.connection.serviceListenerState.accelerometerdatachanged.notifying =
-        false;
-    } else {
-      this.addedServiceListeners.accelerometerdatachanged = false;
-    }
-    accelerometerService?.stopNotifications();
-  }
-
-  private async startNotifications(type: string) {
-    switch (type as TypedServiceEvent) {
-      case "accelerometerdatachanged": {
-        this.startAccelerometerNotifications();
-        break;
-      }
-    }
-  }
-
-  private async stopNotifications(type: string) {
-    switch (type as TypedServiceEvent) {
-      case "accelerometerdatachanged": {
-        this.stopAccelerometerNotifications();
-        break;
-      }
-    }
   }
 }
