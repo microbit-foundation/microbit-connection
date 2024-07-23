@@ -405,6 +405,10 @@ export class MicrobitWebUSBConnection
     });
   }
 
+  async softwareReset(): Promise<void> {
+    await this.connection?.softwareReset();
+  }
+
   private handleDisconnect = (event: USBConnectionEvent) => {
     if (event.device === this.device) {
       this.connection = undefined;

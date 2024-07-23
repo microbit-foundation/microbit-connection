@@ -1,31 +1,37 @@
 import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
-import { GattOperation } from "./bluetooth-device-wrapper.js";
+import { GattOperation, Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
 import { createGattOperationPromise } from "./bluetooth-utils.js";
 import { BackgroundErrorEvent, DeviceError } from "./device.js";
 import {
   CharacteristicDataTarget,
+  TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 
-export class AccelerometerService {
+export class AccelerometerService implements Service {
   constructor(
     private accelerometerDataCharacteristic: BluetoothRemoteGATTCharacteristic,
     private accelerometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
     private dispatchTypedEvent: TypedServiceEventDispatcher,
-    private isNotifying: boolean,
     private queueGattOperation: (gattOperation: GattOperation) => void,
   ) {
-    this.addDataEventListener();
-    if (this.isNotifying) {
-      this.startNotifications();
-    }
+    this.accelerometerDataCharacteristic.addEventListener(
+      "characteristicvaluechanged",
+      (event: Event) => {
+        const target = event.target as CharacteristicDataTarget;
+        const data = this.dataViewToData(target.value);
+        this.dispatchTypedEvent(
+          "accelerometerdatachanged",
+          new AccelerometerDataEvent(data),
+        );
+      },
+    );
   }
 
   static async createService(
     gattServer: BluetoothRemoteGATTServer,
     dispatcher: TypedServiceEventDispatcher,
-    isNotifying: boolean,
     queueGattOperation: (gattOperation: GattOperation) => void,
     listenerInit: boolean,
   ): Promise<AccelerometerService | undefined> {
@@ -57,7 +63,6 @@ export class AccelerometerService {
       accelerometerDataCharacteristic,
       accelerometerPeriodCharacteristic,
       dispatcher,
-      isNotifying,
       queueGattOperation,
     );
   }
@@ -99,7 +104,7 @@ export class AccelerometerService {
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
     // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
-    const { callback } = createGattOperationPromise();
+    const { callback, gattOperationPromise } = createGattOperationPromise();
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
     this.queueGattOperation({
@@ -109,29 +114,25 @@ export class AccelerometerService {
           dataView,
         ),
     });
+    await gattOperationPromise;
   }
 
-  private addDataEventListener(): void {
-    this.accelerometerDataCharacteristic.addEventListener(
-      "characteristicvaluechanged",
-      (event: Event) => {
-        const target = event.target as CharacteristicDataTarget;
-        const data = this.dataViewToData(target.value);
-        this.dispatchTypedEvent(
-          "accelerometerdatachanged",
-          new AccelerometerDataEvent(data),
-        );
-      },
-    );
+  async startNotifications(type: TypedServiceEvent): Promise<void> {
+    await this.characteristicForEvent(type)?.startNotifications();
   }
 
-  startNotifications(): void {
-    this.accelerometerDataCharacteristic.startNotifications();
-    this.isNotifying = true;
+  async stopNotifications(type: TypedServiceEvent): Promise<void> {
+    await this.characteristicForEvent(type)?.stopNotifications();
   }
 
-  stopNotifications(): void {
-    this.isNotifying = false;
-    this.accelerometerDataCharacteristic.stopNotifications();
+  private characteristicForEvent(type: TypedServiceEvent) {
+    switch (type) {
+      case "accelerometerdatachanged": {
+        return this.accelerometerDataCharacteristic;
+      }
+      default: {
+        return undefined;
+      }
+    }
   }
 }

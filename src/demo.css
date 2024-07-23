@@ -42,6 +42,21 @@ h6 {
 
 /* Custom styles */
 
+label {
+  display: block;
+  margin: 0.5em 0;
+}
+
+label > *:not(first-child) {
+  margin-left: 0.5em;
+}
+
+select,
+button,
+input {
+  margin: 0.5em 0.5em 0 0;
+}
+
 body {
   font-family:
     system-ui,
@@ -62,10 +77,6 @@ section {
   border: 2px solid grey;
   border-radius: 1em;
   padding: 1em;
-}
-
-label {
-  display: block;
 }
 
 * + * {

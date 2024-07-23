@@ -17,7 +17,9 @@ export interface Logging {
 }
 
 export class NullLogging implements Logging {
-  event(_event: Event): void {}
+  event(_event: Event): void {
+    console.log(_event);
+  }
   error(_m: string, _e: unknown): void {
     console.error(_m, _e);
   }
