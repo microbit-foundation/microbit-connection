@@ -7,7 +7,6 @@ import {
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
-  ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceError,
@@ -46,7 +45,6 @@ export type {
   AccelerometerDataEvent,
   DeviceConnection,
   BoardVersion,
-  ConnectOptions,
   DeviceErrorCode,
   FlashDataSource,
 };
