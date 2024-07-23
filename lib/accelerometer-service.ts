@@ -69,9 +69,9 @@ export class AccelerometerService implements Service {
 
   private dataViewToData(dataView: DataView): AccelerometerData {
     return {
-      x: dataView.getInt16(0, true),
-      y: dataView.getInt16(2, true),
-      z: dataView.getInt16(4, true),
+      x: dataView.getInt16(0, true) / 1000,
+      y: dataView.getInt16(2, true) / 1000,
+      z: dataView.getInt16(4, true) / 1000,
     };
   }
 
