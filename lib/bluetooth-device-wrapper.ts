@@ -56,7 +56,7 @@ export interface Service {
 }
 
 class ServiceInfo<T extends Service> {
-  service: T | undefined;
+  private service: T | undefined;
 
   constructor(
     private serviceFactory: (
@@ -68,7 +68,11 @@ class ServiceInfo<T extends Service> {
     public events: TypedServiceEvent[],
   ) {}
 
-  async create(
+  get(): T | undefined {
+    return this.service;
+  }
+
+  async createIfNeeded(
     gattServer: BluetoothRemoteGATTServer,
     dispatcher: TypedServiceEventDispatcher,
     queueGattOperation: (gattOperation: GattOperation) => void,
@@ -387,12 +391,12 @@ export class BluetoothDeviceWrapper {
     this.gattOperations = { busy: false, queue: [] };
   }
 
-  private createService<T extends Service>(
+  private createIfNeeded<T extends Service>(
     info: ServiceInfo<T>,
     listenerInit: boolean,
   ): Promise<T | undefined> {
     const gattServer = this.assertGattServer();
-    return info.create(
+    return info.createIfNeeded(
       gattServer,
       this.dispatchTypedEvent,
       this.queueGattOperation.bind(this),
@@ -401,21 +405,21 @@ export class BluetoothDeviceWrapper {
   }
 
   async getAccelerometerService(): Promise<AccelerometerService | undefined> {
-    return this.createService(this.accelerometer, false);
+    return this.createIfNeeded(this.accelerometer, false);
   }
 
   async startNotifications(type: TypedServiceEvent) {
     const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-    if (serviceInfo?.service) {
-      serviceInfo?.service.startNotifications(type);
+    if (serviceInfo) {
+      // TODO: type cheat! why?
+      const service = await this.createIfNeeded(serviceInfo as any, true);
+      service?.startNotifications(type);
     }
   }
 
   async stopNotifications(type: TypedServiceEvent) {
     const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-    if (serviceInfo?.service) {
-      serviceInfo?.service.stopNotifications(type);
-    }
+    serviceInfo?.get()?.stopNotifications(type);
   }
 
   private disposeServices() {

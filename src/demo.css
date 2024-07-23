@@ -40,6 +40,8 @@ h6 {
   overflow-wrap: break-word;
 }
 
+/* Custom styles */
+
 label {
   display: block;
   margin: 0.5em 0;
@@ -54,8 +56,6 @@ button,
 input {
   margin: 0.5em 0.5em 0 0;
 }
-
-/* Custom styles */
 
 body {
   font-family:

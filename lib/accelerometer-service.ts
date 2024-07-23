@@ -118,11 +118,11 @@ export class AccelerometerService implements Service {
   }
 
   async startNotifications(type: TypedServiceEvent): Promise<void> {
-    this.characteristicForEvent(type)?.startNotifications();
+    await this.characteristicForEvent(type)?.startNotifications();
   }
 
   async stopNotifications(type: TypedServiceEvent): Promise<void> {
-    this.characteristicForEvent(type)?.stopNotifications();
+    await this.characteristicForEvent(type)?.stopNotifications();
   }
 
   private characteristicForEvent(type: TypedServiceEvent) {
