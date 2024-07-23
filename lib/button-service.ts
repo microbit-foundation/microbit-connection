@@ -32,11 +32,9 @@ export class ButtonService implements Service {
     queueGattOperation: (gattOperation: GattOperation) => void,
     listenerInit: boolean,
   ): Promise<ButtonService | undefined> {
-    let accelerometerService: BluetoothRemoteGATTService;
+    let buttonService: BluetoothRemoteGATTService;
     try {
-      accelerometerService = await gattServer.getPrimaryService(
-        profile.accelerometer.id,
-      );
+      buttonService = await gattServer.getPrimaryService(profile.button.id);
     } catch (err) {
       if (listenerInit) {
         dispatcher("backgrounderror", new BackgroundErrorEvent(err as string));
@@ -48,10 +46,10 @@ export class ButtonService implements Service {
         });
       }
     }
-    const buttonACharacteristic = await accelerometerService.getCharacteristic(
+    const buttonACharacteristic = await buttonService.getCharacteristic(
       profile.button.characteristics.a.id,
     );
-    const buttonBCharacteristic = await accelerometerService.getCharacteristic(
+    const buttonBCharacteristic = await buttonService.getCharacteristic(
       profile.button.characteristics.b.id,
     );
     return new ButtonService(
