@@ -13,7 +13,6 @@ import {
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
-  ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -62,6 +61,7 @@ export class MicrobitWebBluetoothConnection
     this.availability = value;
   };
   private availability: boolean | undefined;
+  private nameFilter: string | undefined;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -100,8 +100,8 @@ export class MicrobitWebBluetoothConnection
     );
   }
 
-  async connect(options: ConnectOptions = {}): Promise<ConnectionStatus> {
-    await this.connectInternal(options);
+  async connect(): Promise<ConnectionStatus> {
+    await this.connectInternal();
     return this.status;
   }
 
@@ -150,9 +150,9 @@ export class MicrobitWebBluetoothConnection
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
-  private async connectInternal(options: ConnectOptions): Promise<void> {
+  private async connectInternal(): Promise<void> {
     if (!this.connection) {
-      const device = await this.chooseDevice(options);
+      const device = await this.chooseDevice();
       if (!device) {
         return;
       }
@@ -169,9 +169,11 @@ export class MicrobitWebBluetoothConnection
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async chooseDevice(
-    options: ConnectOptions,
-  ): Promise<BluetoothDevice | undefined> {
+  setNameFilter(name: string) {
+    this.nameFilter = name;
+  }
+
+  private async chooseDevice(): Promise<BluetoothDevice | undefined> {
     if (this.device) {
       return this.device;
     }
@@ -183,8 +185,8 @@ export class MicrobitWebBluetoothConnection
         navigator.bluetooth.requestDevice({
           filters: [
             {
-              namePrefix: options.name
-                ? `BBC micro:bit [${options.name}]`
+              namePrefix: this.nameFilter
+                ? `BBC micro:bit [${this.nameFilter}]`
                 : "BBC micro:bit",
             },
           ],

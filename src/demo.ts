@@ -31,12 +31,9 @@ const createConnection = (type: "usb" | "bluetooth" | "radio") => {
     case "usb":
       return new MicrobitWebUSBConnection();
     case "radio":
-      return new MicrobitRadioBridgeConnection(
-        new MicrobitWebUSBConnection(),
-        // This only works with the local-sensor hex.
-        // To use with a remote micro:bit we need a UI flow that grabs the remote id.
-        0,
-      );
+      // This only works with the local-sensor hex.
+      // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
+      return new MicrobitRadioBridgeConnection(new MicrobitWebUSBConnection());
   }
 };
 
@@ -121,7 +118,7 @@ const createConnectSection = (type: ConnectionType): Section => {
       "button",
       {
         onclick: () => {
-          void connection.connect({ name: name || undefined });
+          void connection.connect();
         },
       },
       "Connect",
