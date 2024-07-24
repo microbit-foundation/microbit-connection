@@ -55,6 +55,9 @@ const recreateUi = async (type: ConnectionType) => {
   connection.dispose();
   connection = createConnection(type);
   await connection.initialize();
+  if (connection instanceof MicrobitRadioBridgeConnection) {
+    connection.setRemoteDeviceId(0);
+  }
 
   [
     createConnectSection(type),

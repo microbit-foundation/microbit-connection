@@ -94,7 +94,7 @@ export class MicrobitRadioBridgeConnection
     // TODO: previously this skipped overlapping connect attempts but that seems awkward
     // can we... just not do that? or wait?
 
-    if (!this.remoteDeviceId) {
+    if (this.remoteDeviceId === undefined) {
       throw new BridgeError(`Missing remote micro:bit ID`);
     }
 
