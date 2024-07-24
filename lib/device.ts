@@ -97,11 +97,6 @@ export type FlashDataSource = (
   boardVersion: BoardVersion,
 ) => Promise<string | Uint8Array>;
 
-export interface ConnectOptions {
-  // Name filter used for Web Bluetooth
-  name?: string;
-}
-
 export type BoardVersion = "V1" | "V2";
 
 export class ConnectionStatusEvent extends Event {
@@ -182,7 +177,7 @@ export interface DeviceConnection
    *
    * @returns the final connection status.
    */
-  connect(options?: ConnectOptions): Promise<ConnectionStatus>;
+  connect(): Promise<ConnectionStatus>;
 
   /**
    * Get the board version.

@@ -4,25 +4,24 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { MicrobitWebUSBConnection } from "./usb.js";
-import * as protocol from "./usb-serial-protocol.js";
-import { Logging, NullLogging } from "./logging.js";
-import { TypedEventTarget } from "./events.js";
+import { AccelerometerDataEvent } from "./accelerometer.js";
+import { ButtonEvent, ButtonState } from "./buttons.js";
 import {
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
-  ConnectOptions,
   DeviceConnection,
   DeviceConnectionEventMap,
   SerialDataEvent,
 } from "./device.js";
+import { TypedEventTarget } from "./events.js";
+import { Logging, NullLogging } from "./logging.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
-import { AccelerometerDataEvent } from "./accelerometer.js";
-import { ButtonEvent, ButtonState } from "./buttons.js";
+import * as protocol from "./usb-serial-protocol.js";
+import { MicrobitWebUSBConnection } from "./usb.js";
 
 const connectTimeoutDuration: number = 10000;
 
@@ -45,6 +44,7 @@ export class MicrobitRadioBridgeConnection
   status: ConnectionStatus;
   private logging: Logging;
   private serialSession: RadioBridgeSerialSession | undefined;
+  private remoteDeviceId: number | undefined;
 
   private delegateStatusListner = (e: ConnectionStatusEvent) => {
     if (e.status !== ConnectionStatus.CONNECTED) {
@@ -56,7 +56,6 @@ export class MicrobitRadioBridgeConnection
 
   constructor(
     private delegate: MicrobitWebUSBConnection,
-    private remoteDeviceId: number,
     options?: MicrobitRadioBridgeConnectionOptions,
   ) {
     super();
@@ -87,9 +86,17 @@ export class MicrobitRadioBridgeConnection
     this.delegate.clearDevice();
   }
 
-  async connect(options: ConnectOptions): Promise<ConnectionStatus> {
+  setRemoteDeviceId(remoteDeviceId: number) {
+    this.remoteDeviceId = remoteDeviceId;
+  }
+
+  async connect(): Promise<ConnectionStatus> {
     // TODO: previously this skipped overlapping connect attempts but that seems awkward
     // can we... just not do that? or wait?
+
+    if (this.remoteDeviceId === undefined) {
+      throw new BridgeError(`Missing remote micro:bit ID`);
+    }
 
     this.logging.event({
       type: "Connect",
