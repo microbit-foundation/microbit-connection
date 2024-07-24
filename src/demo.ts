@@ -33,7 +33,11 @@ const createConnection = (type: "usb" | "bluetooth" | "radio") => {
     case "radio":
       // This only works with the local-sensor hex.
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
-      return new MicrobitRadioBridgeConnection(new MicrobitWebUSBConnection());
+      const connection = new MicrobitRadioBridgeConnection(
+        new MicrobitWebUSBConnection(),
+      );
+      connection.setRemoteDeviceId(0);
+      return connection;
   }
 };
 
@@ -55,9 +59,6 @@ const recreateUi = async (type: ConnectionType) => {
   connection.dispose();
   connection = createConnection(type);
   await connection.initialize();
-  if (connection instanceof MicrobitRadioBridgeConnection) {
-    connection.setRemoteDeviceId(0);
-  }
 
   [
     createConnectSection(type),
