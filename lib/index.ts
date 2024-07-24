@@ -21,6 +21,7 @@ import {
 } from "./device.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
 import { AccelerometerDataEvent } from "./accelerometer.js";
+import { ButtonEvent } from "./buttons.js";
 
 export {
   MicrobitWebUSBConnection,
@@ -43,8 +44,9 @@ export {
 
 export type {
   AccelerometerDataEvent,
-  DeviceConnection,
   BoardVersion,
+  ButtonEvent,
+  DeviceConnection,
   DeviceErrorCode,
   FlashDataSource,
 };
