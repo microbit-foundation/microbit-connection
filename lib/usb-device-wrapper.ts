@@ -118,10 +118,33 @@ export class DAPWrapper {
       });
     }
 
+    // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
+    // We wait on errors as immediately after flash the micro:bit won't be ready to respond
+    this._deviceId = await this.readMem32WaitOnError(FICR.DEVICE_ID_1);
+
     this._pageSize = await this.cortexM.readMem32(FICR.CODEPAGESIZE);
     this._numPages = await this.cortexM.readMem32(FICR.CODESIZE);
-    // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
-    this._deviceId = await this.cortexM.readMem32(FICR.DEVICE_ID_1);
+  }
+
+  async readMem32WaitOnError(register: number): Promise<number> {
+    let retries = 0;
+    let lastError: Error | undefined;
+    while (retries < 10) {
+      try {
+        return await this.cortexM.readMem32(register);
+      } catch (e) {
+        if (e instanceof Error) {
+          lastError = e;
+          if (/^Transfer/.test(e.message)) {
+            retries++;
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          } else {
+            throw e;
+          }
+        }
+      }
+    }
+    throw lastError;
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {
