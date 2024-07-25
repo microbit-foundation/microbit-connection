@@ -149,7 +149,8 @@ export class MicrobitWebUSBConnection
     };
     this.removeEventListener = (type, ...args) => {
       this._removeEventListener(type, ...args);
-      if (--this.addedListeners[type] === 0) {
+      if (--this.addedListeners[type] <= 0) {
+        this.addedListeners[type] = 0;
         this.stopNotifications(type);
       }
     };

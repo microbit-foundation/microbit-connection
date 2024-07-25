@@ -45,6 +45,8 @@ export class MicrobitRadioBridgeConnection
   private logging: Logging;
   private serialSession: RadioBridgeSerialSession | undefined;
   private remoteDeviceId: number | undefined;
+  private disconnectPromise: Promise<void> | undefined;
+  private serialSessionOpen = false;
 
   private delegateStatusListner = (e: ConnectionStatusEvent) => {
     const currentStatus = this.status;
@@ -53,7 +55,10 @@ export class MicrobitRadioBridgeConnection
       this.serialSession?.dispose();
     } else {
       this.status = ConnectionStatus.NOT_CONNECTED;
-      if (currentStatus === ConnectionStatus.NOT_CONNECTED) {
+      if (
+        currentStatus === ConnectionStatus.NOT_CONNECTED &&
+        this.serialSessionOpen
+      ) {
         this.serialSession?.connect();
       }
     }
@@ -96,6 +101,9 @@ export class MicrobitRadioBridgeConnection
   }
 
   async connect(): Promise<ConnectionStatus> {
+    if (this.disconnectPromise) {
+      await this.disconnectPromise;
+    }
     // TODO: previously this skipped overlapping connect attempts but that seems awkward
     // can we... just not do that? or wait?
 
@@ -108,7 +116,10 @@ export class MicrobitRadioBridgeConnection
       message: "Serial connect start",
     });
 
-    await this.delegate.connect();
+    if (this.delegate.status !== ConnectionStatus.CONNECTED) {
+      await this.delegate.connect();
+    }
+
     try {
       this.serialSession = new RadioBridgeSerialSession(
         this.logging,
@@ -137,6 +148,7 @@ export class MicrobitRadioBridgeConnection
       );
 
       await this.serialSession.connect();
+      this.serialSessionOpen = true;
 
       this.logging.event({
         type: "Connect",
@@ -154,7 +166,14 @@ export class MicrobitRadioBridgeConnection
   }
 
   async disconnect(): Promise<void> {
-    await this.serialSession?.dispose();
+    if (this.disconnectPromise) {
+      return this.disconnectPromise;
+    }
+    this.disconnectPromise = (async () => {
+      this.serialSessionOpen = false;
+      await this.serialSession?.dispose();
+      this.disconnectPromise = undefined;
+    })();
   }
 
   private setStatus(status: ConnectionStatus) {
@@ -260,7 +279,6 @@ class RadioBridgeSerialSession {
     this.delegate.addEventListener("serialerror", this.serialErrorListener);
 
     try {
-      await this.delegate.softwareReset();
       await this.handshake();
       this.onStatusChanged(ConnectionStatus.CONNECTED);
 
@@ -318,6 +336,7 @@ class RadioBridgeSerialSession {
     this.responseMap.clear();
     this.delegate.removeEventListener("serialdata", this.serialDataListener);
     this.delegate.removeEventListener("serialerror", this.serialErrorListener);
+    await this.delegate.softwareReset();
 
     this.onStatusChanged(ConnectionStatus.NOT_CONNECTED);
   }
