@@ -47,10 +47,15 @@ export class MicrobitRadioBridgeConnection
   private remoteDeviceId: number | undefined;
 
   private delegateStatusListner = (e: ConnectionStatusEvent) => {
+    const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
+      this.serialSession?.dispose();
     } else {
       this.status = ConnectionStatus.NOT_CONNECTED;
+      if (currentStatus === ConnectionStatus.NOT_CONNECTED) {
+        this.serialSession?.connect();
+      }
     }
   };
 
@@ -117,7 +122,9 @@ export class MicrobitRadioBridgeConnection
             type: "Serial",
             message: "Serial connection lost 1",
           });
-          this.serialSession?.dispose();
+          // This is the point we tell the consumer that we're trying to reconnect
+          // in the background.
+          // Leave serial connection running in case the remote device comes back.
         },
         () => {
           // Remote connection... even more lost?
