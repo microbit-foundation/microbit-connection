@@ -116,9 +116,7 @@ export class MicrobitRadioBridgeConnection
       message: "Serial connect start",
     });
 
-    if (this.delegate.status !== ConnectionStatus.CONNECTED) {
-      await this.delegate.connect();
-    }
+    await this.delegate.connect();
 
     try {
       this.serialSession = new RadioBridgeSerialSession(
