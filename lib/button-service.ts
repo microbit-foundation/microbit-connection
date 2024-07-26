@@ -1,4 +1,4 @@
-import { GattOperation, Service } from "./bluetooth-device-wrapper.js";
+import { Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
 import { ButtonEvent, ButtonState } from "./buttons.js";
 import { BackgroundErrorEvent, DeviceError } from "./device.js";
@@ -29,7 +29,7 @@ export class ButtonService implements Service {
   static async createService(
     gattServer: BluetoothRemoteGATTServer,
     dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: (gattOperation: GattOperation) => void,
+    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
     listenerInit: boolean,
   ): Promise<ButtonService | undefined> {
     let buttonService: BluetoothRemoteGATTService;

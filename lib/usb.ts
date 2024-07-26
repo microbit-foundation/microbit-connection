@@ -22,6 +22,7 @@ import {
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
+import { PromiseQueue } from "./promise-queue.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
 import { PartialFlashing } from "./usb-partial-flashing.js";
 
@@ -62,7 +63,8 @@ export class MicrobitWebUSBConnection
   private connection: DAPWrapper | undefined;
 
   private serialState: boolean = false;
-  private serialStateChange: Promise<void> | undefined;
+
+  private serialStateChangeQueue = new PromiseQueue();
 
   private serialListener = (data: string) => {
     this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
@@ -287,10 +289,7 @@ export class MicrobitWebUSBConnection
   }
 
   private async startSerialInternal() {
-    const prev = this.serialStateChange;
-    this.serialStateChange = (async () => {
-      await prev;
-
+    return this.serialStateChangeQueue.add(async () => {
       if (!this.connection || this.serialState) {
         return;
       }
@@ -307,22 +306,17 @@ export class MicrobitWebUSBConnection
         .finally(() => {
           this.serialState = false;
         });
-    })();
-    await this.serialStateChange;
+    });
   }
 
   private async stopSerialInternal() {
-    const prev = this.serialStateChange;
-    this.serialStateChange = (async () => {
-      await prev;
-
+    return this.serialStateChangeQueue.add(async () => {
       if (!this.connection || !this.serialState) {
         return;
       }
       this.connection.stopSerial(this.serialListener);
       this.dispatchTypedEvent("serialreset", new SerialResetEvent());
-    })();
-    await this.serialStateChange;
+    });
   }
 
   async disconnect(): Promise<void> {
