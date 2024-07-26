@@ -122,14 +122,14 @@ export class DAPWrapper {
     // We wait on errors as immediately after flash the micro:bit won't be ready to respond
     this._deviceId = await this.readMem32WaitOnError(FICR.DEVICE_ID_1);
 
-    this._pageSize = await this.cortexM.readMem32(FICR.CODEPAGESIZE);
-    this._numPages = await this.cortexM.readMem32(FICR.CODESIZE);
+    this._pageSize = await this.readMem32WaitOnError(FICR.CODEPAGESIZE);
+    this._numPages = await this.readMem32WaitOnError(FICR.CODESIZE);
   }
 
   async readMem32WaitOnError(register: number): Promise<number> {
     let retries = 0;
     let lastError: Error | undefined;
-    while (retries < 10) {
+    while (retries < 20) {
       try {
         return await this.cortexM.readMem32(register);
       } catch (e) {
@@ -137,7 +137,7 @@ export class DAPWrapper {
           lastError = e;
           if (/^Transfer/.test(e.message)) {
             retries++;
-            await new Promise((resolve) => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 20));
           } else {
             throw e;
           }
