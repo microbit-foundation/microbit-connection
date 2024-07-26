@@ -339,7 +339,7 @@ export class MicrobitWebUSBConnection
       });
     } finally {
       this.connection = undefined;
-      this.setStatus(ConnectionStatus.NOT_CONNECTED);
+      this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.log("Disconnection complete");
       this.logging.event({
         type: "WebUSB-info",

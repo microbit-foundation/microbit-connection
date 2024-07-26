@@ -82,13 +82,26 @@ export enum ConnectionStatus {
    */
   NO_AUTHORIZED_DEVICE = "NO_AUTHORIZED_DEVICE",
   /**
+   * Disconnecting.
+   */
+  DISCONNECTING = "DISCONNECTING",
+  /**
    * Authorized device available but we haven't connected to it.
    */
-  NOT_CONNECTED = "NOT_CONNECTED",
+  DISCONNECTED = "DISCONNECTED",
   /**
    * Connected.
    */
   CONNECTED = "CONNECTED",
+  /**
+   * Connecting.
+   */
+  CONNECTING = "CONNECTING",
+  /**
+   * Reconnecting. When there is unexpected disruption in the connection,
+   * a reconnection is attempted.
+   */
+  RECONNECTING = "RECONNECTING",
 }
 
 export class FlashDataError extends Error {}

@@ -54,9 +54,9 @@ export class MicrobitRadioBridgeConnection
       this.setStatus(e.status);
       this.serialSession?.dispose();
     } else {
-      this.status = ConnectionStatus.NOT_CONNECTED;
+      this.status = ConnectionStatus.DISCONNECTED;
       if (
-        currentStatus === ConnectionStatus.NOT_CONNECTED &&
+        currentStatus === ConnectionStatus.DISCONNECTED &&
         this.serialSessionOpen
       ) {
         this.serialSession?.connect();
@@ -181,7 +181,7 @@ export class MicrobitRadioBridgeConnection
 
   private statusFromDelegate(): ConnectionStatus {
     return this.delegate.status == ConnectionStatus.CONNECTED
-      ? ConnectionStatus.NOT_CONNECTED
+      ? ConnectionStatus.DISCONNECTED
       : this.delegate.status;
   }
 }
@@ -336,7 +336,7 @@ class RadioBridgeSerialSession {
     this.delegate.removeEventListener("serialerror", this.serialErrorListener);
     await this.delegate.softwareReset();
 
-    this.onStatusChanged(ConnectionStatus.NOT_CONNECTED);
+    this.onStatusChanged(ConnectionStatus.DISCONNECTED);
   }
 
   private async sendCmdWaitResponse(
