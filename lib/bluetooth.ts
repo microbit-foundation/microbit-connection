@@ -145,6 +145,7 @@ export class MicrobitWebBluetoothConnection
   }
 
   async clearDevice(): Promise<void> {
+    await this.disconnect();
     this.device = undefined;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
