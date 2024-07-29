@@ -9,26 +9,12 @@ import { profile } from "./bluetooth-profile.js";
 import { ButtonService } from "./button-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
 import { Logging, NullLogging } from "./logging.js";
+import { PromiseQueue } from "./promise-queue.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
-
-export interface GattOperationCallback {
-  resolve: (result: DataView | void) => void;
-  reject: (error: DeviceError) => void;
-}
-
-export interface GattOperation {
-  operation: () => Promise<DataView | void>;
-  callback: GattOperationCallback;
-}
-
-interface GattOperations {
-  busy: boolean;
-  queue: GattOperation[];
-}
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
@@ -62,7 +48,7 @@ class ServiceInfo<T extends Service> {
     private serviceFactory: (
       gattServer: BluetoothRemoteGATTServer,
       dispatcher: TypedServiceEventDispatcher,
-      queueGattOperation: (gattOperation: GattOperation) => void,
+      queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
       listenerInit: boolean,
     ) => Promise<T | undefined>,
     public events: TypedServiceEvent[],
@@ -75,7 +61,7 @@ class ServiceInfo<T extends Service> {
   async createIfNeeded(
     gattServer: BluetoothRemoteGATTServer,
     dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: (gattOperation: GattOperation) => void,
+    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
     listenerInit: boolean,
   ): Promise<T | undefined> {
     this.service =
@@ -132,10 +118,21 @@ export class BluetoothDeviceWrapper {
 
   boardVersion: BoardVersion | undefined;
 
-  private gattOperations: GattOperations = {
-    busy: false,
-    queue: [],
+  private disconnectedRejectionErrorFactory = () => {
+    return new DeviceError({
+      code: "device-disconnected",
+      message: "Error processing gatt operations queue - device disconnected",
+    });
   };
+
+  private gattOperations = new PromiseQueue({
+    abortCheck: () => {
+      if (!this.device.gatt?.connected) {
+        return this.disconnectedRejectionErrorFactory;
+      }
+      return undefined;
+    },
+  });
 
   constructor(
     public readonly device: BluetoothDevice,
@@ -357,55 +354,10 @@ export class BluetoothDeviceWrapper {
     }
   }
 
-  private queueGattOperation(gattOperation: GattOperation) {
-    this.gattOperations.queue.push(gattOperation);
-    this.processGattOperationQueue();
-  }
-
-  private processGattOperationQueue = (): void => {
-    if (!this.device.gatt?.connected) {
-      // No longer connected. Drop queue.
-      this.clearGattQueueOnDisconnect();
-      return;
-    }
-    if (this.gattOperations.busy) {
-      // We will finish processing the current operation, then
-      // pick up processing the queue in the finally block.
-      return;
-    }
-    const gattOperation = this.gattOperations.queue.shift();
-    if (!gattOperation) {
-      return;
-    }
-    this.gattOperations.busy = true;
-    gattOperation
-      .operation()
-      .then((result) => {
-        gattOperation.callback.resolve(result);
-      })
-      .catch((err) => {
-        gattOperation.callback.reject(
-          new DeviceError({ code: "background-comms-error", message: err }),
-        );
-        this.logging.error("Error processing gatt operations queue", err);
-      })
-      .finally(() => {
-        this.gattOperations.busy = false;
-        this.processGattOperationQueue();
-      });
-  };
-
-  private clearGattQueueOnDisconnect() {
-    this.gattOperations.queue.forEach((op) => {
-      op.callback.reject(
-        new DeviceError({
-          code: "device-disconnected",
-          message:
-            "Error processing gatt operations queue - device disconnected",
-        }),
-      );
-    });
-    this.gattOperations = { busy: false, queue: [] };
+  private queueGattOperation<T>(action: () => Promise<T>): Promise<T> {
+    // Previously we wrapped rejections with:
+    // new DeviceError({ code: "background-comms-error", message: err }),
+    return this.gattOperations.add(action);
   }
 
   private createIfNeeded<T extends Service>(
@@ -441,7 +393,7 @@ export class BluetoothDeviceWrapper {
 
   private disposeServices() {
     this.serviceInfo.forEach((s) => s.dispose());
-    this.clearGattQueueOnDisconnect();
+    this.gattOperations.clear(this.disconnectedRejectionErrorFactory);
   }
 }
 
