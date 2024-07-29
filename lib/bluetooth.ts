@@ -122,7 +122,7 @@ export class MicrobitWebBluetoothConnection
       });
     } finally {
       this.connection = undefined;
-      this.setStatus(ConnectionStatus.NOT_CONNECTED);
+      this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.log("Disconnection complete");
       this.logging.event({
         type: "Bluetooth-info",
@@ -154,6 +154,7 @@ export class MicrobitWebBluetoothConnection
     if (!this.connection) {
       const device = await this.chooseDevice();
       if (!device) {
+        this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
         return;
       }
       this.connection = await createBluetoothDeviceWrapper(
@@ -161,7 +162,17 @@ export class MicrobitWebBluetoothConnection
         this.logging,
         this.dispatchTypedEvent.bind(this),
         this.activeEvents,
+        {
+          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
+          onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
+          onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
+          onFail: () => {
+            this.setStatus(ConnectionStatus.DISCONNECTED);
+            this.connection = undefined;
+          },
+        },
       );
+      return;
     }
     // TODO: timeout unification?
     // Connection happens inside createBluetoothDeviceWrapper.

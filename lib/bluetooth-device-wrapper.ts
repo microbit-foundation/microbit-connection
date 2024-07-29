@@ -94,6 +94,13 @@ class ServiceInfo<T extends Service> {
   }
 }
 
+interface ConnectCallbacks {
+  onConnecting: () => void;
+  onReconnecting: () => void;
+  onFail: () => void;
+  onSuccess: () => void;
+}
+
 export class BluetoothDeviceWrapper {
   // Used to avoid automatic reconnection during user triggered connect/disconnect
   // or reconnection itself.
@@ -136,6 +143,7 @@ export class BluetoothDeviceWrapper {
     private dispatchTypedEvent: TypedServiceEventDispatcher,
     // We recreate this for the same connection and need to re-setup notifications for the old events
     private events: Record<keyof ServiceConnectionEventMap, boolean>,
+    private callbacks: ConnectCallbacks,
   ) {
     device.addEventListener(
       "gattserverdisconnected",
@@ -157,6 +165,11 @@ export class BluetoothDeviceWrapper {
       // then clicks reconnect, we need to wait rather than return immediately.
       await this.gattConnectPromise;
       return;
+    }
+    if (this.isReconnect) {
+      this.callbacks.onReconnecting();
+    } else {
+      this.callbacks.onConnecting();
     }
     this.duringExplicitConnectDisconnect++;
     if (this.device.gatt === undefined) {
@@ -233,6 +246,7 @@ export class BluetoothDeviceWrapper {
         type: this.isReconnect ? "Reconnect" : "Connect",
         message: "Bluetooth connect success",
       });
+      this.callbacks.onSuccess();
     } catch (e) {
       this.logging.error("Bluetooth connect error", e);
       this.logging.event({
@@ -240,9 +254,12 @@ export class BluetoothDeviceWrapper {
         message: "Bluetooth connect failed",
       });
       await this.disconnectInternal(false);
+      this.callbacks.onFail();
       throw new Error("Failed to establish a connection!");
     } finally {
       this.duringExplicitConnectDisconnect--;
+      // Reset isReconnect for next time
+      this.isReconnect = false;
     }
   }
 
@@ -433,6 +450,7 @@ export const createBluetoothDeviceWrapper = async (
   logging: Logging,
   dispatchTypedEvent: TypedServiceEventDispatcher,
   addedServiceListeners: Record<keyof ServiceConnectionEventMap, boolean>,
+  callbacks: ConnectCallbacks,
 ): Promise<BluetoothDeviceWrapper | undefined> => {
   try {
     // Reuse our connection objects for the same device as they
@@ -444,6 +462,7 @@ export const createBluetoothDeviceWrapper = async (
         logging,
         dispatchTypedEvent,
         addedServiceListeners,
+        callbacks,
       );
     deviceIdToWrapper.set(device.id, bluetooth);
     await bluetooth.connect();

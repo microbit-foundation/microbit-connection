@@ -70,10 +70,10 @@ describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
     await connection.disconnect();
     connection.dispose();
 
-    expect(connection.status).toEqual(ConnectionStatus.NOT_CONNECTED);
+    expect(connection.status).toEqual(ConnectionStatus.DISCONNECTED);
     expect(events).toEqual([
       ConnectionStatus.CONNECTED,
-      ConnectionStatus.NOT_CONNECTED,
+      ConnectionStatus.DISCONNECTED,
     ]);
   });
 });
