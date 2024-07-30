@@ -32,6 +32,13 @@ export interface MicrobitRadioBridgeConnectionOptions {
   logging: Logging;
 }
 
+interface ConnectCallbacks {
+  onConnecting: () => void;
+  onReconnecting: () => void;
+  onFail: () => void;
+  onSuccess: () => void;
+}
+
 /**
  * Wraps around a USB connection to implement a subset of services over a serial protocol.
  *
@@ -48,7 +55,7 @@ export class MicrobitRadioBridgeConnection
   private disconnectPromise: Promise<void> | undefined;
   private serialSessionOpen = false;
 
-  private delegateStatusListner = (e: ConnectionStatusEvent) => {
+  private delegateStatusListener = (e: ConnectionStatusEvent) => {
     const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
@@ -84,11 +91,11 @@ export class MicrobitRadioBridgeConnection
   async initialize(): Promise<void> {
     await this.delegate.initialize();
     this.setStatus(this.statusFromDelegate());
-    this.delegate.addEventListener("status", this.delegateStatusListner);
+    this.delegate.addEventListener("status", this.delegateStatusListener);
   }
 
   dispose(): void {
-    this.delegate.removeEventListener("status", this.delegateStatusListner);
+    this.delegate.removeEventListener("status", this.delegateStatusListener);
     this.delegate.dispose();
   }
 
@@ -124,24 +131,25 @@ export class MicrobitRadioBridgeConnection
         this.remoteDeviceId,
         this.delegate,
         this.dispatchTypedEvent.bind(this),
-        this.setStatus.bind(this),
-        () => {
-          // Remote connection lost
-          this.logging.event({
-            type: "Serial",
-            message: "Serial connection lost 1",
-          });
-          // This is the point we tell the consumer that we're trying to reconnect
-          // in the background.
-          // Leave serial connection running in case the remote device comes back.
-        },
-        () => {
-          // Remote connection... even more lost?
-          this.logging.event({
-            type: "Serial",
-            message: "Serial connection lost 2",
-          });
-          this.serialSession?.dispose();
+        {
+          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
+          onReconnecting: () => {
+            // Leave serial connection running in case the remote device comes back.
+            // Only set status as reconnecting once
+            if (this.status !== ConnectionStatus.RECONNECTING) {
+              this.setStatus(ConnectionStatus.RECONNECTING);
+            }
+          },
+          onFail: () => {
+            this.setStatus(ConnectionStatus.DISCONNECTED);
+            this.serialSession?.dispose();
+            this.serialSessionOpen = false;
+          },
+          onSuccess: () => {
+            if (this.status !== ConnectionStatus.CONNECTED) {
+              this.setStatus(ConnectionStatus.CONNECTED);
+            }
+          },
         },
       );
 
@@ -174,8 +182,13 @@ export class MicrobitRadioBridgeConnection
     })();
   }
 
+  private log(v: any) {
+    this.logging.log(v);
+  }
+
   private setStatus(status: ConnectionStatus) {
     this.status = status;
+    this.log("Radio connection status " + status);
     this.dispatchTypedEvent("status", new ConnectionStatusEvent(status));
   }
 
@@ -267,18 +280,15 @@ class RadioBridgeSerialSession {
     private remoteDeviceId: number,
     private delegate: MicrobitWebUSBConnection,
     private dispatchTypedEvent: TypedServiceEventDispatcher,
-    private onStatusChanged: (status: ConnectionStatus) => void,
-    private onRemoteConnectionLost1: () => void,
-    private onRemoteConnectionLost2: () => void,
+    private callbacks: ConnectCallbacks,
   ) {}
 
   async connect() {
     this.delegate.addEventListener("serialdata", this.serialDataListener);
     this.delegate.addEventListener("serialerror", this.serialErrorListener);
-
     try {
+      this.callbacks.onConnecting();
       await this.handshake();
-      this.onStatusChanged(ConnectionStatus.CONNECTED);
 
       this.logging.log(`Serial: using remote device id ${this.remoteDeviceId}`);
       const remoteMbIdCommand = protocol.generateCmdRemoteMbId(
@@ -319,8 +329,9 @@ class RadioBridgeSerialSession {
       await periodicMessagePromise;
 
       this.startConnectionCheck();
+      this.callbacks.onSuccess();
     } catch (e) {
-      this.dispose();
+      this.callbacks.onFail();
     }
   }
 
@@ -335,8 +346,6 @@ class RadioBridgeSerialSession {
     this.delegate.removeEventListener("serialdata", this.serialDataListener);
     this.delegate.removeEventListener("serialerror", this.serialErrorListener);
     await this.delegate.softwareReset();
-
-    this.onStatusChanged(ConnectionStatus.DISCONNECTED);
   }
 
   private async sendCmdWaitResponse(
@@ -358,19 +367,33 @@ class RadioBridgeSerialSession {
   private startConnectionCheck() {
     // Check for connection lost
     if (this.connectionCheckIntervalId === undefined) {
-      this.connectionCheckIntervalId = setInterval(async () => {
+      this.connectionCheckIntervalId = setInterval(() => {
+        if (
+          this.lastReceivedMessageTimestamp &&
+          Date.now() - this.lastReceivedMessageTimestamp <= 1_000
+        ) {
+          this.callbacks.onSuccess();
+        }
         if (
           this.lastReceivedMessageTimestamp &&
           Date.now() - this.lastReceivedMessageTimestamp > 1_000
         ) {
-          this.onRemoteConnectionLost1();
+          this.logging.event({
+            type: "Serial",
+            message: "Serial connection lost - attempting to reconnect",
+          });
+          this.callbacks.onReconnecting();
         }
         if (
           this.lastReceivedMessageTimestamp &&
           Date.now() - this.lastReceivedMessageTimestamp >
             connectTimeoutDuration
         ) {
-          this.onRemoteConnectionLost2();
+          this.logging.event({
+            type: "Serial",
+            message: "Serial connection lost",
+          });
+          this.callbacks.onFail();
         }
       }, 1000);
     }
