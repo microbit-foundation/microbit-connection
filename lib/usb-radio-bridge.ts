@@ -149,12 +149,12 @@ export class MicrobitRadioBridgeConnection
             if (this.status !== ConnectionStatus.CONNECTED) {
               this.setStatus(ConnectionStatus.CONNECTED);
             }
+            this.serialSessionOpen = true;
           },
         },
       );
 
       await this.serialSession.connect();
-      this.serialSessionOpen = true;
 
       this.logging.event({
         type: "Connect",
@@ -162,6 +162,7 @@ export class MicrobitRadioBridgeConnection
       });
       return this.status;
     } catch (e) {
+      this.serialSessionOpen = false;
       this.logging.error("Failed to initialise serial protocol", e);
       this.logging.event({
         type: "Connect",
