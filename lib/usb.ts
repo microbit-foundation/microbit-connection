@@ -130,9 +130,6 @@ export class MicrobitWebUSBConnection
 
   private logging: Logging;
 
-  private _addEventListener = this.addEventListener;
-  private _removeEventListener = this.removeEventListener;
-
   private addedListeners: Record<string, number> = {
     serialdata: 0,
   };
@@ -142,20 +139,6 @@ export class MicrobitWebUSBConnection
   ) {
     super();
     this.logging = options.logging;
-    // TODO: this doesn't account for the rules around add/remove call equivalence
-    this.addEventListener = (type, ...args) => {
-      this._addEventListener(type, ...args);
-      if (++this.addedListeners[type] === 1 && !this.flashing) {
-        this.startNotifications(type);
-      }
-    };
-    this.removeEventListener = (type, ...args) => {
-      this._removeEventListener(type, ...args);
-      if (--this.addedListeners[type] <= 0) {
-        this.addedListeners[type] = 0;
-        this.stopNotifications(type);
-      }
-    };
   }
 
   private log(v: any) {
@@ -442,7 +425,7 @@ export class MicrobitWebUSBConnection
     return this.device;
   }
 
-  private async startNotifications(type: string) {
+  protected eventActivated(type: string): void {
     switch (type as keyof DeviceConnectionEventMap) {
       case "serialdata": {
         this.startSerialInternal();
@@ -451,7 +434,7 @@ export class MicrobitWebUSBConnection
     }
   }
 
-  private async stopNotifications(type: string) {
+  protected async eventDeactivated(type: string) {
     switch (type as keyof DeviceConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();

@@ -138,8 +138,7 @@ export class BluetoothDeviceWrapper {
     public readonly device: BluetoothDevice,
     private logging: Logging = new NullLogging(),
     private dispatchTypedEvent: TypedServiceEventDispatcher,
-    // We recreate this for the same connection and need to re-setup notifications for the old events
-    private events: Record<keyof ServiceConnectionEventMap, boolean>,
+    private currentEvents: () => Array<keyof ServiceConnectionEventMap>,
     private callbacks: ConnectCallbacks,
   ) {
     device.addEventListener(
@@ -235,7 +234,7 @@ export class BluetoothDeviceWrapper {
         this.connecting = false;
       }
 
-      Object.keys(this.events).forEach((e) =>
+      this.currentEvents().forEach((e) =>
         this.startNotifications(e as TypedServiceEvent),
       );
 
@@ -382,13 +381,17 @@ export class BluetoothDeviceWrapper {
     if (serviceInfo) {
       // TODO: type cheat! why?
       const service = await this.createIfNeeded(serviceInfo as any, true);
-      service?.startNotifications(type);
+      this.queueGattOperation(
+        async () => await service?.startNotifications(type),
+      );
     }
   }
 
   async stopNotifications(type: TypedServiceEvent) {
     const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-    serviceInfo?.get()?.stopNotifications(type);
+    this.queueGattOperation(
+      async () => await serviceInfo?.get()?.stopNotifications(type),
+    );
   }
 
   private disposeServices() {
@@ -401,7 +404,7 @@ export const createBluetoothDeviceWrapper = async (
   device: BluetoothDevice,
   logging: Logging,
   dispatchTypedEvent: TypedServiceEventDispatcher,
-  addedServiceListeners: Record<keyof ServiceConnectionEventMap, boolean>,
+  currentEvents: () => Array<keyof ServiceConnectionEventMap>,
   callbacks: ConnectCallbacks,
 ): Promise<BluetoothDeviceWrapper | undefined> => {
   try {
@@ -413,7 +416,7 @@ export const createBluetoothDeviceWrapper = async (
         device,
         logging,
         dispatchTypedEvent,
-        addedServiceListeners,
+        currentEvents,
         callbacks,
       );
     deviceIdToWrapper.set(device.id, bluetooth);
