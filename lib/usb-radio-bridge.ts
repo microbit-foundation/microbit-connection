@@ -135,13 +135,14 @@ export class MicrobitRadioBridgeConnection
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
           onReconnecting: () => {
             // Leave serial connection running in case the remote device comes back.
-            // Only set status as reconnecting once
             if (this.status !== ConnectionStatus.RECONNECTING) {
               this.setStatus(ConnectionStatus.RECONNECTING);
             }
           },
           onFail: () => {
-            this.setStatus(ConnectionStatus.DISCONNECTED);
+            if (this.status !== ConnectionStatus.DISCONNECTED) {
+              this.setStatus(ConnectionStatus.DISCONNECTED);
+            }
             this.serialSession?.dispose();
             this.serialSessionOpen = false;
           },
