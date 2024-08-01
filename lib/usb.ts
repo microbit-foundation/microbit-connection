@@ -419,15 +419,12 @@ export class MicrobitWebUSBConnection
   }
 
   private async connectInternal(): Promise<void> {
-    console.log("connect internal");
     if (!this.connection) {
       const device = await this.chooseDevice();
       this.connection = new DAPWrapper(device, this.logging);
     }
     await withTimeout(this.connection.reconnectAsync(), 10_000);
     if (this.addedListeners.serialdata && !this.flashing) {
-      console.log("start serial internal");
-
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);

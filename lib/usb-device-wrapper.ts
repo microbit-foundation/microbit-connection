@@ -79,7 +79,6 @@ export class DAPWrapper {
 
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L119
   async reconnectAsync(): Promise<void> {
-    console.log("reconnectAsync", this.initialConnectionComplete);
     if (this.initialConnectionComplete) {
       await this.disconnectAsync();
 
