@@ -82,10 +82,6 @@ export enum ConnectionStatus {
    */
   NO_AUTHORIZED_DEVICE = "NO_AUTHORIZED_DEVICE",
   /**
-   * Disconnecting.
-   */
-  DISCONNECTING = "DISCONNECTING",
-  /**
    * Authorized device available but we haven't connected to it.
    */
   DISCONNECTED = "DISCONNECTED",
