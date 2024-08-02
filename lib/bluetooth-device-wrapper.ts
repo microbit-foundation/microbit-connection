@@ -379,19 +379,19 @@ export class BluetoothDeviceWrapper {
   async startNotifications(type: TypedServiceEvent) {
     const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
     if (serviceInfo) {
-      // TODO: type cheat! why?
-      const service = await this.createIfNeeded(serviceInfo as any, true);
-      this.queueGattOperation(
-        async () => await service?.startNotifications(type),
-      );
+      this.queueGattOperation(async () => {
+        // TODO: type cheat! why?
+        const service = await this.createIfNeeded(serviceInfo as any, true);
+        await service?.startNotifications(type);
+      });
     }
   }
 
   async stopNotifications(type: TypedServiceEvent) {
-    const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-    this.queueGattOperation(
-      async () => await serviceInfo?.get()?.stopNotifications(type),
-    );
+    this.queueGattOperation(async () => {
+      const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
+      await serviceInfo?.get()?.stopNotifications(type);
+    });
   }
 
   private disposeServices() {
