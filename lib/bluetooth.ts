@@ -20,7 +20,10 @@ import {
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
-import { ServiceConnectionEventMap } from "./service-events.js";
+import {
+  ServiceConnectionEventMap,
+  TypedServiceEvent,
+} from "./service-events.js";
 
 const requestDeviceTimeoutDuration: number = 30000;
 
@@ -46,15 +49,6 @@ export class MicrobitWebBluetoothConnection
   private logging: Logging;
   connection: BluetoothDeviceWrapper | undefined;
 
-  private _addEventListener = this.addEventListener;
-  private _removeEventListener = this.removeEventListener;
-
-  private activeEvents = {
-    accelerometerdatachanged: false,
-    buttonachanged: false,
-    buttonbchanged: false,
-  };
-
   private availabilityListener = (e: Event) => {
     // TODO: is this called? is `value` correct?
     const value = (e as any).value as boolean;
@@ -66,14 +60,14 @@ export class MicrobitWebBluetoothConnection
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
-    this.addEventListener = (type, ...args) => {
-      this._addEventListener(type, ...args);
-      this.connection?.startNotifications(type);
-    };
-    this.removeEventListener = (type, ...args) => {
-      this.connection?.stopNotifications(type);
-      this._removeEventListener(type, ...args);
-    };
+  }
+
+  protected eventActivated(type: string): void {
+    this.connection?.startNotifications(type as TypedServiceEvent);
+  }
+
+  protected eventDeactivated(type: string): void {
+    this.connection?.stopNotifications(type as TypedServiceEvent);
   }
 
   private log(v: any) {
@@ -161,7 +155,7 @@ export class MicrobitWebBluetoothConnection
         device,
         this.logging,
         this.dispatchTypedEvent.bind(this),
-        this.activeEvents,
+        () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
           onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),

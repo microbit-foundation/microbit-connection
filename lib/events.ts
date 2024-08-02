@@ -109,8 +109,78 @@ export interface TypedEventTarget<M extends ValueIsEvent<M>> {
    */
   dispatchEvent: (event: Event) => boolean;
 }
+
+// We've added this in to keep track of what events are active.
+// Having done this it's questionable whether it's worth the reimplementation
+// just to use an EventTarget API.
+export class TrackingEventTarget extends EventTarget {
+  private activeEventTracking: Map<string, Registration[]> = new Map();
+
+  addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: AddEventListenerOptions | boolean,
+  ): void {
+    if (callback !== null) {
+      const registrations = this.activeEventTracking.get(type) ?? [];
+      const wasEmpty = registrations.length === 0;
+      const registration = new Registration(callback, options ?? false);
+      if (!registrations.find((r) => r.eq(registration))) {
+        registrations.push(registration);
+        this.activeEventTracking.set(type, registrations);
+        if (wasEmpty) {
+          this.eventActivated(type);
+        }
+      }
+    }
+    super.addEventListener(type, callback, options);
+  }
+
+  removeEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: EventListenerOptions | boolean,
+  ): void {
+    if (callback !== null) {
+      const registration = new Registration(callback, options ?? false);
+      this.filterRegistrations(type, (r) => !r.eq(registration));
+    }
+    super.removeEventListener(type, callback, options);
+  }
+
+  dispatchEvent(event: Event): boolean {
+    const result = super.dispatchEvent(event);
+    this.filterRegistrations(event.type, (r) => !r.isOnce());
+    return result;
+  }
+
+  private filterRegistrations(
+    type: string,
+    predicate: (r: Registration) => boolean,
+  ): void {
+    let registrations = this.activeEventTracking.get(type) ?? [];
+    registrations = registrations.filter(predicate);
+    if (registrations.length === 0) {
+      this.activeEventTracking.delete(type);
+      this.eventDeactivated(type);
+    } else {
+      this.activeEventTracking.set(type, registrations);
+    }
+  }
+
+  protected eventActivated(type: string) {}
+
+  protected eventDeactivated(type: string) {}
+
+  protected getActiveEvents(): string[] {
+    return [...this.activeEventTracking.keys()];
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export class TypedEventTarget<M extends ValueIsEvent<M>> extends EventTarget {
+export class TypedEventTarget<
+  M extends ValueIsEvent<M>,
+> extends TrackingEventTarget {
   /**
    * Dispatches a synthetic event event to target and returns true if either
    * event's cancelable attribute value is false or its preventDefault() method
@@ -120,3 +190,31 @@ export class TypedEventTarget<M extends ValueIsEvent<M>> extends EventTarget {
     return super.dispatchEvent(event);
   }
 }
+
+class Registration {
+  constructor(
+    private callback: EventListenerOrEventListenerObject,
+    private options: AddEventListenerOptions | boolean,
+  ) {}
+
+  isOnce() {
+    return typeof this.options === "object" && this.options.once === true;
+  }
+
+  eq(other: Registration) {
+    return (
+      other.callback === this.callback &&
+      eqUseCapture(this.options, other.options)
+    );
+  }
+}
+
+const eqUseCapture = (
+  left: AddEventListenerOptions | boolean,
+  right: AddEventListenerOptions | boolean,
+) => {
+  const leftValue = typeof left === "boolean" ? left : left.capture ?? false;
+  const rightValue =
+    typeof right === "boolean" ? right : right.capture ?? false;
+  return leftValue === rightValue;
+};
