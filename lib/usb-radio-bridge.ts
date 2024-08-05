@@ -35,6 +35,7 @@ export interface MicrobitRadioBridgeConnectionOptions {
 interface ConnectCallbacks {
   onConnecting: () => void;
   onReconnecting: () => void;
+  onPrepareFinalReconnectAttempt: () => void;
   onFail: () => void;
   onSuccess: () => void;
 }
@@ -139,10 +140,16 @@ export class MicrobitRadioBridgeConnection
               this.setStatus(ConnectionStatus.RECONNECTING);
             }
           },
+          onPrepareFinalReconnectAttempt: () => {
+            // So that serial session does not get repetitively disposed in
+            // delegate status listener when delegate is disconnected for reconnection
+            this.serialSession = undefined;
+          },
           onFail: () => {
             if (this.status !== ConnectionStatus.DISCONNECTED) {
               this.setStatus(ConnectionStatus.DISCONNECTED);
             }
+            this.serialSession = undefined;
             this.serialSessionOpen = false;
           },
           onSuccess: () => {
@@ -354,11 +361,7 @@ class RadioBridgeSerialSession {
     this.responseMap.clear();
     this.delegate.removeEventListener("serialdata", this.serialDataListener);
     this.delegate.removeEventListener("serialerror", this.serialErrorListener);
-    try {
-      await this.delegate.softwareReset();
-    } catch (e) {
-      // If this fails, the bridge micro:bit has already been reset.
-    }
+    await this.delegate.softwareReset();
   }
 
   private async sendCmdWaitResponse(
@@ -407,6 +410,8 @@ class RadioBridgeSerialSession {
             type: "Serial",
             message: "Serial connection lost...final attempt to reconnect",
           });
+          this.callbacks.onPrepareFinalReconnectAttempt();
+          await this.delegate.disconnect();
           await this.dispose();
           await this.delegate.connect();
           await this.connect();
