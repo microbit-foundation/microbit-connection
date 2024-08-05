@@ -113,7 +113,6 @@ export class MicrobitRadioBridgeConnection
   }
 
   async connect(): Promise<ConnectionStatus> {
-    this.ignoreDelegateStatus = false;
     if (this.disconnectPromise) {
       await this.disconnectPromise;
     }
@@ -128,7 +127,7 @@ export class MicrobitRadioBridgeConnection
       type: "Connect",
       message: "Serial connect start",
     });
-
+    this.ignoreDelegateStatus = false;
     await this.delegate.connect();
 
     try {
@@ -189,10 +188,9 @@ export class MicrobitRadioBridgeConnection
     if (this.disconnectPromise) {
       return this.disconnectPromise;
     }
+    this.serialSessionOpen = false;
     this.disconnectPromise = (async () => {
-      this.serialSessionOpen = false;
       await this.serialSession?.dispose(true);
-      this.ignoreDelegateStatus = true;
       this.disconnectPromise = undefined;
     })();
   }
