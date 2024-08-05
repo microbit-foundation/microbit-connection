@@ -55,9 +55,13 @@ export class MicrobitRadioBridgeConnection
   private remoteDeviceId: number | undefined;
   private disconnectPromise: Promise<void> | undefined;
   private serialSessionOpen = false;
+  private ignoreDelegateStatus = false;
 
   private delegateStatusListener = (e: ConnectionStatusEvent) => {
     const currentStatus = this.status;
+    if (this.ignoreDelegateStatus) {
+      return;
+    }
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
       this.serialSession?.dispose();
@@ -109,6 +113,7 @@ export class MicrobitRadioBridgeConnection
   }
 
   async connect(): Promise<ConnectionStatus> {
+    this.ignoreDelegateStatus = false;
     if (this.disconnectPromise) {
       await this.disconnectPromise;
     }
@@ -143,19 +148,20 @@ export class MicrobitRadioBridgeConnection
           onPrepareFinalReconnectAttempt: () => {
             // So that serial session does not get repetitively disposed in
             // delegate status listener when delegate is disconnected for reconnection
-            this.serialSession = undefined;
+            this.ignoreDelegateStatus = true;
           },
           onFail: () => {
             if (this.status !== ConnectionStatus.DISCONNECTED) {
               this.setStatus(ConnectionStatus.DISCONNECTED);
             }
-            this.serialSession = undefined;
+            this.ignoreDelegateStatus = false;
             this.serialSessionOpen = false;
           },
           onSuccess: () => {
             if (this.status !== ConnectionStatus.CONNECTED) {
               this.setStatus(ConnectionStatus.CONNECTED);
             }
+            this.ignoreDelegateStatus = false;
             this.serialSessionOpen = true;
           },
         },
@@ -185,8 +191,8 @@ export class MicrobitRadioBridgeConnection
     }
     this.disconnectPromise = (async () => {
       this.serialSessionOpen = false;
-      await this.delegate.disconnect();
-      await this.serialSession?.dispose();
+      await this.serialSession?.dispose(true);
+      this.ignoreDelegateStatus = true;
       this.disconnectPromise = undefined;
     })();
   }
@@ -351,7 +357,7 @@ class RadioBridgeSerialSession {
     }
   }
 
-  async dispose() {
+  async dispose(disconnect: boolean = false) {
     this.stopConnectionCheck();
     try {
       await this.sendCmdWaitResponse(protocol.generateCmdStop());
@@ -361,6 +367,9 @@ class RadioBridgeSerialSession {
     this.responseMap.clear();
     this.delegate.removeEventListener("serialdata", this.serialDataListener);
     this.delegate.removeEventListener("serialerror", this.serialErrorListener);
+    if (disconnect) {
+      await this.delegate.disconnect();
+    }
     await this.delegate.softwareReset();
   }
 
@@ -411,8 +420,7 @@ class RadioBridgeSerialSession {
             message: "Serial connection lost...final attempt to reconnect",
           });
           this.callbacks.onPrepareFinalReconnectAttempt();
-          await this.delegate.disconnect();
-          await this.dispose();
+          await this.dispose(true);
           await this.delegate.connect();
           await this.connect();
         }
