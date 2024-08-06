@@ -58,10 +58,10 @@ export class MicrobitRadioBridgeConnection
   private ignoreDelegateStatus = false;
 
   private delegateStatusListener = (e: ConnectionStatusEvent) => {
-    const currentStatus = this.status;
     if (this.ignoreDelegateStatus) {
       return;
     }
+    const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
       this.serialSession?.dispose();
