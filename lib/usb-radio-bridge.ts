@@ -412,18 +412,22 @@ class RadioBridgeSerialSession {
           Date.now() - this.lastReceivedMessageTimestamp >
             connectTimeoutDuration
         ) {
-          this.isRestartingConnection = true;
-          this.logging.event({
-            type: "Serial",
-            message: "Serial connection lost...restart connection",
-          });
-          this.callbacks.onRestartConnection();
-          await this.dispose(true);
-          await this.delegate.connect();
-          await this.connect();
+          await this.restartConnection();
         }
       }, 1000);
     }
+  }
+
+  private async restartConnection() {
+    this.isRestartingConnection = true;
+    this.logging.event({
+      type: "Serial",
+      message: "Serial connection lost...restart connection",
+    });
+    this.callbacks.onRestartConnection();
+    await this.dispose(true);
+    await this.delegate.connect();
+    await this.connect();
   }
 
   private stopConnectionCheck() {
