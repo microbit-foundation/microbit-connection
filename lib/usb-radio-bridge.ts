@@ -189,6 +189,7 @@ export class MicrobitRadioBridgeConnection
       return this.disconnectPromise;
     }
     this.serialSessionOpen = false;
+    this.ignoreDelegateStatus = false;
     this.disconnectPromise = (async () => {
       await this.serialSession?.dispose(true);
       this.disconnectPromise = undefined;
