@@ -35,7 +35,7 @@ export interface MicrobitRadioBridgeConnectionOptions {
 interface ConnectCallbacks {
   onConnecting: () => void;
   onReconnecting: () => void;
-  onPrepareFinalReconnectAttempt: () => void;
+  onRestartConnection: () => void;
   onFail: () => void;
   onSuccess: () => void;
 }
@@ -144,9 +144,9 @@ export class MicrobitRadioBridgeConnection
               this.setStatus(ConnectionStatus.RECONNECTING);
             }
           },
-          onPrepareFinalReconnectAttempt: () => {
+          onRestartConnection: () => {
             // So that serial session does not get repetitively disposed in
-            // delegate status listener when delegate is disconnected for reconnection
+            // delegate status listener when delegate is disconnected for restarting connection
             this.ignoreDelegateStatus = true;
           },
           onFail: () => {
@@ -221,7 +221,7 @@ class RadioBridgeSerialSession {
   private onPeriodicMessageReceived: (() => void) | undefined;
   private lastReceivedMessageTimestamp: number | undefined;
   private connectionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
-  private isFinalReconnectAttempt: boolean = false;
+  private isRestartingConnection: boolean = false;
 
   private serialErrorListener = (e: unknown) => {
     this.logging.error("Serial error", e);
@@ -301,7 +301,7 @@ class RadioBridgeSerialSession {
     this.delegate.addEventListener("serialdata", this.serialDataListener);
     this.delegate.addEventListener("serialerror", this.serialErrorListener);
     try {
-      if (this.isFinalReconnectAttempt) {
+      if (this.isRestartingConnection) {
         this.callbacks.onReconnecting();
       } else {
         this.callbacks.onConnecting();
@@ -346,7 +346,7 @@ class RadioBridgeSerialSession {
       // TODO: in the first-time connection case we used to move the error/disconnect to the background here, why? timing?
       await periodicMessagePromise;
 
-      this.isFinalReconnectAttempt = false;
+      this.isRestartingConnection = false;
       await this.startConnectionCheck();
       this.callbacks.onSuccess();
     } catch (e) {
@@ -412,12 +412,12 @@ class RadioBridgeSerialSession {
           Date.now() - this.lastReceivedMessageTimestamp >
             connectTimeoutDuration
         ) {
-          this.isFinalReconnectAttempt = true;
+          this.isRestartingConnection = true;
           this.logging.event({
             type: "Serial",
-            message: "Serial connection lost...final attempt to reconnect",
+            message: "Serial connection lost...restart connection",
           });
-          this.callbacks.onPrepareFinalReconnectAttempt();
+          this.callbacks.onRestartConnection();
           await this.dispose(true);
           await this.delegate.connect();
           await this.connect();
