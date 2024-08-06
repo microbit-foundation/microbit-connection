@@ -384,7 +384,9 @@ export class MicrobitWebUSBConnection
   }
 
   async softwareReset(): Promise<void> {
-    await this.connection?.softwareReset();
+    return this.serialStateChangeQueue.add(
+      async () => await this.connection?.softwareReset(),
+    );
   }
 
   private handleDisconnect = (event: USBConnectionEvent) => {
