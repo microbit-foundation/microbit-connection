@@ -24,7 +24,6 @@ import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
 } from "./service-events.js";
-import { MicrobitWebUSBConnection } from "./usb.js";
 
 const requestDeviceTimeoutDuration: number = 30000;
 
@@ -50,22 +49,6 @@ export class MicrobitWebBluetoothConnection
   private logging: Logging;
   connection: BluetoothDeviceWrapper | undefined;
 
-  private serialSessionOpen: boolean = false;
-  private delegateStatusListener = (e: ConnectionStatusEvent) => {
-    const currentStatus = this.status;
-    if (e.status !== ConnectionStatus.CONNECTED) {
-      this.setStatus(e.status);
-    } else {
-      this.setStatus(ConnectionStatus.DISCONNECTED);
-      if (
-        currentStatus === ConnectionStatus.DISCONNECTED &&
-        this.serialSessionOpen
-      ) {
-        this.connect();
-      }
-    }
-  };
-
   private availabilityListener = (e: Event) => {
     // TODO: is this called? is `value` correct?
     const value = (e as any).value as boolean;
@@ -74,10 +57,7 @@ export class MicrobitWebBluetoothConnection
   private availability: boolean | undefined;
   private nameFilter: string | undefined;
 
-  constructor(
-    private delegate: MicrobitWebUSBConnection,
-    options: MicrobitWebBluetoothConnectionOptions = {},
-  ) {
+  constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
   }
@@ -95,8 +75,6 @@ export class MicrobitWebBluetoothConnection
   }
 
   async initialize(): Promise<void> {
-    await this.delegate.initialize();
-    this.delegate.addEventListener("status", this.delegateStatusListener);
     navigator.bluetooth?.addEventListener(
       "availabilitychanged",
       this.availabilityListener,
@@ -137,7 +115,6 @@ export class MicrobitWebBluetoothConnection
         message: "error-disconnecting",
       });
     } finally {
-      this.serialSessionOpen = false;
       this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.log("Disconnection complete");
@@ -182,12 +159,8 @@ export class MicrobitWebBluetoothConnection
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
           onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
-          onSuccess: () => {
-            this.serialSessionOpen = true;
-            this.setStatus(ConnectionStatus.CONNECTED);
-          },
+          onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
           onFail: () => {
-            this.serialSessionOpen = false;
             this.setStatus(ConnectionStatus.DISCONNECTED);
             this.connection = undefined;
           },
