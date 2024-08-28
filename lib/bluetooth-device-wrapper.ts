@@ -8,6 +8,7 @@ import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
 import { ButtonService } from "./button-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
+import { LedService } from "./led-service.js";
 import { Logging, NullLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
 import {
@@ -114,7 +115,9 @@ export class BluetoothDeviceWrapper {
     "buttonachanged",
     "buttonbchanged",
   ]);
-  private serviceInfo = [this.accelerometer, this.buttons];
+  private led = new ServiceInfo(LedService.createService, []);
+
+  private serviceInfo = [this.accelerometer, this.buttons, this.led];
 
   boardVersion: BoardVersion | undefined;
 
@@ -374,6 +377,10 @@ export class BluetoothDeviceWrapper {
 
   async getAccelerometerService(): Promise<AccelerometerService | undefined> {
     return this.createIfNeeded(this.accelerometer, false);
+  }
+
+  async getLedService(): Promise<LedService | undefined> {
+    return this.createIfNeeded(this.led, false);
   }
 
   async startNotifications(type: TypedServiceEvent) {
