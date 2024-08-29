@@ -19,6 +19,7 @@ import {
   DeviceConnectionEventMap,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
+import { LedMatrix } from "./led.js";
 import { Logging, NullLogging } from "./logging.js";
 import {
   ServiceConnectionEventMap,
@@ -243,5 +244,30 @@ export class MicrobitWebBluetoothConnection
     const accelerometerService =
       await this.connection?.getAccelerometerService();
     return accelerometerService?.setPeriod(value);
+  }
+
+  async setLedText(text: string): Promise<void> {
+    const ledService = await this.connection?.getLedService();
+    return ledService?.setText(text);
+  }
+
+  async getLedScrollingDelay(): Promise<number | undefined> {
+    const ledService = await this.connection?.getLedService();
+    return ledService?.getScrollingDelay();
+  }
+
+  async setLedScrollingDelay(delayInMillis: number): Promise<void> {
+    const ledService = await this.connection?.getLedService();
+    await ledService?.setScrollingDelay(delayInMillis);
+  }
+
+  async getLedMatrix(): Promise<LedMatrix | undefined> {
+    const ledService = await this.connection?.getLedService();
+    return ledService?.getLedMatrix();
+  }
+
+  async setLedMatrix(matrix: LedMatrix): Promise<void> {
+    const ledService = await this.connection?.getLedService();
+    ledService?.setLedMatrix(matrix);
   }
 }

@@ -67,6 +67,7 @@ const recreateUi = async (type: ConnectionType) => {
     createButtonSection("A", "buttonachanged"),
     createButtonSection("B", "buttonbchanged"),
     createAccelerometerSection(),
+    createLedSection(),
   ].forEach(({ dom, cleanup }) => {
     if (dom) {
       document.body.appendChild(dom);
@@ -383,5 +384,80 @@ const createButtonSection = (
     cleanup: () => {
       buttonConnection.removeEventListener(type, buttonStateListener);
     },
+  };
+};
+
+const createLedSection = (): Section => {
+  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+    return {};
+  }
+  const ledConnection = connection;
+
+  const delayInput = crelt("input") as HTMLInputElement;
+  const textInput = crelt("input") as HTMLInputElement;
+  const matrixInput = crelt("textarea") as HTMLTextAreaElement;
+  const dom = crelt("section", crelt("h2", "LED"), [
+    crelt("h3", "Matrix"),
+    crelt("h3", "Text"),
+    crelt("label", "Text", textInput),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          await ledConnection.setLedText(textInput.value);
+        },
+      },
+      "Set text",
+    ),
+    crelt("h3", "Scrolling delay"),
+    crelt("label", "Scrolling delay", delayInput),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          const value = await ledConnection.getLedScrollingDelay();
+          if (value) {
+            delayInput.value = value.toString();
+          }
+        },
+      },
+      "Get scrolling delay",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          await ledConnection.setLedScrollingDelay(parseInt(delayInput.value));
+        },
+      },
+      "Set scrolling delay",
+    ),
+    crelt("h3", "Matrix"),
+    crelt("label", "Matrix as JSON", matrixInput),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          const matrix = await ledConnection.getLedMatrix();
+          matrixInput.value = JSON.stringify(matrix, null, 2);
+        },
+      },
+      "Get matrix",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          const matrix = JSON.parse(matrixInput.value);
+          await ledConnection.setLedMatrix(matrix);
+        },
+      },
+      "Set matrix",
+    ),
+  ]);
+
+  return {
+    dom,
+    cleanup: () => {},
   };
 };
