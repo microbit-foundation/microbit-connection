@@ -13,13 +13,15 @@ export default defineConfig(({ mode }) => {
     base: process.env.BASE_URL ?? "/",
     build: {
       sourcemap: true,
-      lib: {
-        // Could also be a dictionary or array of multiple entry points
-        entry: resolve(__dirname, "lib/index.ts"),
-        name: "MicrobitConnection",
-        // the proper extensions will be added
-        fileName: "microbit-connection",
-      },
+      // Retain the option for a regular build
+      lib:
+        mode === "demo"
+          ? undefined
+          : {
+              entry: resolve(__dirname, "lib/index.ts"),
+              name: "MicrobitConnection",
+              fileName: "microbit-connection",
+            },
     },
     test: {
       exclude: [...configDefaults.exclude, "**/e2e/**", "build"],
