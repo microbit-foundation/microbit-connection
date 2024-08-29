@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build:lib": "tsc",
-    "build:demo": "vite --mode=demo",
+    "build:demo": "vite build --mode=demo",
     "ci": "npm run build:lib && npm run test && npx prettier --check lib src",
     "test": "vitest",
     "preview": "vite preview"
