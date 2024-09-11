@@ -191,6 +191,10 @@ export class MicrobitWebUSBConnection
     return this.connection?.deviceId;
   }
 
+  getDevice(): USBDevice | undefined {
+    return this.device;
+  }
+
   getBoardVersion(): BoardVersion | undefined {
     return this.connection?.boardSerialInfo?.id.toBoardVersion();
   }
