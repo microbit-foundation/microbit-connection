@@ -191,8 +191,8 @@ export class MicrobitWebUSBConnection
     return this.connection?.deviceId;
   }
 
-  getDeviceSerialNumber(): string | undefined {
-    return this.device?.serialNumber;
+  getDevice(): USBDevice | undefined {
+    return this.device;
   }
 
   getBoardVersion(): BoardVersion | undefined {
