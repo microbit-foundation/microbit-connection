@@ -83,6 +83,7 @@ recreateUi("usb");
 const createConnectSection = (type: ConnectionType): Section => {
   const statusParagraph = crelt("p");
   let name = "";
+  let exclusionFilters = JSON.stringify([{ serialNumber: "XXXX" }]);
   const dom = crelt(
     "section",
     crelt("h2", "Connect"),
@@ -119,10 +120,38 @@ const createConnectSection = (type: ConnectionType): Section => {
         },
       }),
     ),
+    type === "usb"
+      ? crelt(
+          "label",
+          "Exclusion filters",
+          crelt("input", {
+            type: "text",
+            value: exclusionFilters,
+            onchange: (e: Event) => {
+              exclusionFilters = (e.currentTarget as HTMLInputElement).value;
+            },
+          }),
+        )
+      : undefined,
     crelt(
       "button",
       {
         onclick: () => {
+          if (type === "usb") {
+            let parsedExclusionFilters;
+            try {
+              if (exclusionFilters) {
+                parsedExclusionFilters = JSON.parse(exclusionFilters);
+              }
+            } catch (err) {
+              console.error("Invalid exclusion filters");
+            }
+            (
+              connection as MicrobitWebUSBConnection
+            ).setRequestDeviceExclusionFilters(parsedExclusionFilters);
+          } else if (type === "bluetooth") {
+            (connection as MicrobitWebBluetoothConnection).setNameFilter(name);
+          }
           void connection.connect();
         },
       },
