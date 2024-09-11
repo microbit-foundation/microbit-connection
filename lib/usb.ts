@@ -52,6 +52,7 @@ export class MicrobitWebUSBConnection
       ? ConnectionStatus.NO_AUTHORIZED_DEVICE
       : ConnectionStatus.NOT_SUPPORTED;
 
+  private exclusionFilters: USBDeviceFilter[] | undefined;
   /**
    * The USB device we last connected to.
    * Cleared if it is disconnected.
@@ -173,6 +174,10 @@ export class MicrobitWebUSBConnection
         );
       }
     }
+  }
+
+  setRequestDeviceExclusionFilters(exclusionFilters: USBDeviceFilter[]) {
+    this.exclusionFilters = exclusionFilters;
   }
 
   async connect(): Promise<ConnectionStatus> {
@@ -421,6 +426,7 @@ export class MicrobitWebUSBConnection
     }
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
+      exclusionFilters: this.exclusionFilters,
       filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
