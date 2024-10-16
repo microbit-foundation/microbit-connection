@@ -186,7 +186,7 @@ export class MicrobitWebBluetoothConnection
       // TODO: give control over this to the caller
       const result = await Promise.race([
         navigator.bluetooth.requestDevice({
-          filters: [],
+          acceptAllDevices: true,
           optionalServices: [
             profile.accelerometer.id,
             profile.button.id,
