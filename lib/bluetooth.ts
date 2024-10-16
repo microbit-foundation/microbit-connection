@@ -189,13 +189,7 @@ export class MicrobitWebBluetoothConnection
       // TODO: give control over this to the caller
       const result = await Promise.race([
         navigator.bluetooth.requestDevice({
-          filters: [
-            {
-              namePrefix: this.nameFilter
-                ? `BBC micro:bit [${this.nameFilter}]`
-                : "BBC micro:bit",
-            },
-          ],
+          filters: [],
           optionalServices: [
             profile.accelerometer.id,
             profile.button.id,
