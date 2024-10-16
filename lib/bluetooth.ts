@@ -56,7 +56,6 @@ export class MicrobitWebBluetoothConnection
     this.availability = value;
   };
   private availability: boolean | undefined;
-  private nameFilter: string | undefined;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -175,9 +174,7 @@ export class MicrobitWebBluetoothConnection
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  setNameFilter(name: string) {
-    this.nameFilter = name;
-  }
+  setNameFilter(name: string) {}
 
   private async chooseDevice(): Promise<BluetoothDevice | undefined> {
     if (this.device) {
