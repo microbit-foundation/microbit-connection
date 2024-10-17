@@ -16,6 +16,7 @@ import {
   FlashDataError,
   FlashDataSource,
   FlashEvent,
+  FlashOptions,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
