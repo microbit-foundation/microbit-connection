@@ -16,6 +16,7 @@ import {
   FlashDataError,
   FlashDataSource,
   FlashEvent,
+  FlashOptions,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
@@ -201,10 +202,7 @@ export class MicrobitWebUSBConnection
 
   async flash(
     dataSource: FlashDataSource,
-    options: {
-      partial: boolean;
-      progress: (percentage: number | undefined) => void;
-    },
+    options: FlashOptions,
   ): Promise<void> {
     this.flashing = true;
     try {
@@ -229,10 +227,7 @@ export class MicrobitWebUSBConnection
 
   private async flashInternal(
     dataSource: FlashDataSource,
-    options: {
-      partial: boolean;
-      progress: (percentage: number | undefined, partial: boolean) => void;
-    },
+    options: FlashOptions,
   ): Promise<void> {
     this.log("Stopping serial before flash");
     await this.stopSerialInternal();
@@ -243,7 +238,10 @@ export class MicrobitWebUSBConnection
     }
 
     const partial = options.partial;
-    const progress = options.progress || (() => {});
+    const progress = rateLimitProgress(
+      options.minimumProgressIncrement ?? 0.0025,
+      options.progress || (() => {}),
+    );
 
     const boardId = this.connection.boardSerialInfo.id;
     const boardVersion = boardId.toBoardVersion();
@@ -515,4 +513,22 @@ const enrichedError = (err: any): DeviceError => {
       return genericErrorSuggestingReconnect(err);
     }
   }
+};
+
+const rateLimitProgress = (
+  minimumProgressIncrement: number,
+  callback: (value: number | undefined, partial: boolean) => void,
+) => {
+  let lastCallValue = -1;
+  return (value: number | undefined, partial: boolean) => {
+    if (
+      value === undefined ||
+      value === 0 ||
+      value === 1 ||
+      value >= lastCallValue + minimumProgressIncrement
+    ) {
+      lastCallValue = value ?? -1;
+      callback(value, partial);
+    }
+  };
 };
