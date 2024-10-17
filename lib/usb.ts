@@ -16,6 +16,7 @@ import {
   FlashDataError,
   FlashDataSource,
   FlashEvent,
+  FlashOptions,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
@@ -38,12 +39,6 @@ export interface MicrobitWebUSBConnectionOptions {
   // Coupling for now to make it easy to evolve.
 
   logging: Logging;
-}
-
-export interface FlashOptions {
-  partial: boolean;
-  progress: (percentage: number | undefined) => void;
-  minimumProgressIncrement?: number;
 }
 
 /**

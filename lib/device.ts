@@ -100,6 +100,25 @@ export enum ConnectionStatus {
   RECONNECTING = "RECONNECTING",
 }
 
+export interface FlashOptions {
+  /**
+   * True to use a partial flash where possible, false to force a full flash.
+   */
+  partial: boolean;
+  /**
+   * A progress callback. Called with undefined when the process is complete or has failed.
+   *
+   * Requesting a partial flash doesn't guarantee one is performed. Partial flashes are avoided
+   * if too many blocks have changed and failed partial flashes are retried as full flashes.
+   * The partial parameter reports the flash type currently in progress.
+   */
+  progress: (percentage: number | undefined, partial: boolean) => void;
+  /**
+   * Smallest possible progress increment to limit callback rate.
+   */
+  minimumProgressIncrement?: number;
+}
+
 export class FlashDataError extends Error {}
 
 export type FlashDataSource = (
@@ -201,23 +220,7 @@ export interface DeviceConnection
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
    */
-  flash?(
-    dataSource: FlashDataSource,
-    options: {
-      /**
-       * True to use a partial flash where possible, false to force a full flash.
-       */
-      partial: boolean;
-      /**
-       * A progress callback. Called with undefined when the process is complete or has failed.
-       *
-       * Requesting a partial flash doesn't guarantee one is performed. Partial flashes are avoided
-       * if too many blocks have changed and failed partial flashes are retried as full flashes.
-       * The partial parameter reports the flash type currently in progress.
-       */
-      progress: (percentage: number | undefined, partial: boolean) => void;
-    },
-  ): Promise<void>;
+  flash?(dataSource: FlashDataSource, options: {}): Promise<void>;
 
   /**
    * Disconnect from the device.
