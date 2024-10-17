@@ -40,6 +40,12 @@ export interface MicrobitWebUSBConnectionOptions {
   logging: Logging;
 }
 
+export interface FlashOptions {
+  partial: boolean;
+  progress: (percentage: number | undefined) => void;
+  minimumProgressIncrement?: number;
+}
+
 /**
  * A WebUSB connection to a micro:bit device.
  */
@@ -201,11 +207,7 @@ export class MicrobitWebUSBConnection
 
   async flash(
     dataSource: FlashDataSource,
-    options: {
-      partial: boolean;
-      progress: (percentage: number | undefined) => void;
-      miniumProgressIncrement: number;
-    },
+    options: FlashOptions,
   ): Promise<void> {
     this.flashing = true;
     try {
@@ -230,11 +232,7 @@ export class MicrobitWebUSBConnection
 
   private async flashInternal(
     dataSource: FlashDataSource,
-    options: {
-      partial: boolean;
-      progress: (percentage: number | undefined, partial: boolean) => void;
-      miniumProgressIncrement: number;
-    },
+    options: FlashOptions,
   ): Promise<void> {
     this.log("Stopping serial before flash");
     await this.stopSerialInternal();
@@ -246,7 +244,7 @@ export class MicrobitWebUSBConnection
 
     const partial = options.partial;
     const progress = rateLimitProgress(
-      options.miniumProgressIncrement ?? 0.0025,
+      options.minimumProgressIncrement ?? 0.0025,
       options.progress || (() => {}),
     );
 
@@ -523,7 +521,7 @@ const enrichedError = (err: any): DeviceError => {
 };
 
 const rateLimitProgress = (
-  miniumProgressIncrement: number,
+  minimumProgressIncrement: number,
   callback: (value: number | undefined, partial: boolean) => void,
 ) => {
   let lastCallValue = -1;
@@ -532,7 +530,7 @@ const rateLimitProgress = (
       value === undefined ||
       value === 0 ||
       value === 1 ||
-      value >= lastCallValue + miniumProgressIncrement
+      value >= lastCallValue + minimumProgressIncrement
     ) {
       lastCallValue = value ?? -1;
       callback(value, partial);
