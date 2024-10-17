@@ -204,6 +204,7 @@ export class MicrobitWebUSBConnection
     options: {
       partial: boolean;
       progress: (percentage: number | undefined) => void;
+      miniumProgressIncrement: number;
     },
   ): Promise<void> {
     this.flashing = true;
@@ -232,6 +233,7 @@ export class MicrobitWebUSBConnection
     options: {
       partial: boolean;
       progress: (percentage: number | undefined, partial: boolean) => void;
+      miniumProgressIncrement: number;
     },
   ): Promise<void> {
     this.log("Stopping serial before flash");
@@ -243,7 +245,10 @@ export class MicrobitWebUSBConnection
     }
 
     const partial = options.partial;
-    const progress = options.progress || (() => {});
+    const progress = rateLimitProgress(
+      options.miniumProgressIncrement ?? 0.0025,
+      options.progress || (() => {}),
+    );
 
     const boardId = this.connection.boardSerialInfo.id;
     const boardVersion = boardId.toBoardVersion();
@@ -515,4 +520,22 @@ const enrichedError = (err: any): DeviceError => {
       return genericErrorSuggestingReconnect(err);
     }
   }
+};
+
+const rateLimitProgress = (
+  miniumProgressIncrement: number,
+  callback: (value: number | undefined, partial: boolean) => void,
+) => {
+  let lastCallValue = -1;
+  return (value: number | undefined, partial: boolean) => {
+    if (
+      value === undefined ||
+      value === 0 ||
+      value === 1 ||
+      value >= lastCallValue + miniumProgressIncrement
+    ) {
+      lastCallValue = value ?? -1;
+      callback(value, partial);
+    }
+  };
 };

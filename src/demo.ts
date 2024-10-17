@@ -209,12 +209,14 @@ const createFlashSection = (): Section => {
           if (file) {
             const text = await file.text();
             if (connection.flash) {
+              console.time("flash");
               await connection.flash(createUniversalHexFlashDataSource(text), {
                 partial: true,
                 progress: (percentage: number | undefined) => {
                   console.log(percentage);
                 },
               });
+              console.timeEnd("flash");
             }
           }
         },
