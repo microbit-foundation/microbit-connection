@@ -195,7 +195,7 @@ export class MicrobitWebBluetoothConnection
                 ? `BBC micro:bit [${this.nameFilter}]`
                 : "BBC micro:bit",
             },
-            { namePrefix: "ubit" },
+            { namePrefix: "uBit" },
           ],
           optionalServices: [
             profile.accelerometer.id,
