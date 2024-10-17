@@ -41,12 +41,6 @@ export interface MicrobitWebUSBConnectionOptions {
   logging: Logging;
 }
 
-export interface FlashOptions {
-  partial: boolean;
-  progress: (percentage: number | undefined) => void;
-  minimumProgressIncrement?: number;
-}
-
 /**
  * A WebUSB connection to a micro:bit device.
  */
