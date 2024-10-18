@@ -195,6 +195,12 @@ export class MicrobitWebBluetoothConnection
                 ? `BBC micro:bit [${this.nameFilter}]`
                 : "BBC micro:bit",
             },
+            {
+              // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
+              namePrefix: this.nameFilter
+                ? `uBit [${this.nameFilter}]`
+                : "uBit",
+            },
           ],
           optionalServices: [
             profile.accelerometer.id,
