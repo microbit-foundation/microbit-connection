@@ -100,9 +100,7 @@ export class AccelerometerService implements Service {
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
     return this.queueGattOperation(() =>
-      this.accelerometerPeriodCharacteristic.writeValueWithoutResponse(
-        dataView,
-      ),
+      this.accelerometerPeriodCharacteristic.writeValue(dataView),
     );
   }
 
