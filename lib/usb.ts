@@ -73,44 +73,12 @@ export class MicrobitWebUSBConnection
   };
 
   private flashing: boolean = false;
-  private disconnectAfterFlash: boolean = false;
-  private visibilityReconnect: boolean = false;
-  private visibilityChangeListener = () => {
-    if (document.visibilityState === "visible") {
-      if (
-        this.visibilityReconnect &&
-        this.status !== ConnectionStatus.CONNECTED
-      ) {
-        this.disconnectAfterFlash = false;
-        this.visibilityReconnect = false;
-        if (!this.flashing) {
-          this.log("Reconnecting visible tab");
-          this.connect();
-        }
-      }
-    } else {
-      if (!this.unloading && this.status === ConnectionStatus.CONNECTED) {
-        if (!this.flashing) {
-          this.log("Disconnecting hidden tab");
-          this.disconnect().then(() => {
-            this.visibilityReconnect = true;
-          });
-        } else {
-          this.log("Scheduling disconnect of hidden tab for after flash");
-          this.disconnectAfterFlash = true;
-        }
-      }
-    }
-  };
-
-  private unloading = false;
 
   private beforeUnloadListener = () => {
     // If serial is in progress when the page unloads with V1 DAPLink 0254 or V2 0255
     // then it'll fail to reconnect with mismatched command/response errors.
     // Try hard to disconnect as a workaround.
     // https://github.com/microbit-foundation/python-editor-v3/issues/89
-    this.unloading = true;
     this.stopSerialInternal();
     // The user might stay on the page if they have unsaved changes and there's another beforeunload listener.
     window.addEventListener(
@@ -119,7 +87,6 @@ export class MicrobitWebUSBConnection
         const assumePageIsStayingOpenDelay = 1000;
         setTimeout(() => {
           if (this.status === ConnectionStatus.CONNECTED) {
-            this.unloading = false;
             if (this.addedListeners.serialdata) {
               this.startSerialInternal();
             }
@@ -153,12 +120,6 @@ export class MicrobitWebUSBConnection
     }
     if (typeof window !== "undefined") {
       window.addEventListener("beforeunload", this.beforeUnloadListener);
-      if (window.document) {
-        window.document.addEventListener(
-          "visibilitychange",
-          this.visibilityChangeListener,
-        );
-      }
     }
   }
 
@@ -168,12 +129,6 @@ export class MicrobitWebUSBConnection
     }
     if (typeof window !== "undefined") {
       window.removeEventListener("beforeunload", this.beforeUnloadListener);
-      if (window.document) {
-        window.document.removeEventListener(
-          "visibilitychange",
-          this.visibilityChangeListener,
-        );
-      }
     }
   }
 
@@ -260,19 +215,11 @@ export class MicrobitWebUSBConnection
       }
     } finally {
       progress(undefined, wasPartial);
-
-      if (this.disconnectAfterFlash) {
-        this.log("Disconnecting after flash due to tab visibility");
-        this.disconnectAfterFlash = false;
-        await this.disconnect();
-        this.visibilityReconnect = true;
-      } else {
-        if (this.addedListeners.serialdata) {
-          this.log("Reinstating serial after flash");
-          if (this.connection.daplink) {
-            await this.connection.daplink.connect();
-            await this.startSerialInternal();
-          }
+      if (this.addedListeners.serialdata) {
+        this.log("Reinstating serial after flash");
+        if (this.connection.daplink) {
+          await this.connection.daplink.connect();
+          await this.startSerialInternal();
         }
       }
     }
@@ -334,7 +281,6 @@ export class MicrobitWebUSBConnection
 
   private setStatus(newStatus: ConnectionStatus) {
     this.status = newStatus;
-    this.visibilityReconnect = false;
     this.log("USB connection status " + newStatus);
     this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
   }
