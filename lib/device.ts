@@ -179,7 +179,7 @@ export class DeviceConnectionEventMap {
   "status": ConnectionStatusEvent;
   "serialdata": SerialDataEvent;
   "serialreset": Event;
-  "serialerror": Event;
+  "serialerror": SerialErrorEvent;
   "flash": Event;
   "beforerequestdevice": Event;
   "afterrequestdevice": Event;
