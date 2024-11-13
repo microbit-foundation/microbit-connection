@@ -19,7 +19,7 @@ import {
   SerialErrorEvent,
   SerialResetEvent,
 } from "./device.js";
-import { TrackingEventTarget } from "./events.js";
+import { TypedEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
 import { ServiceConnectionEventMap } from "./service-events.js";
 import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
@@ -43,7 +43,7 @@ export {
   SerialErrorEvent,
   SerialResetEvent,
   ServiceConnectionEventMap,
-  TrackingEventTarget,
+  TypedEventTarget,
 };
 
 export type {
