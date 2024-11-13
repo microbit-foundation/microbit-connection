@@ -1,17 +1,17 @@
-import { MicrobitWebUSBConnection } from "./usb.js";
+import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
 import { MicrobitWebBluetoothConnection } from "./bluetooth.js";
-import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
 import { BoardId } from "./board-id.js";
+import { ButtonEvent, ButtonEventType, ButtonState } from "./buttons.js";
 import {
-  DeviceConnection,
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
+  DeviceConnection,
+  DeviceConnectionEventMap,
   DeviceError,
   DeviceErrorCode,
-  DeviceConnectionEventMap,
   FlashDataError,
   FlashDataSource,
   FlashEvent,
@@ -19,33 +19,40 @@ import {
   SerialErrorEvent,
   SerialResetEvent,
 } from "./device.js";
+import { TrackingEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
-import { AccelerometerDataEvent } from "./accelerometer.js";
-import { ButtonEvent } from "./buttons.js";
+import { ServiceConnectionEventMap } from "./service-events.js";
+import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
+import { MicrobitWebUSBConnection } from "./usb.js";
 
 export {
-  MicrobitWebUSBConnection,
-  MicrobitWebBluetoothConnection,
-  MicrobitRadioBridgeConnection,
-  BoardId,
-  createUniversalHexFlashDataSource,
   AfterRequestDevice,
   BeforeRequestDevice,
+  BoardId,
   ConnectionStatus,
   ConnectionStatusEvent,
+  createUniversalHexFlashDataSource,
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
   FlashEvent,
+  MicrobitRadioBridgeConnection,
+  MicrobitWebBluetoothConnection,
+  MicrobitWebUSBConnection,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
+  ServiceConnectionEventMap,
+  TrackingEventTarget,
 };
 
 export type {
+  AccelerometerData,
   AccelerometerDataEvent,
   BoardVersion,
   ButtonEvent,
+  ButtonEventType,
+  ButtonState,
   DeviceConnection,
   DeviceErrorCode,
   FlashDataSource,
