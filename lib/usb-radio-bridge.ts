@@ -225,7 +225,7 @@ class RadioBridgeSerialSession {
   private isRestartingConnection: boolean = false;
 
   private serialErrorListener = (event: SerialErrorEvent) => {
-    this.logging.error("SerialError:", event.error);
+    this.logging.error("Serial error", event.error);
     void this.dispose();
   };
 
