@@ -170,9 +170,6 @@ export class MicrobitWebBluetoothConnection
       return;
     }
     // TODO: timeout unification?
-    // Connection happens inside createBluetoothDeviceWrapper.
-    // await this.connection?.connect();
-    // this.setStatus(ConnectionStatus.CONNECTED);
   }
 
   setNameFilter(name: string) {
