@@ -432,6 +432,7 @@ export const createBluetoothDeviceWrapper = async (
     await bluetooth.connect();
     return bluetooth;
   } catch (e) {
+    logging.error("Bluetooth connect error", e);
     return undefined;
   }
 };
