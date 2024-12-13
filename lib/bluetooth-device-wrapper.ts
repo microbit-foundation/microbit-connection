@@ -107,7 +107,7 @@ export class BluetoothDeviceWrapper {
   private disconnectPromise: Promise<unknown> | undefined;
   private connecting = false;
   private isReconnect = false;
-  private reconnectReadyPromise: Promise<void> | undefined;
+  private connectReadyPromise: Promise<void> | undefined;
 
   private accelerometer = new ServiceInfo(AccelerometerService.createService, [
     "accelerometerdatachanged",
@@ -178,6 +178,15 @@ export class BluetoothDeviceWrapper {
         "BluetoothRemoteGATTServer for micro:bit device is undefined",
       );
     }
+
+    if (isWindowsOS) {
+      // On Windows, the micro:bit can take around 3 seconds to respond to gatt.disconnect().
+      // Attempting to connect/reconnect before the micro:bit has responded results in another
+      // gattserverdisconnected event being fired. We then fail to get primaryService on a
+      // disconnected GATT server.
+      await this.connectReadyPromise;
+    }
+
     try {
       // A previous connect might have completed in the background as a device was replugged etc.
       await this.disconnectPromise;
@@ -284,7 +293,7 @@ export class BluetoothDeviceWrapper {
       this.disposeServices();
       this.duringExplicitConnectDisconnect--;
     }
-    this.reconnectReadyPromise = new Promise((resolve) =>
+    this.connectReadyPromise = new Promise((resolve) =>
       setTimeout(resolve, 3_500),
     );
   }
@@ -292,13 +301,6 @@ export class BluetoothDeviceWrapper {
   async reconnect(): Promise<void> {
     this.logging.log("Bluetooth reconnect");
     this.isReconnect = true;
-    if (isWindowsOS) {
-      // On Windows, the micro:bit can take around 3 seconds to respond to gatt.disconnect().
-      // Attempting to reconnect before the micro:bit has responded results in another
-      // gattserverdisconnected event being fired. We then fail to get primaryService on a
-      // disconnected GATT server.
-      await this.reconnectReadyPromise;
-    }
     await this.connect();
   }
 
@@ -436,6 +438,7 @@ export const createBluetoothDeviceWrapper = async (
     await bluetooth.connect();
     return bluetooth;
   } catch (e) {
+    logging.error("Bluetooth connect error", e);
     return undefined;
   }
 };

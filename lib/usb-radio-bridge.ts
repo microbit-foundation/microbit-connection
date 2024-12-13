@@ -13,6 +13,7 @@ import {
   DeviceConnection,
   DeviceConnectionEventMap,
   SerialDataEvent,
+  SerialErrorEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
@@ -223,8 +224,8 @@ class RadioBridgeSerialSession {
   private connectionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
   private isRestartingConnection: boolean = false;
 
-  private serialErrorListener = (e: unknown) => {
-    this.logging.error("Serial error", e);
+  private serialErrorListener = (event: SerialErrorEvent) => {
+    this.logging.error("Serial error", event.error);
     void this.dispose();
   };
 
