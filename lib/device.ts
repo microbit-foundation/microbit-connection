@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import { TypedEventTarget } from "./events.js";
+import { UARTDataEvent } from "./uart.js";
 
 /**
  * Specific identified error types.
@@ -180,6 +181,7 @@ export class DeviceConnectionEventMap {
   "serialdata": SerialDataEvent;
   "serialreset": Event;
   "serialerror": SerialErrorEvent;
+  "uartdata": UARTDataEvent;
   "flash": Event;
   "beforerequestdevice": Event;
   "afterrequestdevice": Event;

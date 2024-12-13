@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import crelt from "crelt";
+import { AccelerometerDataEvent } from "../lib/accelerometer";
 import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
 import { ButtonEvent } from "../lib/buttons";
 import {
@@ -14,13 +15,10 @@ import {
   SerialDataEvent,
 } from "../lib/device";
 import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
+import { UARTDataEvent } from "../lib/uart";
 import { MicrobitWebUSBConnection } from "../lib/usb";
 import { MicrobitRadioBridgeConnection } from "../lib/usb-radio-bridge";
 import "./demo.css";
-import {
-  AccelerometerData,
-  AccelerometerDataEvent,
-} from "../lib/accelerometer";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
@@ -64,6 +62,7 @@ const recreateUi = async (type: ConnectionType) => {
     createConnectSection(type),
     createFlashSection(),
     createSerialSection(),
+    createUARTSection(),
     createButtonSection("A", "buttonachanged"),
     createButtonSection("B", "buttonbchanged"),
     createAccelerometerSection(),
@@ -270,6 +269,80 @@ const createSerialSection = (): Section => {
     dom,
     cleanup: () => {
       connection.removeEventListener("serialdata", serialDataListener);
+    },
+  };
+};
+
+const createUARTSection = (): Section => {
+  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+    return {};
+  }
+
+  const uartDataListener = (event: UARTDataEvent) => {
+    const value = new TextDecoder().decode(event.value);
+    console.log(value);
+  };
+
+  const bluetoothConnection =
+    connection instanceof MicrobitWebBluetoothConnection
+      ? connection
+      : undefined;
+
+  let dataToWrite = "";
+  const dataToWriteFieldId = "dataToWrite";
+  const dom = crelt(
+    "section",
+    crelt("h2", "UART"),
+    crelt("h3", "Receive"),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          bluetoothConnection?.addEventListener("uartdata", uartDataListener);
+        },
+      },
+      "Listen to UART",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          bluetoothConnection?.removeEventListener(
+            "uartdata",
+            uartDataListener,
+          );
+        },
+      },
+      "Stop listening to UART",
+    ),
+    crelt("h3", "Write"),
+    crelt("label", { name: "Data", for: dataToWriteFieldId }),
+    crelt("textarea", {
+      id: dataToWriteFieldId,
+      type: "text",
+      onchange: (e: Event) => {
+        dataToWrite = (e.currentTarget as HTMLInputElement).value;
+      },
+    }),
+    crelt(
+      "div",
+      crelt(
+        "button",
+        {
+          onclick: async () => {
+            const encoded = new TextEncoder().encode(dataToWrite);
+            await bluetoothConnection?.writeUART(encoded);
+          },
+        },
+        "Write to micro:bit",
+      ),
+    ),
+  );
+
+  return {
+    dom,
+    cleanup: () => {
+      connection.removeEventListener("uartdata", uartDataListener);
     },
   };
 };
