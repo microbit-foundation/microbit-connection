@@ -52,8 +52,8 @@ export class UARTService implements Service {
       profile.uart.characteristics.tx.id,
     );
     return new UARTService(
-      rxCharacteristic,
       txCharacteristic,
+      rxCharacteristic,
       dispatcher,
       queueGattOperation,
     );
