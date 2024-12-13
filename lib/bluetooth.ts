@@ -276,4 +276,9 @@ export class MicrobitWebBluetoothConnection
     const ledService = await this.connection?.getLedService();
     ledService?.setLedMatrix(matrix);
   }
+
+  async writeUART(data: Uint8Array): Promise<void> {
+    const uartService = await this.connection?.getUARTService();
+    uartService?.writeData(data);
+  }
 }

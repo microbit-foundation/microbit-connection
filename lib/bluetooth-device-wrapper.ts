@@ -16,6 +16,7 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
+import { UARTService } from "./uart-service.js";
 
 const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
 
@@ -116,8 +117,9 @@ export class BluetoothDeviceWrapper {
     "buttonbchanged",
   ]);
   private led = new ServiceInfo(LedService.createService, []);
+  private uart = new ServiceInfo(UARTService.createService, ["uartdata"]);
 
-  private serviceInfo = [this.accelerometer, this.buttons, this.led];
+  private serviceInfo = [this.accelerometer, this.buttons, this.led, this.uart];
 
   boardVersion: BoardVersion | undefined;
 
@@ -381,6 +383,10 @@ export class BluetoothDeviceWrapper {
 
   async getLedService(): Promise<LedService | undefined> {
     return this.createIfNeeded(this.led, false);
+  }
+
+  async getUARTService(): Promise<UARTService | undefined> {
+    return this.createIfNeeded(this.uart, false);
   }
 
   async startNotifications(type: TypedServiceEvent) {

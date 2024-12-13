@@ -1,11 +1,13 @@
 import { AccelerometerDataEvent } from "./accelerometer.js";
 import { ButtonEvent } from "./buttons.js";
 import { DeviceConnectionEventMap } from "./device.js";
+import { UARTDataEvent } from "./uart.js";
 
 export class ServiceConnectionEventMap {
   "accelerometerdatachanged": AccelerometerDataEvent;
   "buttonachanged": ButtonEvent;
   "buttonbchanged": ButtonEvent;
+  "uartdata": UARTDataEvent;
 }
 
 export type CharacteristicDataTarget = EventTarget & {
