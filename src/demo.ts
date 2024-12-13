@@ -283,14 +283,22 @@ const createUARTSection = (): Section => {
     console.log(value);
   };
 
+  const bluetoothConnection =
+    connection instanceof MicrobitWebBluetoothConnection
+      ? connection
+      : undefined;
+
+  let dataToWrite = "";
+  const dataToWriteFieldId = "dataToWrite";
   const dom = crelt(
     "section",
     crelt("h2", "UART"),
+    crelt("h3", "Receive"),
     crelt(
       "button",
       {
         onclick: () => {
-          connection.addEventListener("uartdata", uartDataListener);
+          bluetoothConnection?.addEventListener("uartdata", uartDataListener);
         },
       },
       "Listen to UART",
@@ -299,10 +307,35 @@ const createUARTSection = (): Section => {
       "button",
       {
         onclick: () => {
-          connection.removeEventListener("uartdata", uartDataListener);
+          bluetoothConnection?.removeEventListener(
+            "uartdata",
+            uartDataListener,
+          );
         },
       },
       "Stop listening to UART",
+    ),
+    crelt("h3", "Write"),
+    crelt("label", { name: "Data", for: dataToWriteFieldId }),
+    crelt("textarea", {
+      id: dataToWriteFieldId,
+      type: "text",
+      onchange: (e: Event) => {
+        dataToWrite = (e.currentTarget as HTMLInputElement).value;
+      },
+    }),
+    crelt(
+      "div",
+      crelt(
+        "button",
+        {
+          onclick: async () => {
+            const encoded = new TextEncoder().encode(dataToWrite);
+            await bluetoothConnection?.writeUART(encoded);
+          },
+        },
+        "Write to micro:bit",
+      ),
     ),
   );
 
