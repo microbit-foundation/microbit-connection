@@ -4,7 +4,13 @@ This project is a work in progress. We are extracting WebUSB and Web Bluetooth c
 
 It is intended to be used by other Micro:bit Educational Foundation projects that need to connect to a BBC micro:bit.
 
-The API is not stable and it's not yet recommended that third parties use this project.
+The API is not stable and it's not yet recommended that third parties use this project unless they are happy to update usage as the API evolves.
+
+[Alpha releases are now on NPM](https://www.npmjs.com/package/@microbit/microbit-connection).
+
+[This Python Editor PR](https://github.com/microbit-foundation/python-editor-v3/pull/1190) tracks updating the micro:bit Python Editor to use this library.
+
+[micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/) is already using this library for WebUSB and Web Bluetooth.
 
 ## License
 
