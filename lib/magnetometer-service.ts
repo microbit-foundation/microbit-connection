@@ -93,10 +93,10 @@ export class MagnetometerService implements Service {
       // Writing 0 causes the device to crash.
       return;
     }
-    // Allowed values: 2, 5, 10, 20, 40, 100, 1000
+    // Allowed values: 10, 20, 50, 100
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
-    // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
+    // https://lancaster-university.github.io/microbit-docs/ble/profile/#about-the-magnetometer-service
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
     return this.queueGattOperation(() =>
