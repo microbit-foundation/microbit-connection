@@ -8,10 +8,9 @@
 
     /* Bundler mode */
     "moduleResolution": "NodeNext",
-    "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "outDir": "build",
+    "outDir": "build/esm",
     "sourceMap": true,
     "declaration": true,
 
