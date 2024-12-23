@@ -21,6 +21,7 @@ import {
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
+import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
 import { ServiceConnectionEventMap } from "./service-events.js";
 import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
 import { MicrobitWebUSBConnection } from "./usb.js";
@@ -56,4 +57,6 @@ export type {
   DeviceConnection,
   DeviceErrorCode,
   FlashDataSource,
+  MagnetometerData,
+  MagnetometerDataEvent,
 };
