@@ -446,12 +446,7 @@ const createAccelerometerSection = (): Section => {
 };
 
 const createMagnetometerSection = (): Section => {
-  if (
-    !(
-      connection instanceof MicrobitRadioBridgeConnection ||
-      connection instanceof MicrobitWebBluetoothConnection
-    )
-  ) {
+  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
     return {};
   }
   const magnetometerConnection = connection;
@@ -470,6 +465,7 @@ const createMagnetometerSection = (): Section => {
       period = (e.currentTarget as HTMLInputElement).value;
     },
   }) as HTMLInputElement;
+  const bearingParagraph = crelt("p");
   const dom = crelt(
     "section",
     crelt("h2", "Magnetometer"),
@@ -529,6 +525,26 @@ const createMagnetometerSection = (): Section => {
           ),
         ]
       : [],
+    bearingParagraph,
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          void bluetoothConnection?.triggerMagnetometerCalibration();
+        },
+      },
+      "Trigger calibration",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          const bearing = await bluetoothConnection?.getMagnetometerBearing();
+          bearingParagraph.textContent = `Bearing: ${bearing ?? 0} degrees`;
+        },
+      },
+      "Get bearing",
+    ),
   );
   return {
     dom,

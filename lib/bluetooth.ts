@@ -290,6 +290,16 @@ export class MicrobitWebBluetoothConnection
     return magnetometerService?.setPeriod(value);
   }
 
+  async getMagnetometerBearing(): Promise<number | undefined> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.getBearing();
+  }
+
+  async triggerMagnetometerCalibration(): Promise<void> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.triggerCalibration();
+  }
+
   async writeUART(data: Uint8Array): Promise<void> {
     const uartService = await this.connection?.getUARTService();
     uartService?.writeData(data);

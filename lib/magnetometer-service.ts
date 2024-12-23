@@ -12,6 +12,8 @@ export class MagnetometerService implements Service {
   constructor(
     private magnetometerDataCharacteristic: BluetoothRemoteGATTCharacteristic,
     private magnetometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
+    private magnetometerBearingCharacteristic: BluetoothRemoteGATTCharacteristic,
+    private magnetometerCalibrationCharacteristic: BluetoothRemoteGATTCharacteristic,
     private dispatchTypedEvent: TypedServiceEventDispatcher,
     private queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
   ) {
@@ -58,9 +60,19 @@ export class MagnetometerService implements Service {
       await magnetometerService.getCharacteristic(
         profile.magnetometer.characteristics.period.id,
       );
+    const magnetometerBearingCharacteristic =
+      await magnetometerService.getCharacteristic(
+        profile.magnetometer.characteristics.bearing.id,
+      );
+    const magnetometerCalibrationCharacteristic =
+      await magnetometerService.getCharacteristic(
+        profile.magnetometer.characteristics.calibration.id,
+      );
     return new MagnetometerService(
       magnetometerDataCharacteristic,
       magnetometerPeriodCharacteristic,
+      magnetometerBearingCharacteristic,
+      magnetometerCalibrationCharacteristic,
       dispatcher,
       queueGattOperation,
     );
@@ -101,6 +113,21 @@ export class MagnetometerService implements Service {
     dataView.setUint16(0, value, true);
     return this.queueGattOperation(() =>
       this.magnetometerPeriodCharacteristic.writeValue(dataView),
+    );
+  }
+
+  async getBearing(): Promise<number> {
+    const dataView = await this.queueGattOperation(() =>
+      this.magnetometerBearingCharacteristic.readValue(),
+    );
+    return dataView.getUint16(0, true);
+  }
+
+  async triggerCalibration(): Promise<void> {
+    const dataView = new DataView(new ArrayBuffer(1));
+    dataView.setUint8(0, 1);
+    return this.queueGattOperation(() =>
+      this.magnetometerCalibrationCharacteristic.writeValue(dataView),
     );
   }
 
