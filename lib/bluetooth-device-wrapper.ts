@@ -10,6 +10,7 @@ import { ButtonService } from "./button-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
 import { LedService } from "./led-service.js";
 import { Logging, NullLogging } from "./logging.js";
+import { MagnetometerService } from "./magnetometer-service.js";
 import { PromiseQueue } from "./promise-queue.js";
 import {
   ServiceConnectionEventMap,
@@ -117,9 +118,18 @@ export class BluetoothDeviceWrapper {
     "buttonbchanged",
   ]);
   private led = new ServiceInfo(LedService.createService, []);
+  private magnetometer = new ServiceInfo(MagnetometerService.createService, [
+    "magnetometerdatachanged",
+  ]);
   private uart = new ServiceInfo(UARTService.createService, ["uartdata"]);
 
-  private serviceInfo = [this.accelerometer, this.buttons, this.led, this.uart];
+  private serviceInfo = [
+    this.accelerometer,
+    this.buttons,
+    this.led,
+    this.magnetometer,
+    this.uart,
+  ];
 
   boardVersion: BoardVersion | undefined;
 
@@ -385,6 +395,10 @@ export class BluetoothDeviceWrapper {
 
   async getLedService(): Promise<LedService | undefined> {
     return this.createIfNeeded(this.led, false);
+  }
+
+  async getMagnetometerService(): Promise<MagnetometerService | undefined> {
+    return this.createIfNeeded(this.magnetometer, false);
   }
 
   async getUARTService(): Promise<UARTService | undefined> {
