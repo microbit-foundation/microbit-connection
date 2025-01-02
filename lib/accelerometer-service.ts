@@ -96,7 +96,7 @@ export class AccelerometerService implements Service {
     // Allowed values: 2, 5, 10, 20, 40, 100, 1000
     // Values passed are rounded up to the allowed values on device.
     // Documentation for allowed values looks wrong.
-    // https://lancaster-university.github.io/microbit-docs/resources/bluetooth/bluetooth_profile.html
+    // https://lancaster-university.github.io/microbit-docs/ble/profile/#about-the-accelerometer-service
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
     return this.queueGattOperation(() =>

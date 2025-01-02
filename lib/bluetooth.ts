@@ -21,6 +21,7 @@ import {
 import { TypedEventTarget } from "./events.js";
 import { LedMatrix } from "./led.js";
 import { Logging, NullLogging } from "./logging.js";
+import { MagnetometerData } from "./magnetometer.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
@@ -272,6 +273,31 @@ export class MicrobitWebBluetoothConnection
   async setLedMatrix(matrix: LedMatrix): Promise<void> {
     const ledService = await this.connection?.getLedService();
     ledService?.setLedMatrix(matrix);
+  }
+
+  async getMagnetometerData(): Promise<MagnetometerData | undefined> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.getData();
+  }
+
+  async getMagnetometerPeriod(): Promise<number | undefined> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.getPeriod();
+  }
+
+  async setMagnetometerPeriod(value: number): Promise<void> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.setPeriod(value);
+  }
+
+  async getMagnetometerBearing(): Promise<number | undefined> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.getBearing();
+  }
+
+  async triggerMagnetometerCalibration(): Promise<void> {
+    const magnetometerService = await this.connection?.getMagnetometerService();
+    return magnetometerService?.triggerCalibration();
   }
 
   async writeUART(data: Uint8Array): Promise<void> {

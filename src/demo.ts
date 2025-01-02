@@ -19,6 +19,7 @@ import { UARTDataEvent } from "../lib/uart";
 import { MicrobitWebUSBConnection } from "../lib/usb";
 import { MicrobitRadioBridgeConnection } from "../lib/usb-radio-bridge";
 import "./demo.css";
+import { MagnetometerDataEvent } from "../lib/magnetometer";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
@@ -66,6 +67,7 @@ const recreateUi = async (type: ConnectionType) => {
     createButtonSection("A", "buttonachanged"),
     createButtonSection("B", "buttonbchanged"),
     createAccelerometerSection(),
+    createMagnetometerSection(),
     createLedSection(),
   ].forEach(({ dom, cleanup }) => {
     if (dom) {
@@ -437,6 +439,118 @@ const createAccelerometerSection = (): Section => {
     cleanup: () => {
       accelerometerConnection.removeEventListener(
         "accelerometerdatachanged",
+        listener,
+      );
+    },
+  };
+};
+
+const createMagnetometerSection = (): Section => {
+  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+    return {};
+  }
+  const magnetometerConnection = connection;
+  const bluetoothConnection =
+    connection instanceof MicrobitWebBluetoothConnection
+      ? connection
+      : undefined;
+  const statusParagraph = crelt("p");
+  const listener = (e: MagnetometerDataEvent) => {
+    statusParagraph.innerText = JSON.stringify(e.data);
+  };
+  let period = "";
+  const periodInput = crelt("input", {
+    type: "number",
+    onchange: (e: Event) => {
+      period = (e.currentTarget as HTMLInputElement).value;
+    },
+  }) as HTMLInputElement;
+  const bearingParagraph = crelt("p");
+  const dom = crelt(
+    "section",
+    crelt("h2", "Magnetometer"),
+    crelt("h3", "Events"),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          magnetometerConnection.addEventListener(
+            "magnetometerdatachanged",
+            listener,
+          );
+        },
+      },
+      "Listen",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          magnetometerConnection.removeEventListener(
+            "magnetometerdatachanged",
+            listener,
+          );
+        },
+      },
+      "Stop listening",
+    ),
+    statusParagraph,
+    bluetoothConnection
+      ? [
+          crelt("h3", "Period"),
+          crelt("label", "Value", periodInput),
+          crelt(
+            "button",
+            {
+              onclick: async () => {
+                period =
+                  (
+                    await bluetoothConnection.getMagnetometerPeriod()
+                  )?.toString() ?? "";
+                periodInput.value = period;
+              },
+            },
+            "Get period",
+          ),
+          crelt(
+            "button",
+            {
+              onclick: async () => {
+                await bluetoothConnection.setMagnetometerPeriod(
+                  parseInt(period, 10),
+                );
+              },
+            },
+            "Set period",
+          ),
+        ]
+      : [],
+    bearingParagraph,
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          void bluetoothConnection?.triggerMagnetometerCalibration();
+        },
+      },
+      "Trigger calibration",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: async () => {
+          const bearing = await bluetoothConnection?.getMagnetometerBearing();
+          bearingParagraph.textContent = `Bearing: ${bearing ?? 0} degrees`;
+        },
+      },
+      "Get bearing",
+    ),
+  );
+  return {
+    dom,
+    cleanup: () => {
+      magnetometerConnection.removeEventListener(
+        "magnetometerdatachanged",
         listener,
       );
     },
