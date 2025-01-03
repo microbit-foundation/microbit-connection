@@ -333,7 +333,7 @@ const createUARTSection = (): Section => {
         {
           onclick: async () => {
             const encoded = new TextEncoder().encode(dataToWrite);
-            await bluetoothConnection?.writeUART(encoded);
+            await bluetoothConnection?.uartWrite(encoded);
           },
         },
         "Write to micro:bit",

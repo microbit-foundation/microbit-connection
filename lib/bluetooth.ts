@@ -300,7 +300,7 @@ export class MicrobitWebBluetoothConnection
     return magnetometerService?.triggerCalibration();
   }
 
-  async writeUART(data: Uint8Array): Promise<void> {
+  async uartWrite(data: Uint8Array): Promise<void> {
     const uartService = await this.connection?.getUARTService();
     uartService?.writeData(data);
   }
