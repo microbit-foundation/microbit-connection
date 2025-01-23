@@ -212,17 +212,9 @@ export interface DeviceConnection
   /**
    * Get the board version.
    *
-   * @returns the board version or null if there is no connection.
+   * @returns the board version or undefined if there is no connection.
    */
   getBoardVersion(): BoardVersion | undefined;
-
-  /**
-   * Flash the micro:bit.
-   *
-   * @param dataSource The data to use.
-   * @param options Flash options and progress callback.
-   */
-  flash?(dataSource: FlashDataSource, options: {}): Promise<void>;
 
   /**
    * Disconnect from the device.
@@ -232,7 +224,7 @@ export interface DeviceConnection
   /**
    * Write serial data to the device.
    *
-   * Does nothting if there is no connection.
+   * Does nothing if there is no connection.
    *
    * @param data The data to write.
    * @returns A promise that resolves when the write is complete.
@@ -242,5 +234,31 @@ export interface DeviceConnection
   /**
    * Clear device to enable chooseDevice.
    */
-  clearDevice(): void;
+  clearDevice(): Promise<void> | void;
+}
+
+export interface DeviceWebUSBConnection extends DeviceConnection {
+  /**
+   * Get the deviceId.
+   *
+   * @returns the device id or undefined if there is no connection.
+   */
+  getDeviceId(): number | undefined;
+
+  /**
+   * Flash the micro:bit.
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   */
+  flash(dataSource: FlashDataSource, options: {}): Promise<void>;
+}
+
+export interface DeviceWebBluetoothConnection extends DeviceConnection {
+  /**
+   * Sets micro:bit name filter for device requesting.
+   *
+   * @param name The name of the micro:bit.
+   */
+  setNameFilter(name: string): void;
 }

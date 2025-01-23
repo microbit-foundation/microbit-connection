@@ -10,13 +10,13 @@ import {
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
-  DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
   FlashDataSource,
   FlashEvent,
   FlashOptions,
+  DeviceWebUSBConnection as DeviceWebUSBConnection,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
@@ -46,7 +46,7 @@ export interface MicrobitWebUSBConnectionOptions {
  */
 export class MicrobitWebUSBConnection
   extends TypedEventTarget<DeviceConnectionEventMap>
-  implements DeviceConnection
+  implements DeviceWebUSBConnection
 {
   status: ConnectionStatus =
     navigator.usb && !isChromeOS105()

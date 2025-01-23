@@ -12,6 +12,7 @@ import {
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
+  DeviceWebUSBConnection,
   SerialDataEvent,
 } from "../lib/device";
 import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
@@ -194,7 +195,7 @@ const createConnectSection = (type: ConnectionType): Section => {
 };
 
 const createFlashSection = (): Section => {
-  if (!connection.flash) {
+  if (typeof connection["flash"] !== "function") {
     return {};
   }
   const dom = crelt(
@@ -209,16 +210,17 @@ const createFlashSection = (): Section => {
           const file = (e.currentTarget as HTMLInputElement).files?.item(0);
           if (file) {
             const text = await file.text();
-            if (connection.flash) {
-              console.time("flash");
-              await connection.flash(createUniversalHexFlashDataSource(text), {
+            console.time("flash");
+            await (connection as DeviceWebUSBConnection).flash(
+              createUniversalHexFlashDataSource(text),
+              {
                 partial: true,
                 progress: (percentage: number | undefined) => {
                   console.log(percentage);
                 },
-              });
-              console.timeEnd("flash");
-            }
+              },
+            );
+            console.timeEnd("flash");
           }
         },
       }),
