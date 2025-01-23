@@ -10,8 +10,8 @@ import {
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
-  DeviceConnection,
   DeviceConnectionEventMap,
+  DeviceRadioBridgeConnection,
   SerialDataEvent,
   SerialErrorEvent,
 } from "./device.js";
@@ -48,7 +48,7 @@ interface ConnectCallbacks {
  */
 export class MicrobitRadioBridgeConnection
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
-  implements DeviceConnection
+  implements DeviceRadioBridgeConnection
 {
   status: ConnectionStatus;
   private logging: Logging;

@@ -262,3 +262,12 @@ export interface DeviceWebBluetoothConnection extends DeviceConnection {
    */
   setNameFilter(name: string): void;
 }
+
+export interface DeviceRadioBridgeConnection extends DeviceConnection {
+  /**
+   * Sets remote device.
+   *
+   * @param deviceId The device id of remote micro:bit.
+   */
+  setRemoteDeviceId(deviceId: number): void;
+}
