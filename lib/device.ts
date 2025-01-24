@@ -252,6 +252,13 @@ export interface DeviceWebUSBConnection extends DeviceConnection {
    * @param options Flash options and progress callback.
    */
   flash(dataSource: FlashDataSource, options: {}): Promise<void>;
+
+  /**
+   * Get the device.
+   *
+   * @returns the USB device or undefined if there is no connection.
+   */
+  getDevice(): USBDevice | undefined;
 }
 
 export interface DeviceWebBluetoothConnection extends DeviceConnection {
