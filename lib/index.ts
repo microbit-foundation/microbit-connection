@@ -25,6 +25,7 @@ import {
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
+import { LedMatrix } from "./led.js";
 import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
 import { ServiceConnectionEventMap } from "./service-events.js";
 import { MicrobitRadioBridgeConnection } from "./usb-radio-bridge.js";
@@ -65,6 +66,7 @@ export type {
   DeviceWebUSBConnection,
   FlashOptions,
   FlashDataSource,
+  LedMatrix,
   MagnetometerData,
   MagnetometerDataEvent,
 };
