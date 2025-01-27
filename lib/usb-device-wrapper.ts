@@ -3,7 +3,13 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { CortexM, DAPLink, WebUSB } from "dapjs";
+import * as dapjs from "dapjs";
+import type { CortexM, DAPLink, WebUSB } from "dapjs";
+const {
+  CortexM: CortexMValue,
+  DAPLink: DAPLinkValue,
+  WebUSB: WebUSBValue,
+} = dapjs;
 import { Logging } from "./logging.js";
 import {
   ApReg,
@@ -38,9 +44,9 @@ export class DAPWrapper {
     public device: USBDevice,
     private logging: Logging,
   ) {
-    this.transport = new WebUSB(this.device);
-    this.daplink = new DAPLink(this.transport);
-    this.cortexM = new CortexM(this.transport);
+    this.transport = new WebUSBValue(this.device);
+    this.daplink = new DAPLinkValue(this.transport);
+    this.cortexM = new CortexMValue(this.transport);
   }
 
   /**
@@ -82,9 +88,9 @@ export class DAPWrapper {
     if (this.initialConnectionComplete) {
       await this.disconnectAsync();
 
-      this.transport = new WebUSB(this.device);
-      this.daplink = new DAPLink(this.transport);
-      this.cortexM = new CortexM(this.transport);
+      this.transport = new WebUSBValue(this.device);
+      this.daplink = new DAPLinkValue(this.transport);
+      this.cortexM = new CortexMValue(this.transport);
     } else {
       this.initialConnectionComplete = true;
     }
@@ -153,13 +159,13 @@ export class DAPWrapper {
       // Changing the baud rate causes a micro:bit reset, so only do it if necessary
       await this.daplink.setSerialBaudrate(115200);
     }
-    this.daplink.addListener(DAPLink.EVENT_SERIAL_DATA, listener);
+    this.daplink.addListener(DAPLinkValue.EVENT_SERIAL_DATA, listener);
     await this.daplink.startSerialRead(1);
   }
 
   stopSerial(listener: (data: string) => void): void {
     this.daplink.stopSerialRead();
-    this.daplink.removeListener(DAPLink.EVENT_SERIAL_DATA, listener);
+    this.daplink.removeListener(DAPLinkValue.EVENT_SERIAL_DATA, listener);
   }
 
   async disconnectAsync(): Promise<void> {

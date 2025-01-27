@@ -44,7 +44,8 @@
  * Latest Microsoft implementation is here:
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
-import { DAPLink } from "dapjs";
+import * as dapjs from "dapjs";
+const { DAPLink: DAPLinkValue } = dapjs;
 import { Logging } from "./logging.js";
 import { withTimeout, TimeoutError } from "./async-util.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
@@ -259,7 +260,7 @@ export class PartialFlashing {
     const fullFlashProgress = (progress: number) => {
       updateProgress(progress, false);
     };
-    this.dapwrapper.daplink.on(DAPLink.EVENT_PROGRESS, fullFlashProgress);
+    this.dapwrapper.daplink.on(DAPLinkValue.EVENT_PROGRESS, fullFlashProgress);
     try {
       data = this.convertDataToHexString(data);
       await this.dapwrapper.transport.open();
@@ -270,7 +271,7 @@ export class PartialFlashing {
       });
     } finally {
       this.dapwrapper.daplink.removeListener(
-        DAPLink.EVENT_PROGRESS,
+        DAPLinkValue.EVENT_PROGRESS,
         fullFlashProgress,
       );
     }
