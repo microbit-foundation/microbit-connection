@@ -1,21 +1,25 @@
 {
   "name": "@microbit/microbit-connection",
   "version": "0.0.0",
-  "type": "module",
   "main": "./build/cjs/index.js",
   "module": "./build/esm/index.js",
   "types": "./build/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./build/esm/index.js",
-      "require": "./build/cjs/index.js",
-      "types": "./build/esm/index.d.ts"
+      "import": {
+        "types": "./build/esm/index.d.js",
+        "default": "./build/esm/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/index.d.js",
+        "default": "./build/cjs/index.js"
+      }
     }
   },
   "scripts": {
     "dev": "vite",
-    "build:esm": "tsc -p tsconfig.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
     "build:lib": "npm run build:esm && npm run build:cjs",
     "build:demo": "vite build --mode=demo",
     "ci": "npm run build:lib && npm run test && npx prettier --check lib src",

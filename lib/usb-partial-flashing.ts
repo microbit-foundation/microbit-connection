@@ -56,11 +56,7 @@ import {
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
 import { BoardVersion } from "./device.js";
-
-// Workaround for packaging issues
-import * as Hex from "nrf-intel-hex";
-const MemoryMapClass = (Hex.default as any).default ?? Hex.default;
-type MemoryMap = Hex.default;
+import MemoryMap from "nrf-intel-hex";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 
@@ -349,12 +345,12 @@ export class PartialFlashing {
   }
 
   private hexStringToPaddedBytes(hex: string): Uint8Array {
-    const m = MemoryMapClass.fromHex(hex);
+    const m = MemoryMap.fromHex(hex);
     return this.memoryMapToPaddedBytes(m);
   }
 
   private paddedBytesToHexString(data: Uint8Array): string {
-    return MemoryMapClass.fromPaddedUint8Array(data).asHexString();
+    return MemoryMap.fromPaddedUint8Array(data).asHexString();
   }
 
   private memoryMapToPaddedBytes(memoryMap: MemoryMap): Uint8Array {
