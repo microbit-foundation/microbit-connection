@@ -22,6 +22,7 @@
     "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
     "build:lib": "npm run build:esm && npm run build:cjs",
     "build:demo": "vite build --mode=demo",
+    "build": "npm run build:lib && npm run build:demo",
     "ci": "npm run build:lib && npm run test && npx prettier --check lib src",
     "test": "vitest",
     "preview": "vite preview"
@@ -38,7 +39,7 @@
     "@microbit/microbit-universal-hex": "^0.2.2",
     "@types/web-bluetooth": "^0.0.20",
     "crelt": "^1.0.6",
-    "dapjs": "github:microbit-matt-hillsdon/dapjs#v2.3.0-microbit.2",
+    "dapjs": "^2.3.0",
     "nrf-intel-hex": "^1.4.0"
   }
 }
