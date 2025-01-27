@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import * as dapjs from "dapjs";
+// dapjs import faff needed for use from Node such as Vitest https://github.com/ARMmbed/dapjs/issues/118
 import type { CortexM, DAPLink, WebUSB } from "dapjs";
 const {
   CortexM: CortexMValue,

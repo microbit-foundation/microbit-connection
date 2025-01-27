@@ -44,6 +44,8 @@
  * Latest Microsoft implementation is here:
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
+
+// dapjs import faff needed for Vitest https://github.com/ARMmbed/dapjs/issues/118
 import * as dapjs from "dapjs";
 const { DAPLink: DAPLinkValue } = dapjs;
 import { Logging } from "./logging.js";
