@@ -44,7 +44,10 @@
  * Latest Microsoft implementation is here:
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
-import { DAPLink } from "dapjs";
+
+// dapjs import faff needed for Vitest https://github.com/ARMmbed/dapjs/issues/118
+import * as dapjs from "dapjs";
+const { DAPLink: DAPLinkValue } = dapjs;
 import { Logging } from "./logging.js";
 import { withTimeout, TimeoutError } from "./async-util.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
@@ -55,8 +58,8 @@ import {
   pageAlignBlocks,
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
-import MemoryMap from "nrf-intel-hex";
 import { BoardVersion } from "./device.js";
+import MemoryMap from "nrf-intel-hex";
 
 type ProgressCallback = (n: number, partial: boolean) => void;
 
@@ -205,7 +208,7 @@ export class PartialFlashing {
   // Falls back to a full flash if partial flashing fails.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L335
   private async partialFlashAsync(
-    data: string | Uint8Array | MemoryMap.default,
+    data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
     const flashBytes = this.convertDataToPaddedBytes(data);
@@ -251,7 +254,7 @@ export class PartialFlashing {
 
   // Perform full flash of micro:bit's ROM using daplink.
   async fullFlashAsync(
-    data: string | Uint8Array | MemoryMap.default,
+    data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ) {
     this.log("Full flash");
@@ -259,7 +262,7 @@ export class PartialFlashing {
     const fullFlashProgress = (progress: number) => {
       updateProgress(progress, false);
     };
-    this.dapwrapper.daplink.on(DAPLink.EVENT_PROGRESS, fullFlashProgress);
+    this.dapwrapper.daplink.on(DAPLinkValue.EVENT_PROGRESS, fullFlashProgress);
     try {
       data = this.convertDataToHexString(data);
       await this.dapwrapper.transport.open();
@@ -270,7 +273,7 @@ export class PartialFlashing {
       });
     } finally {
       this.dapwrapper.daplink.removeListener(
-        DAPLink.EVENT_PROGRESS,
+        DAPLinkValue.EVENT_PROGRESS,
         fullFlashProgress,
       );
     }
@@ -279,7 +282,7 @@ export class PartialFlashing {
   // Flash the micro:bit's ROM with the provided image, resetting the micro:bit first.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L439
   async flashAsync(
-    data: string | Uint8Array | MemoryMap.default,
+    data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
     let resetPromise = (async () => {
@@ -321,7 +324,7 @@ export class PartialFlashing {
   }
 
   private convertDataToHexString(
-    data: string | Uint8Array | MemoryMap.default,
+    data: string | Uint8Array | MemoryMap,
   ): string {
     if (typeof data === "string") {
       return data;
@@ -333,7 +336,7 @@ export class PartialFlashing {
   }
 
   private convertDataToPaddedBytes(
-    data: string | Uint8Array | MemoryMap.default,
+    data: string | Uint8Array | MemoryMap,
   ): Uint8Array {
     if (data instanceof Uint8Array) {
       return data;
@@ -345,26 +348,15 @@ export class PartialFlashing {
   }
 
   private hexStringToPaddedBytes(hex: string): Uint8Array {
-    // Cludge for a packaging issue
-    const fromHex: (
-      hexText: string,
-      maxBlockSize?: number,
-    ) => MemoryMap.default =
-      (MemoryMap as any).fromHex ?? MemoryMap.default.fromHex;
-
-    return this.memoryMapToPaddedBytes(fromHex(hex));
+    const m = MemoryMap.fromHex(hex);
+    return this.memoryMapToPaddedBytes(m);
   }
 
   private paddedBytesToHexString(data: Uint8Array): string {
-    // Cludge for a packaging issue
-    const fromPaddedUint8Array: (data: Uint8Array) => MemoryMap.default =
-      (MemoryMap as any).fromPaddedUint8Array ??
-      MemoryMap.default.fromPaddedUint8Array;
-
-    return fromPaddedUint8Array(data).asHexString();
+    return MemoryMap.fromPaddedUint8Array(data).asHexString();
   }
 
-  private memoryMapToPaddedBytes(memoryMap: MemoryMap.default): Uint8Array {
+  private memoryMapToPaddedBytes(memoryMap: MemoryMap): Uint8Array {
     const flashSize = {
       V1: 256 * 1024,
       V2: 512 * 1024,
