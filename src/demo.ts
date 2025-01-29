@@ -20,8 +20,6 @@ import { MicrobitWebUSBConnection } from "../lib/usb";
 import { MicrobitRadioBridgeConnection } from "../lib/usb-radio-bridge";
 import "./demo.css";
 import { MagnetometerDataEvent } from "../lib/magnetometer";
-import { MicropythonFsHex } from "@microbit/microbit-fs";
-import { BoardId } from "../lib/board-id";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
@@ -211,15 +209,9 @@ const createFlashSection = (): Section => {
           const file = (e.currentTarget as HTMLInputElement).files?.item(0);
           if (file) {
             const text = await file.text();
-            const boardId = BoardId.forVersion("V1").id;
-            console.log(boardId);
-            const micropythonFs = new MicropythonFsHex([
-              { hex: text, boardId },
-            ]);
             if (connection.flash) {
               console.time("flash");
-              const hex = micropythonFs.getIntelHex(boardId);
-              await connection.flash(async () => hex, {
+              await connection.flash(createUniversalHexFlashDataSource(text), {
                 partial: true,
                 progress: (percentage: number | undefined) => {
                   console.log(percentage);
