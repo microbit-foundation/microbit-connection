@@ -1,20 +1,18 @@
 # micro:bit connection library
 
+[This documentation is best viewed on the documentation site](https://microbit-foundation.github.io/microbit-connection/).
+
 This is a JavaScript library for micro:bit connections in browsers via USB and Bluetooth.
 
-This project is a work in progress. We are extracting WebUSB and Web Bluetooth code from the [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/) and other projects.
+This project is a work in progress. We are extracting WebUSB and Web Bluetooth code from the [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/) and other projects. The API is not stable and it's not yet recommended that third parties use this project unless they are happy to update usage as the API evolves.
 
-It is intended to be used by other Micro:bit Educational Foundation projects that need to connect to a BBC micro:bit.
-
-The API is not stable and it's not yet recommended that third parties use this project unless they are happy to update usage as the API evolves.
-
-[Demo site](https://microbit-connection.pages.dev/) for this library.
+[Demo page](https://microbit-connection.pages.dev/) for this library.
 
 [Alpha releases are now on NPM](https://www.npmjs.com/package/@microbit/microbit-connection).
 
-[This Python Editor PR](https://github.com/microbit-foundation/python-editor-v3/pull/1190) tracks updating the micro:bit Python Editor to use this library.
-
 [micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/) is already using this library for WebUSB and Web Bluetooth.
+
+[This Python Editor PR](https://github.com/microbit-foundation/python-editor-v3/pull/1190) tracks updating the micro:bit Python Editor to use this library.
 
 ## Usage
 
