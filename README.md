@@ -1,6 +1,6 @@
 # micro:bit connection library
 
-[This documentation is best viewed on the documentation site](https://microbit-foundation.github.io/microbit-connection/).
+[This documentation is best viewed on the documentation site rather than GitHub](https://microbit-foundation.github.io/microbit-connection/).
 
 This is a JavaScript library for micro:bit connections in browsers via USB and Bluetooth.
 
