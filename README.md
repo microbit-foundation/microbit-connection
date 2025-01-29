@@ -33,13 +33,12 @@ console.log("Connection status: ", connectionStatus);
 
 {@link ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
 
-Create a Universal Hex that supports both V1 and V2 micro:bits using {@link createUniversalHexFlashDataSource} and flash the micro:bit.
+Flash a universal hex that supports both V1 and V2:
 
 ```ts
 import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection";
 
-const universalHex = createUniversalHexFlashDataSource(text);
-await usb.flash(universalHex, {
+await usb.flash(createUniversalHexFlashDataSource(universalHexString), {
   partial: true,
   progress: (percentage: number | undefined) => {
     console.log(percentage);
@@ -47,21 +46,34 @@ await usb.flash(universalHex, {
 });
 ```
 
-Alternatively, you can create and flash a hex that supports a specific micro:bit version (V1 or V2) using the [@microbit/microbit-fs library](https://microbit-foundation.github.io/microbit-fs/). Below is an example of creating a hex for V1 and using it to flash the micro:bit.
+This code will also work for non-universal hex files so is a good default for unknown hex files.
+
+Alternatively, you can create and flash a hex for a specific micro:bit version by providing a function that takes a {@link BoardVersion} and returns a hex.
+This can reduce download size or help integrate with APIs that produce a hex for a particular device version.
+This example uses the [@microbit/microbit-fs library](https://microbit-foundation.github.io/microbit-fs/) which can return a hex based on board id.
 
 ```ts
-import { MicropythonFsHex } from "@microbit/microbit-fs";
+import { MicropythonFsHex, microbitBoardId } from "@microbit/microbit-fs";
 import { BoardId } from "@microbit/microbit-connection";
 
-const boardId = BoardId.forVersion("V1").id;
-const micropythonFs = new MicropythonFsHex([{ hex: intelHexString, boardId }]);
-const hex = micropythonFs.getIntelHex(boardId);
-await usb.flash(async () => hex, {
-  partial: true,
-  progress: (percentage: number | undefined) => {
-    console.log(percentage);
+const micropythonFs = new MicropythonFsHex([
+  { hex: microPythonV1HexFile, boardId: microbitBoardId.V1 },
+  { hex: microPythonV2HexFile, boardId: microbitBoardId.V2 },
+]);
+// Add files to MicroPython file system here (omitted for simplicity)
+// Flash the device
+await usb.flash(
+  async (boardVersion) => {
+    const boardId = BoardId.forVersion(boardVersion).id;
+    return micropythonFs.getIntelHex(boardId);
   },
-});
+  {
+    partial: true,
+    progress: (percentage: number | undefined) => {
+      console.log(percentage);
+    },
+  },
+);
 ```
 
 For more examples of using other methods in the {@link MicrobitWebUSBConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
@@ -101,7 +113,7 @@ $ npx license-checker --direct --summary --production
 
 Omit the flags as desired to obtain more detail.
 
-## Code of Conduct
+## Code of conduct
 
 Trust, partnership, simplicity and passion are our core values we live and
 breathe in our daily work life and within our projects. Our open-source
