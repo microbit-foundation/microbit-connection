@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-export interface Event {
+export interface LoggingEvent {
   type: string;
   message?: string;
   value?: number;
@@ -11,13 +11,13 @@ export interface Event {
 }
 
 export interface Logging {
-  event(event: Event): void;
+  event(event: LoggingEvent): void;
   error(message: string, e: unknown): void;
   log(e: any): void;
 }
 
 export class NullLogging implements Logging {
-  event(_event: Event): void {
+  event(_event: LoggingEvent): void {
     console.log(_event);
   }
   error(_m: string, _e: unknown): void {
