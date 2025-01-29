@@ -38,6 +38,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
+    "@microbit/microbit-fs": "^0.9.2",
     "@microbit/microbit-universal-hex": "^0.2.2",
     "@types/web-bluetooth": "^0.0.20",
     "crelt": "^1.0.6",
