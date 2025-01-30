@@ -1,17 +1,29 @@
 {
   "name": "@microbit/microbit-connection",
   "version": "0.0.0",
-  "type": "module",
-  "module": "./build/index.js",
+  "main": "./build/cjs/index.js",
+  "module": "./build/esm/index.js",
+  "types": "./build/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./build/index.js"
+      "import": {
+        "types": "./build/esm/index.d.js",
+        "default": "./build/esm/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/index.d.js",
+        "default": "./build/cjs/index.js"
+      }
     }
   },
   "scripts": {
     "dev": "vite",
-    "build:lib": "tsc",
+    "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
+    "build:lib": "npm run build:esm && npm run build:cjs",
     "build:demo": "vite build --mode=demo",
+    "build": "npm run build:lib && npm run build:demo",
+    "docs": "typedoc",
     "ci": "npm run build:lib && npm run test && npx prettier --check lib src",
     "test": "vitest",
     "preview": "vite preview"
@@ -20,6 +32,7 @@
     "@types/node": "^20.14.10",
     "jsdom": "^24.1.0",
     "prettier": "3.3.2",
+    "typedoc": "^0.27.6",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
     "vitest": "^2.0.0"
@@ -28,7 +41,7 @@
     "@microbit/microbit-universal-hex": "^0.2.2",
     "@types/web-bluetooth": "^0.0.20",
     "crelt": "^1.0.6",
-    "dapjs": "github:microbit-matt-hillsdon/dapjs#v2.3.0-microbit.2",
+    "dapjs": "^2.3.0",
     "nrf-intel-hex": "^1.4.0"
   }
 }

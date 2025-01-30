@@ -49,7 +49,7 @@ export class MicrobitWebBluetoothConnection
   private device: BluetoothDevice | undefined;
 
   private logging: Logging;
-  connection: BluetoothDeviceWrapper | undefined;
+  private connection: BluetoothDeviceWrapper | undefined;
 
   private availabilityListener = (e: Event) => {
     // TODO: is this called? is `value` correct?

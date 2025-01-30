@@ -2,19 +2,15 @@
   "compilerOptions": {
     "target": "ES2021",
     "useDefineForClassFields": true,
-    "module": "NodeNext",
+    "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "NodeNext",
-    "resolveJsonModule": true,
+    "moduleResolution": "node10",
     "isolatedModules": true,
     "moduleDetection": "force",
-    "outDir": "build",
+    "outDir": "build/esm",
     "sourceMap": true,
     "declaration": true,
-
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
