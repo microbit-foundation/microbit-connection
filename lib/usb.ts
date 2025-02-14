@@ -10,13 +10,13 @@ import {
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
+  DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
   FlashDataSource,
   FlashEvent,
   FlashOptions,
-  MicrobitWebUSBConnection,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,
@@ -39,6 +39,40 @@ export interface MicrobitWebUSBConnectionOptions {
   // Coupling for now to make it easy to evolve.
 
   logging: Logging;
+}
+
+export interface MicrobitWebUSBConnection extends DeviceConnection {
+  /**
+   * Gets micro:bit deviceId.
+   *
+   * @returns the device id or undefined if there is no connection.
+   */
+  getDeviceId(): number | undefined;
+
+  /**
+   * Sets device request exclusion filters.
+   */
+  setRequestDeviceExclusionFilters(exclusionFilters: USBDeviceFilter[]): void;
+
+  /**
+   * Flash the micro:bit.
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   */
+  flash(dataSource: FlashDataSource, options: {}): Promise<void>;
+
+  /**
+   * Gets micro:bit device.
+   *
+   * @returns the USB device or undefined if there is no connection.
+   */
+  getDevice(): USBDevice | undefined;
+
+  /**
+   * Resets the micro:bit in software.
+   */
+  softwareReset(): Promise<void>;
 }
 
 /**

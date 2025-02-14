@@ -10,8 +10,8 @@ import {
   BoardVersion,
   ConnectionStatus,
   ConnectionStatusEvent,
+  DeviceConnection,
   DeviceConnectionEventMap,
-  MicrobitRadioBridgeConnection,
   SerialDataEvent,
   SerialErrorEvent,
 } from "./device.js";
@@ -39,6 +39,15 @@ interface ConnectCallbacks {
   onRestartConnection: () => void;
   onFail: () => void;
   onSuccess: () => void;
+}
+
+export interface MicrobitRadioBridgeConnection extends DeviceConnection {
+  /**
+   * Sets remote device.
+   *
+   * @param deviceId The device id of remote micro:bit.
+   */
+  setRemoteDeviceId(deviceId: number): void;
 }
 
 /**

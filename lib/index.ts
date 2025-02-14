@@ -1,5 +1,6 @@
 import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
 import {
+  MicrobitWebBluetoothConnection,
   MicrobitWebBluetoothConnectionImpl,
   MicrobitWebBluetoothConnectionOptions,
 } from "./bluetooth.js";
@@ -16,9 +17,6 @@ import {
   DeviceConnectionEventMap,
   DeviceError,
   DeviceErrorCode,
-  MicrobitRadioBridgeConnection,
-  MicrobitWebBluetoothConnection,
-  MicrobitWebUSBConnection,
   FlashDataError,
   FlashDataSource,
   FlashEvent,
@@ -35,10 +33,12 @@ import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
 import { ServiceConnectionEventMap } from "./service-events.js";
 import { UARTDataEvent } from "./uart.js";
 import {
+  MicrobitRadioBridgeConnection,
   MicrobitRadioBridgeConnectionImpl,
   MicrobitRadioBridgeConnectionOptions,
 } from "./usb-radio-bridge.js";
 import {
+  MicrobitWebUSBConnection,
   MicrobitWebUSBConnectionImpl,
   MicrobitWebUSBConnectionOptions,
 } from "./usb.js";
@@ -75,9 +75,6 @@ export type {
   ButtonState,
   DeviceConnection,
   DeviceErrorCode,
-  MicrobitRadioBridgeConnection,
-  MicrobitWebBluetoothConnection,
-  MicrobitWebUSBConnection,
   FlashDataSource,
   FlashOptions,
   LedMatrix,
@@ -85,7 +82,10 @@ export type {
   LoggingEvent,
   MagnetometerData,
   MagnetometerDataEvent,
+  MicrobitRadioBridgeConnection,
   MicrobitRadioBridgeConnectionOptions,
+  MicrobitWebBluetoothConnection,
   MicrobitWebBluetoothConnectionOptions,
+  MicrobitWebUSBConnection,
   MicrobitWebUSBConnectionOptions,
 };
