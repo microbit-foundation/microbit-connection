@@ -76,9 +76,16 @@ export interface MicrobitWebUSBConnection extends DeviceConnection {
 }
 
 /**
+ * A WebUSB connection factory.
+ */
+export const createWebUSBConnection = (
+  options?: MicrobitWebUSBConnectionOptions,
+) => new MicrobitWebUSBConnectionImpl(options);
+
+/**
  * A WebUSB connection to a micro:bit device.
  */
-export class MicrobitWebUSBConnectionImpl
+class MicrobitWebUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap>
   implements MicrobitWebUSBConnection
 {

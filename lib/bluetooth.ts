@@ -139,9 +139,16 @@ export interface MicrobitWebBluetoothConnection extends DeviceConnection {
 }
 
 /**
+ * A Bluetooth connection factory.
+ */
+export const createWebBluetoothConnection = (
+  options?: MicrobitWebBluetoothConnectionOptions,
+) => new MicrobitWebBluetoothConnectionImpl(options);
+
+/**
  * A Bluetooth connection to a micro:bit device.
  */
-export class MicrobitWebBluetoothConnectionImpl
+class MicrobitWebBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitWebBluetoothConnection
 {
