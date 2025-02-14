@@ -16,7 +16,7 @@ import {
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnectionEventMap,
-  DeviceWebBluetoothConnection,
+  MicrobitWebBluetoothConnection,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { LedMatrix } from "./led.js";
@@ -38,7 +38,7 @@ export interface MicrobitWebBluetoothConnectionOptions {
  */
 export class MicrobitWebBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
-  implements DeviceWebBluetoothConnection
+  implements MicrobitWebBluetoothConnection
 {
   status: ConnectionStatus = ConnectionStatus.SUPPORT_NOT_KNOWN;
 

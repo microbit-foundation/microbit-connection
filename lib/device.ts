@@ -240,7 +240,7 @@ export interface DeviceConnection
   clearDevice(): Promise<void> | void;
 }
 
-export interface DeviceWebUSBConnection extends DeviceConnection {
+export interface MicrobitWebUSBConnection extends DeviceConnection {
   /**
    * Gets micro:bit deviceId.
    *
@@ -274,7 +274,7 @@ export interface DeviceWebUSBConnection extends DeviceConnection {
   softwareReset(): Promise<void>;
 }
 
-export interface DeviceWebBluetoothConnection extends DeviceConnection {
+export interface MicrobitWebBluetoothConnection extends DeviceConnection {
   /**
    * Sets micro:bit name filter for device requesting.
    *
@@ -379,7 +379,7 @@ export interface DeviceWebBluetoothConnection extends DeviceConnection {
   writeUART(data: Uint8Array): Promise<void>;
 }
 
-export interface DeviceRadioBridgeConnection extends DeviceConnection {
+export interface MicrobitRadioBridgeConnection extends DeviceConnection {
   /**
    * Sets remote device.
    *
