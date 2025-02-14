@@ -44,7 +44,7 @@ export interface MicrobitWebUSBConnectionOptions {
 /**
  * A WebUSB connection to a micro:bit device.
  */
-export class MicrobitWebUSBConnection
+export class MicrobitWebUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap>
   implements DeviceWebUSBConnection
 {

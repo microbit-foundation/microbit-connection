@@ -36,7 +36,7 @@ export interface MicrobitWebBluetoothConnectionOptions {
 /**
  * A Bluetooth connection to a micro:bit device.
  */
-export class MicrobitWebBluetoothConnection
+export class MicrobitWebBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements DeviceWebBluetoothConnection
 {

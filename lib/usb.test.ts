@@ -10,7 +10,7 @@
  * with a tweak to Buffer.
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
-import { MicrobitWebUSBConnection } from "./usb.js";
+import { MicrobitWebUSBConnectionImpl } from "./usb.js";
 import { beforeAll, expect, vi, describe, it } from "vitest";
 
 vi.mock("./webusb-device-wrapper", () => ({
@@ -27,7 +27,7 @@ const describeDeviceOnly = process.env.TEST_MODE_DEVICE
 describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
   it("notices if WebUSB isn't supported", () => {
     (global as any).navigator = {};
-    const microbit = new MicrobitWebUSBConnection();
+    const microbit = new MicrobitWebUSBConnectionImpl();
     expect(microbit.status).toBe(ConnectionStatus.NOT_SUPPORTED);
   });
 });
@@ -49,13 +49,13 @@ describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
   });
 
   it("shows no device as initial status", () => {
-    const microbit = new MicrobitWebUSBConnection();
+    const microbit = new MicrobitWebUSBConnectionImpl();
     expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   });
 
   it("connects and disconnects updating status and events", async () => {
     const events: ConnectionStatus[] = [];
-    const connection = new MicrobitWebUSBConnection();
+    const connection = new MicrobitWebUSBConnectionImpl();
     connection.addEventListener("status", (event: ConnectionStatusEvent) => {
       events.push(event.status);
     });

@@ -22,7 +22,7 @@ import {
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 import * as protocol from "./usb-serial-protocol.js";
-import { MicrobitWebUSBConnection } from "./usb.js";
+import { MicrobitWebUSBConnectionImpl } from "./usb.js";
 
 const connectTimeoutDuration: number = 10000;
 
@@ -46,7 +46,7 @@ interface ConnectCallbacks {
  *
  * When it connects/disconnects it affects the delegate connection.
  */
-export class MicrobitRadioBridgeConnection
+export class MicrobitRadioBridgeConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements DeviceRadioBridgeConnection
 {
@@ -78,7 +78,7 @@ export class MicrobitRadioBridgeConnection
   };
 
   constructor(
-    private delegate: MicrobitWebUSBConnection,
+    private delegate: MicrobitWebUSBConnectionImpl,
     options?: MicrobitRadioBridgeConnectionOptions,
   ) {
     super();
@@ -293,7 +293,7 @@ class RadioBridgeSerialSession {
   constructor(
     private logging: Logging,
     private remoteDeviceId: number,
-    private delegate: MicrobitWebUSBConnection,
+    private delegate: MicrobitWebUSBConnectionImpl,
     private dispatchTypedEvent: TypedServiceEventDispatcher,
     private callbacks: ConnectCallbacks,
   ) {}
