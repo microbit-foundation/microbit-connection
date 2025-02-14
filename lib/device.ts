@@ -3,8 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TypedEventTarget } from "./events.js";
-import { UARTDataEvent } from "./uart.js";
+import { TypedEventTarget, ValueIsEvent } from "./events.js";
 
 /**
  * Specific identified error types.
@@ -134,30 +133,6 @@ export class ConnectionStatusEvent extends Event {
   }
 }
 
-export class SerialDataEvent extends Event {
-  constructor(public readonly data: string) {
-    super("serialdata");
-  }
-}
-
-export class SerialResetEvent extends Event {
-  constructor() {
-    super("serialreset");
-  }
-}
-
-export class SerialErrorEvent extends Event {
-  constructor(public readonly error: unknown) {
-    super("serialerror");
-  }
-}
-
-export class FlashEvent extends Event {
-  constructor() {
-    super("flash");
-  }
-}
-
 export class BeforeRequestDevice extends Event {
   constructor() {
     super("beforerequestdevice");
@@ -178,18 +153,13 @@ export class BackgroundErrorEvent extends Event {
 
 export class DeviceConnectionEventMap {
   "status": ConnectionStatusEvent;
-  "serialdata": SerialDataEvent;
-  "serialreset": Event;
-  "serialerror": SerialErrorEvent;
-  "uartdata": UARTDataEvent;
-  "flash": Event;
+  "backgrounderror": BackgroundErrorEvent;
   "beforerequestdevice": Event;
   "afterrequestdevice": Event;
-  "backgrounderror": BackgroundErrorEvent;
 }
 
-export interface DeviceConnection
-  extends TypedEventTarget<DeviceConnectionEventMap> {
+export interface DeviceConnection<M extends ValueIsEvent<M>>
+  extends TypedEventTarget<DeviceConnectionEventMap & M> {
   status: ConnectionStatus;
 
   /**

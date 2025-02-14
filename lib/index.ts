@@ -19,17 +19,20 @@ import {
   DeviceErrorCode,
   FlashDataError,
   FlashDataSource,
-  FlashEvent,
   FlashOptions,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
 import { LedMatrix } from "./led.js";
 import { Logging, LoggingEvent } from "./logging.js";
 import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
+import {
+  FlashEvent,
+  SerialConnectionEventMap,
+  SerialDataEvent,
+  SerialErrorEvent,
+  SerialResetEvent,
+} from "./serial-events.js";
 import { ServiceConnectionEventMap } from "./service-events.js";
 import { UARTDataEvent } from "./uart.js";
 import {
@@ -58,6 +61,7 @@ export {
   DeviceError,
   FlashDataError,
   FlashEvent,
+  SerialConnectionEventMap,
   SerialDataEvent,
   SerialErrorEvent,
   SerialResetEvent,

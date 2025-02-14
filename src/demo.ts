@@ -14,10 +14,10 @@ import {
   BackgroundErrorEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
-  SerialDataEvent,
 } from "../lib/device";
 import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
 import { MagnetometerDataEvent } from "../lib/magnetometer";
+import { SerialDataEvent } from "../lib/serial-events";
 import { UARTDataEvent } from "../lib/uart";
 import { createWebUSBConnection, MicrobitWebUSBConnection } from "../lib/usb";
 import {

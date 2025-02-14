@@ -15,15 +15,18 @@ import {
   DeviceError,
   FlashDataError,
   FlashDataSource,
-  FlashEvent,
   FlashOptions,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
+import {
+  FlashEvent,
+  SerialConnectionEventMap,
+  SerialDataEvent,
+  SerialErrorEvent,
+  SerialResetEvent,
+} from "./serial-events.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
 import { PartialFlashing } from "./usb-partial-flashing.js";
 
@@ -41,7 +44,8 @@ export interface MicrobitWebUSBConnectionOptions {
   logging: Logging;
 }
 
-export interface MicrobitWebUSBConnection extends DeviceConnection {
+export interface MicrobitWebUSBConnection
+  extends DeviceConnection<SerialConnectionEventMap> {
   /**
    * Gets micro:bit deviceId.
    *
@@ -80,13 +84,13 @@ export interface MicrobitWebUSBConnection extends DeviceConnection {
  */
 export const createWebUSBConnection = (
   options?: MicrobitWebUSBConnectionOptions,
-) => new MicrobitWebUSBConnectionImpl(options);
+): MicrobitWebUSBConnection => new MicrobitWebUSBConnectionImpl(options);
 
 /**
  * A WebUSB connection to a micro:bit device.
  */
 class MicrobitWebUSBConnectionImpl
-  extends TypedEventTarget<DeviceConnectionEventMap>
+  extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
   implements MicrobitWebUSBConnection
 {
   status: ConnectionStatus =
@@ -477,7 +481,7 @@ class MicrobitWebUSBConnectionImpl
   }
 
   protected eventActivated(type: string): void {
-    switch (type as keyof DeviceConnectionEventMap) {
+    switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.startSerialInternal();
         break;
@@ -486,7 +490,7 @@ class MicrobitWebUSBConnectionImpl
   }
 
   protected async eventDeactivated(type: string) {
-    switch (type as keyof DeviceConnectionEventMap) {
+    switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
         break;

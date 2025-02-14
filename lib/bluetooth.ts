@@ -33,7 +33,8 @@ export interface MicrobitWebBluetoothConnectionOptions {
   logging?: Logging;
 }
 
-export interface MicrobitWebBluetoothConnection extends DeviceConnection {
+export interface MicrobitWebBluetoothConnection
+  extends DeviceConnection<ServiceConnectionEventMap> {
   /**
    * Sets micro:bit name filter for device requesting.
    *
@@ -143,7 +144,8 @@ export interface MicrobitWebBluetoothConnection extends DeviceConnection {
  */
 export const createWebBluetoothConnection = (
   options?: MicrobitWebBluetoothConnectionOptions,
-) => new MicrobitWebBluetoothConnectionImpl(options);
+): MicrobitWebBluetoothConnection =>
+  new MicrobitWebBluetoothConnectionImpl(options);
 
 /**
  * A Bluetooth connection to a micro:bit device.
