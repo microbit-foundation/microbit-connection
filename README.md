@@ -1,6 +1,6 @@
 # micro:bit connection library
 
-[This documentation is best viewed on the documentation site rather than GitHub](https://microbit-foundation.github.io/microbit-connection/).
+<a href="https://microbit-foundation.github.io/microbit-connection/" class="typedoc-ignore">This documentation is best viewed on the documentation site rather than GitHub or NPM package site.</a>
 
 This is a JavaScript library for micro:bit connections in browsers via USB and Bluetooth.
 
@@ -18,12 +18,12 @@ This project is a work in progress. We are extracting WebUSB and Web Bluetooth c
 
 ### Flash a micro:bit
 
-Instantiate a WebUSB connection using {@link MicrobitWebUSBConnection} class and use it to connect to a micro:bit.
+Instantiate a WebUSB connection using {@link createWebUSBConnection} class and use it to connect to a micro:bit.
 
 ```ts
-import { MicrobitWebUSBConnection } from "@microbit/microbit-connection";
+import { createWebUSBConnection } from "@microbit/microbit-connection";
 
-const usb = new MicrobitWebUSBConnection();
+const usb = createWebUSBConnection();
 const connectionStatus = await usb.connect();
 
 console.log("Connection status: ", connectionStatus);
@@ -80,12 +80,12 @@ For more examples of using other methods in the {@link MicrobitWebUSBConnection}
 
 By default, the micro:bit's Bluetooth service is not enabled. Visit our [Bluetooth tech site page](https://tech.microbit.org/bluetooth/) to download a hex file that would enable the bluetooth service.
 
-Instantiate a Bluetooth connection using {@link MicrobitWebBluetoothConnection} class and use it to connect to a micro:bit.
+Instantiate a Bluetooth connection using {@link createWebBluetoothConnection} class and use it to connect to a micro:bit.
 
 ```ts
-import { MicrobitWebBluetoothConnection } from "@microbit/microbit-connection";
+import { createWebBluetoothConnection } from "@microbit/microbit-connection";
 
-const bluetooth = new MicrobitWebBluetoothConnection();
+const bluetooth = createWebBluetoothConnection();
 const connectionStatus = await bluetooth.connect();
 
 console.log("Connection status: ", connectionStatus);
@@ -93,7 +93,7 @@ console.log("Connection status: ", connectionStatus);
 
 {@link ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
 
-For more examples of using other methods in the {@link MicrobitWebBluetoothConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
+For more examples of using other methods in the {@link createWebBluetoothConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
 
 ## License
 

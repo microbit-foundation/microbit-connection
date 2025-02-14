@@ -5,38 +5,48 @@
  */
 import crelt from "crelt";
 import { AccelerometerDataEvent } from "../lib/accelerometer";
-import { MicrobitWebBluetoothConnection } from "../lib/bluetooth";
+import {
+  createWebBluetoothConnection,
+  MicrobitWebBluetoothConnection,
+} from "../lib/bluetooth";
 import { ButtonEvent } from "../lib/buttons";
 import {
   BackgroundErrorEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
-  DeviceConnection,
-  SerialDataEvent,
 } from "../lib/device";
 import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
-import { UARTDataEvent } from "../lib/uart";
-import { MicrobitWebUSBConnection } from "../lib/usb";
-import { MicrobitRadioBridgeConnection } from "../lib/usb-radio-bridge";
-import "./demo.css";
 import { MagnetometerDataEvent } from "../lib/magnetometer";
+import { SerialDataEvent } from "../lib/serial-events";
+import { UARTDataEvent } from "../lib/uart";
+import { createWebUSBConnection, MicrobitWebUSBConnection } from "../lib/usb";
+import {
+  createRadioBridgeConnection,
+  MicrobitRadioBridgeConnection,
+} from "../lib/usb-radio-bridge";
+import "./demo.css";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
-const createConnection = (type: "usb" | "bluetooth" | "radio") => {
+type TypedConnection =
+  | { type: "radio"; connection: MicrobitRadioBridgeConnection }
+  | { type: "bluetooth"; connection: MicrobitWebBluetoothConnection }
+  | { type: "usb"; connection: MicrobitWebUSBConnection };
+
+const createConnections = (
+  type: "usb" | "bluetooth" | "radio",
+): TypedConnection => {
   switch (type) {
     case "bluetooth":
-      return new MicrobitWebBluetoothConnection();
+      return { type, connection: createWebBluetoothConnection() };
     case "usb":
-      return new MicrobitWebUSBConnection();
+      return { type, connection: createWebUSBConnection() };
     case "radio":
       // This only works with the local-sensor hex.
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
-      const connection = new MicrobitRadioBridgeConnection(
-        new MicrobitWebUSBConnection(),
-      );
+      const connection = createRadioBridgeConnection(createWebUSBConnection());
       connection.setRemoteDeviceId(0);
-      return connection;
+      return { type, connection };
   }
 };
 
@@ -44,7 +54,7 @@ interface Section {
   dom?: Element;
   cleanup?: () => void;
 }
-let connection: DeviceConnection = createConnection("usb");
+let typedConnection = createConnections("usb");
 let uiCleanup: Array<() => void> = [];
 
 const recreateUi = async (type: ConnectionType) => {
@@ -54,13 +64,13 @@ const recreateUi = async (type: ConnectionType) => {
     document.body.firstChild.remove();
   }
 
-  await connection.disconnect();
-  connection.dispose();
-  connection = createConnection(type);
-  await connection.initialize();
+  await typedConnection.connection.disconnect();
+  typedConnection.connection.dispose();
+  typedConnection = createConnections(type);
+  await typedConnection.connection.initialize();
 
   [
-    createConnectSection(type),
+    createConnectSection(),
     createFlashSection(),
     createSerialSection(),
     createUARTSection(),
@@ -81,7 +91,8 @@ const recreateUi = async (type: ConnectionType) => {
 
 recreateUi("usb");
 
-const createConnectSection = (type: ConnectionType): Section => {
+const createConnectSection = (): Section => {
+  const { type, connection } = typedConnection;
   const statusParagraph = crelt("p");
   let name = "";
   let exclusionFilters = JSON.stringify([{ serialNumber: "XXXX" }]);
@@ -147,11 +158,9 @@ const createConnectSection = (type: ConnectionType): Section => {
             } catch (err) {
               console.error("Invalid exclusion filters");
             }
-            (
-              connection as MicrobitWebUSBConnection
-            ).setRequestDeviceExclusionFilters(parsedExclusionFilters);
+            connection.setRequestDeviceExclusionFilters(parsedExclusionFilters);
           } else if (type === "bluetooth") {
-            (connection as MicrobitWebBluetoothConnection).setNameFilter(name);
+            connection.setNameFilter(name);
           }
           void connection.connect();
         },
@@ -179,13 +188,19 @@ const createConnectSection = (type: ConnectionType): Section => {
   const backgroundErrorListener = (event: BackgroundErrorEvent) => {
     console.error("Handled error:", event.errorMessage);
   };
-  connection.addEventListener("status", handleDisplayStatusChange);
-  connection.addEventListener("backgrounderror", backgroundErrorListener);
+  (connection as any).addEventListener("status", handleDisplayStatusChange);
+  (connection as any).addEventListener(
+    "backgrounderror",
+    backgroundErrorListener,
+  );
   return {
     dom,
     cleanup: () => {
-      connection.removeEventListener("status", handleDisplayStatusChange);
-      connection.removeEventListener(
+      (connection as any).removeEventListener(
+        "status",
+        handleDisplayStatusChange,
+      );
+      (connection as any).removeEventListener(
         "backgrounderror",
         backgroundErrorListener,
       );
@@ -194,7 +209,8 @@ const createConnectSection = (type: ConnectionType): Section => {
 };
 
 const createFlashSection = (): Section => {
-  if (!connection.flash) {
+  const { type, connection } = typedConnection;
+  if (type !== "usb") {
     return {};
   }
   const dom = crelt(
@@ -209,16 +225,14 @@ const createFlashSection = (): Section => {
           const file = (e.currentTarget as HTMLInputElement).files?.item(0);
           if (file) {
             const text = await file.text();
-            if (connection.flash) {
-              console.time("flash");
-              await connection.flash(createUniversalHexFlashDataSource(text), {
-                partial: true,
-                progress: (percentage: number | undefined) => {
-                  console.log(percentage);
-                },
-              });
-              console.timeEnd("flash");
-            }
+            console.time("flash");
+            await connection.flash(createUniversalHexFlashDataSource(text), {
+              partial: true,
+              progress: (percentage: number | undefined) => {
+                console.log(percentage);
+              },
+            });
+            console.timeEnd("flash");
           }
         },
       }),
@@ -228,7 +242,8 @@ const createFlashSection = (): Section => {
 };
 
 const createSerialSection = (): Section => {
-  if (!(connection instanceof MicrobitWebUSBConnection)) {
+  const { type, connection: serialConnection } = typedConnection;
+  if (type !== "usb") {
     return {};
   }
 
@@ -251,7 +266,7 @@ const createSerialSection = (): Section => {
       "button",
       {
         onclick: () => {
-          connection.addEventListener("serialdata", serialDataListener);
+          serialConnection.addEventListener("serialdata", serialDataListener);
         },
       },
       "Listen to serial",
@@ -260,7 +275,10 @@ const createSerialSection = (): Section => {
       "button",
       {
         onclick: () => {
-          connection.removeEventListener("serialdata", serialDataListener);
+          serialConnection.removeEventListener(
+            "serialdata",
+            serialDataListener,
+          );
         },
       },
       "Stop listening to serial",
@@ -270,13 +288,14 @@ const createSerialSection = (): Section => {
   return {
     dom,
     cleanup: () => {
-      connection.removeEventListener("serialdata", serialDataListener);
+      serialConnection.removeEventListener("serialdata", serialDataListener);
     },
   };
 };
 
 const createUARTSection = (): Section => {
-  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+  const { type, connection } = typedConnection;
+  if (type !== "bluetooth") {
     return {};
   }
 
@@ -285,10 +304,7 @@ const createUARTSection = (): Section => {
     console.log(value);
   };
 
-  const bluetoothConnection =
-    connection instanceof MicrobitWebBluetoothConnection
-      ? connection
-      : undefined;
+  const bluetoothConnection = type === "bluetooth" ? connection : undefined;
 
   let dataToWrite = "";
   const dataToWriteFieldId = "dataToWrite";
@@ -350,19 +366,10 @@ const createUARTSection = (): Section => {
 };
 
 const createAccelerometerSection = (): Section => {
-  if (
-    !(
-      connection instanceof MicrobitRadioBridgeConnection ||
-      connection instanceof MicrobitWebBluetoothConnection
-    )
-  ) {
+  const { type, connection: accelerometerConnection } = typedConnection;
+  if (type !== "bluetooth" && type !== "radio") {
     return {};
   }
-  const accelerometerConnection = connection;
-  const bluetoothConnection =
-    connection instanceof MicrobitWebBluetoothConnection
-      ? connection
-      : undefined;
   const statusParagraph = crelt("p");
   const listener = (e: AccelerometerDataEvent) => {
     statusParagraph.innerText = JSON.stringify(e.data);
@@ -403,7 +410,7 @@ const createAccelerometerSection = (): Section => {
       "Stop listening",
     ),
     statusParagraph,
-    bluetoothConnection
+    type === "bluetooth"
       ? [
           crelt("h3", "Period"),
           crelt("label", "Value", periodInput),
@@ -413,7 +420,7 @@ const createAccelerometerSection = (): Section => {
               onclick: async () => {
                 period =
                   (
-                    await bluetoothConnection.getAccelerometerPeriod()
+                    await accelerometerConnection.getAccelerometerPeriod()
                   )?.toString() ?? "";
                 periodInput.value = period;
               },
@@ -424,7 +431,7 @@ const createAccelerometerSection = (): Section => {
             "button",
             {
               onclick: async () => {
-                await bluetoothConnection.setAccelerometerPeriod(
+                await accelerometerConnection.setAccelerometerPeriod(
                   parseInt(period, 10),
                 );
               },
@@ -446,14 +453,10 @@ const createAccelerometerSection = (): Section => {
 };
 
 const createMagnetometerSection = (): Section => {
-  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+  const { type, connection: magnetometerConnection } = typedConnection;
+  if (type !== "bluetooth" && type !== "radio") {
     return {};
   }
-  const magnetometerConnection = connection;
-  const bluetoothConnection =
-    connection instanceof MicrobitWebBluetoothConnection
-      ? connection
-      : undefined;
   const statusParagraph = crelt("p");
   const listener = (e: MagnetometerDataEvent) => {
     statusParagraph.innerText = JSON.stringify(e.data);
@@ -495,7 +498,7 @@ const createMagnetometerSection = (): Section => {
       "Stop listening",
     ),
     statusParagraph,
-    bluetoothConnection
+    type === "bluetooth"
       ? [
           crelt("h3", "Period"),
           crelt("label", "Value", periodInput),
@@ -505,7 +508,7 @@ const createMagnetometerSection = (): Section => {
               onclick: async () => {
                 period =
                   (
-                    await bluetoothConnection.getMagnetometerPeriod()
+                    await magnetometerConnection.getMagnetometerPeriod()
                   )?.toString() ?? "";
                 periodInput.value = period;
               },
@@ -516,7 +519,7 @@ const createMagnetometerSection = (): Section => {
             "button",
             {
               onclick: async () => {
-                await bluetoothConnection.setMagnetometerPeriod(
+                await magnetometerConnection.setMagnetometerPeriod(
                   parseInt(period, 10),
                 );
               },
@@ -526,25 +529,30 @@ const createMagnetometerSection = (): Section => {
         ]
       : [],
     bearingParagraph,
-    crelt(
-      "button",
-      {
-        onclick: async () => {
-          void bluetoothConnection?.triggerMagnetometerCalibration();
-        },
-      },
-      "Trigger calibration",
-    ),
-    crelt(
-      "button",
-      {
-        onclick: async () => {
-          const bearing = await bluetoothConnection?.getMagnetometerBearing();
-          bearingParagraph.textContent = `Bearing: ${bearing ?? 0} degrees`;
-        },
-      },
-      "Get bearing",
-    ),
+    type === "bluetooth"
+      ? [
+          crelt(
+            "button",
+            {
+              onclick: async () => {
+                void magnetometerConnection.triggerMagnetometerCalibration();
+              },
+            },
+            "Trigger calibration",
+          ),
+          crelt(
+            "button",
+            {
+              onclick: async () => {
+                const bearing =
+                  await magnetometerConnection.getMagnetometerBearing();
+                bearingParagraph.textContent = `Bearing: ${bearing ?? 0} degrees`;
+              },
+            },
+            "Get bearing",
+          ),
+        ]
+      : [],
   );
   return {
     dom,
@@ -561,15 +569,10 @@ const createButtonSection = (
   label: string,
   type: "buttonachanged" | "buttonbchanged",
 ): Section => {
-  if (
-    !(
-      connection instanceof MicrobitRadioBridgeConnection ||
-      connection instanceof MicrobitWebBluetoothConnection
-    )
-  ) {
+  const { type: connType, connection: buttonConnection } = typedConnection;
+  if (connType !== "bluetooth" && connType !== "radio") {
     return {};
   }
-  const buttonConnection = connection;
   const statusParagraph = crelt("p");
   const buttonStateListener = (e: ButtonEvent) => {
     statusParagraph.innerText = e.state.toString();
@@ -606,10 +609,10 @@ const createButtonSection = (
 };
 
 const createLedSection = (): Section => {
-  if (!(connection instanceof MicrobitWebBluetoothConnection)) {
+  const { type: connType, connection: ledConnection } = typedConnection;
+  if (connType !== "bluetooth") {
     return {};
   }
-  const ledConnection = connection;
 
   const delayInput = crelt("input") as HTMLInputElement;
   const textInput = crelt("input") as HTMLInputElement;

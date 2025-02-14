@@ -9,5 +9,6 @@
   "readme": "./README.md",
   "headings": {
     "readme": false
-  }
+  },
+  "customCss": "./docs/custom.css"
 }
