@@ -136,7 +136,7 @@ export interface MicrobitWebBluetoothConnection
    *
    * @param data UART message.
    */
-  writeUART(data: Uint8Array): Promise<void>;
+  uartWrite(data: Uint8Array): Promise<void>;
 }
 
 /**
