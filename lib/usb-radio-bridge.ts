@@ -12,11 +12,10 @@ import {
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
-  SerialDataEvent,
-  SerialErrorEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
+import { SerialDataEvent, SerialErrorEvent } from "./serial-events.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
@@ -41,14 +40,33 @@ interface ConnectCallbacks {
   onSuccess: () => void;
 }
 
+export interface MicrobitRadioBridgeConnection
+  extends DeviceConnection<ServiceConnectionEventMap> {
+  /**
+   * Sets remote device.
+   *
+   * @param deviceId The device id of remote micro:bit.
+   */
+  setRemoteDeviceId(deviceId: number): void;
+}
+
+/**
+ * A radio bridge connection factory.
+ */
+export const createRadioBridgeConnection = (
+  delegate: MicrobitWebUSBConnection,
+  options?: MicrobitRadioBridgeConnectionOptions,
+): MicrobitRadioBridgeConnection =>
+  new MicrobitRadioBridgeConnectionImpl(delegate, options);
+
 /**
  * Wraps around a USB connection to implement a subset of services over a serial protocol.
  *
  * When it connects/disconnects it affects the delegate connection.
  */
-export class MicrobitRadioBridgeConnection
+class MicrobitRadioBridgeConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
-  implements DeviceConnection
+  implements MicrobitRadioBridgeConnection
 {
   status: ConnectionStatus;
   private logging: Logging;

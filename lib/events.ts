@@ -40,7 +40,7 @@ export type TypedEventListenerOrEventListenerObject<M, T extends keyof M> =
   | TypedEventListener<M, T>
   | TypedEventListenerObject<M, T>;
 
-type ValueIsEvent<T> = {
+export type ValueIsEvent<T> = {
   [key in keyof T]: Event;
 };
 

@@ -1,0 +1,4 @@
+/* Styling for hiding elements in the generated TypeDoc site. */
+a.typedoc-ignore {
+  display: none;
+}

@@ -15,15 +15,18 @@ import {
   DeviceError,
   FlashDataError,
   FlashDataSource,
-  FlashEvent,
   FlashOptions,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, NullLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
+import {
+  FlashEvent,
+  SerialConnectionEventMap,
+  SerialDataEvent,
+  SerialErrorEvent,
+  SerialResetEvent,
+} from "./serial-events.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
 import { PartialFlashing } from "./usb-partial-flashing.js";
 
@@ -41,12 +44,54 @@ export interface MicrobitWebUSBConnectionOptions {
   logging: Logging;
 }
 
+export interface MicrobitWebUSBConnection
+  extends DeviceConnection<SerialConnectionEventMap> {
+  /**
+   * Gets micro:bit deviceId.
+   *
+   * @returns the device id or undefined if there is no connection.
+   */
+  getDeviceId(): number | undefined;
+
+  /**
+   * Sets device request exclusion filters.
+   */
+  setRequestDeviceExclusionFilters(exclusionFilters: USBDeviceFilter[]): void;
+
+  /**
+   * Flash the micro:bit.
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   */
+  flash(dataSource: FlashDataSource, options: {}): Promise<void>;
+
+  /**
+   * Gets micro:bit device.
+   *
+   * @returns the USB device or undefined if there is no connection.
+   */
+  getDevice(): USBDevice | undefined;
+
+  /**
+   * Resets the micro:bit in software.
+   */
+  softwareReset(): Promise<void>;
+}
+
+/**
+ * A WebUSB connection factory.
+ */
+export const createWebUSBConnection = (
+  options?: MicrobitWebUSBConnectionOptions,
+): MicrobitWebUSBConnection => new MicrobitWebUSBConnectionImpl(options);
+
 /**
  * A WebUSB connection to a micro:bit device.
  */
-export class MicrobitWebUSBConnection
-  extends TypedEventTarget<DeviceConnectionEventMap>
-  implements DeviceConnection
+class MicrobitWebUSBConnectionImpl
+  extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
+  implements MicrobitWebUSBConnection
 {
   status: ConnectionStatus =
     navigator.usb && !isChromeOS105()
@@ -436,7 +481,7 @@ export class MicrobitWebUSBConnection
   }
 
   protected eventActivated(type: string): void {
-    switch (type as keyof DeviceConnectionEventMap) {
+    switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.startSerialInternal();
         break;
@@ -445,7 +490,7 @@ export class MicrobitWebUSBConnection
   }
 
   protected async eventDeactivated(type: string) {
-    switch (type as keyof DeviceConnectionEventMap) {
+    switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
         break;
