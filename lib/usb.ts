@@ -481,7 +481,9 @@ class MicrobitWebUSBConnectionImpl
   protected eventActivated(type: string): void {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
-        this.startSerialInternal();
+        if (!this.flashing) {
+          this.startSerialInternal();
+        }
         break;
       }
     }
