@@ -312,12 +312,10 @@ class MicrobitWebUSBConnectionImpl
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
-        if (this.addedListeners.serialdata) {
-          this.log("Reinstating serial after flash");
-          if (this.connection.daplink) {
-            await this.connection.daplink.connect();
-            await this.startSerialInternal();
-          }
+        this.log("Reinstating serial after flash");
+        if (this.connection.daplink) {
+          await this.connection.daplink.connect();
+          await this.startSerialInternal();
         }
       }
     }
