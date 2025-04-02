@@ -488,7 +488,7 @@ class MicrobitWebUSBConnectionImpl
           this.startSerialInternal();
         }
         // Allows for reinstating serial after flashing.
-        this.addedListeners.serialdata = 1;
+        this.addedListeners.serialdata++;
         break;
       }
     }
@@ -498,7 +498,7 @@ class MicrobitWebUSBConnectionImpl
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
-        this.addedListeners.serialdata = 0;
+        this.addedListeners.serialdata--;
         break;
       }
     }
