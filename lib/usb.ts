@@ -313,10 +313,11 @@ class MicrobitWebUSBConnectionImpl
         this.visibilityReconnect = true;
       } else {
         if (this.addedListeners.serialdata) {
-        this.log("Reinstating serial after flash");
-        if (this.connection.daplink) {
-          await this.connection.daplink.connect();
-          await this.startSerialInternal();
+          this.log("Reinstating serial after flash");
+          if (this.connection.daplink) {
+            await this.connection.daplink.connect();
+            await this.startSerialInternal();
+          }
         }
       }
     }
@@ -482,10 +483,12 @@ class MicrobitWebUSBConnectionImpl
   protected eventActivated(type: string): void {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
+        // Prevent starting serial when flashing.
         if (!this.flashing) {
           this.startSerialInternal();
-          this.addedListeners.serialdata = 1;
         }
+        // Allows for reinstating serial after flashing.
+        this.addedListeners.serialdata = 1;
         break;
       }
     }
