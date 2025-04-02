@@ -312,6 +312,7 @@ class MicrobitWebUSBConnectionImpl
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
+        if (this.addedListeners.serialdata) {
         this.log("Reinstating serial after flash");
         if (this.connection.daplink) {
           await this.connection.daplink.connect();
@@ -483,6 +484,7 @@ class MicrobitWebUSBConnectionImpl
       case "serialdata": {
         if (!this.flashing) {
           this.startSerialInternal();
+          this.addedListeners.serialdata = 1;
         }
         break;
       }
@@ -493,6 +495,7 @@ class MicrobitWebUSBConnectionImpl
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
+        this.addedListeners.serialdata = 0;
         break;
       }
     }
