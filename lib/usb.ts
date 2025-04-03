@@ -109,6 +109,12 @@ class MicrobitWebUSBConnectionImpl
    */
   private connection: DAPWrapper | undefined;
 
+  /**
+   * Whether the serial read loop is running.
+   *
+   * This is false even if we have serial listeners when we're disconnected or flashing.
+   * The serial reads interfere with the flash process.
+   */
   private serialState: boolean = false;
 
   private serialStateChangeQueue = new PromiseQueue();
@@ -165,7 +171,7 @@ class MicrobitWebUSBConnectionImpl
         setTimeout(() => {
           if (this.status === ConnectionStatus.CONNECTED) {
             this.unloading = false;
-            if (this.addedListeners.serialdata) {
+            if (this.hasSerialEventListeners()) {
               this.startSerialInternal();
             }
           }
@@ -176,10 +182,6 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
-
-  private addedListeners: Record<string, number> = {
-    serialdata: 0,
-  };
 
   constructor(
     options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() },
@@ -312,7 +314,7 @@ class MicrobitWebUSBConnectionImpl
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
-        if (this.addedListeners.serialdata) {
+        if (this.hasSerialEventListeners()) {
           this.log("Reinstating serial after flash");
           if (this.connection.daplink) {
             await this.connection.daplink.connect();
@@ -461,7 +463,7 @@ class MicrobitWebUSBConnectionImpl
       this.connection = new DAPWrapper(device, this.logging);
     }
     await withTimeout(this.connection.reconnectAsync(), 10_000);
-    if (this.addedListeners.serialdata && !this.flashing) {
+    if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
@@ -483,12 +485,10 @@ class MicrobitWebUSBConnectionImpl
   protected eventActivated(type: string): void {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
-        // Prevent starting serial when flashing.
+        // Prevent starting serial when flashing. We'll reinstate later.
         if (!this.flashing) {
           this.startSerialInternal();
         }
-        // Allows for reinstating serial after flashing.
-        this.addedListeners.serialdata++;
         break;
       }
     }
@@ -498,10 +498,12 @@ class MicrobitWebUSBConnectionImpl
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
-        this.addedListeners.serialdata--;
         break;
       }
     }
+  }
+  private hasSerialEventListeners() {
+    return this.getActiveEvents().includes("serialdata");
   }
 }
 
