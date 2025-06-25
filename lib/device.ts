@@ -189,7 +189,7 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
   /**
    * Disconnect from the device.
    */
-  disconnect(): Promise<void>;
+  disconnect(quiet?: boolean): Promise<void>;
 
   /**
    * Write serial data to the device.
