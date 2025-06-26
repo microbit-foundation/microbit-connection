@@ -354,26 +354,30 @@ class MicrobitWebUSBConnectionImpl
     });
   }
 
-  async disconnect(): Promise<void> {
+  async disconnect(quiet?: boolean): Promise<void> {
     try {
       if (this.connection) {
         await this.stopSerialInternal();
         await this.connection.disconnectAsync();
       }
     } catch (e) {
-      this.log("Error during disconnection:\r\n" + e);
-      this.logging.event({
-        type: "WebUSB-error",
-        message: "error-disconnecting",
-      });
+      if (!quiet) {
+        this.log("Error during disconnection:\r\n" + e);
+        this.logging.event({
+          type: "WebUSB-error",
+          message: "error-disconnecting",
+        });
+      }
     } finally {
       this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
-      this.logging.log("Disconnection complete");
-      this.logging.event({
-        type: "WebUSB-info",
-        message: "disconnected",
-      });
+      if (!quiet) {
+        this.logging.log("Disconnection complete");
+        this.logging.event({
+          type: "WebUSB-info",
+          message: "disconnected",
+        });
+      }
     }
   }
 
@@ -402,7 +406,7 @@ class MicrobitWebUSBConnectionImpl
       // Disconnect from the microbit.
       // Any new connection reallocates all the internals.
       // Use the top-level API so any listeners reflect that we're disconnected.
-      await this.disconnect();
+      await this.disconnect(true);
 
       const enriched = enrichedError(e);
       // Sanitise error message, replace all special chars with '-', if last char is '-' remove it
