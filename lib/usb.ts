@@ -37,11 +37,26 @@ export const isChromeOS105 = (): boolean => {
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
 
+export enum DeviceConnectMode {
+  /**
+   * First tries to connect to stored device id, if no device id stored
+   * trigger device selection and pairing flow.
+   */
+  TryInitialPair = "try initial pair",
+  /**
+   * First tries to connect to stored device id, if no device id stored attempt
+   * connection with previously paired devices. If all fail, trigger
+   * device selection and pairing flow.
+   */
+  TryInitialAndPrevPair = "try initial and prev pair",
+}
+
 export interface MicrobitWebUSBConnectionOptions {
   // We should copy this type when extracting a library, and make it optional.
   // Coupling for now to make it easy to evolve.
 
-  logging: Logging;
+  logging?: Logging;
+  deviceConnectMode?: DeviceConnectMode;
 }
 
 export interface MicrobitWebUSBConnection
@@ -176,16 +191,17 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
+  private deviceConnectMode: DeviceConnectMode;
 
   private addedListeners: Record<string, number> = {
     serialdata: 0,
   };
 
-  constructor(
-    options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() },
-  ) {
+  constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
-    this.logging = options.logging;
+    this.logging = options.logging || new NullLogging();
+    this.deviceConnectMode =
+      options.deviceConnectMode || DeviceConnectMode.TryInitialPair;
   }
 
   private log(v: any) {
@@ -460,21 +476,49 @@ class MicrobitWebUSBConnectionImpl
   }
 
   private async connectInternal(): Promise<void> {
-    if (!this.connection) {
-      const device = await this.chooseDevice();
-      this.connection = new DAPWrapper(device, this.logging);
+    if (!this.connection && this.device) {
+      this.connection = new DAPWrapper(this.device, this.logging);
+      await withTimeout(this.connection.reconnectAsync(), 10_000);
+    } else if (!this.connection) {
+      if (this.deviceConnectMode === DeviceConnectMode.TryInitialAndPrevPair) {
+        await this.tryPrevConnectedDevices();
+      }
+      if (!this.connection) {
+        this.device = await this.chooseDevice();
+        this.connection = new DAPWrapper(this.device, this.logging);
+        await withTimeout(this.connection.reconnectAsync(), 10_000);
+      }
+    } else {
+      await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
-    await withTimeout(this.connection.reconnectAsync(), 10_000);
     if (this.addedListeners.serialdata && !this.flashing) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async chooseDevice(): Promise<USBDevice> {
-    if (this.device) {
-      return this.device;
+  // Drawn from https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
+  private async tryPrevConnectedDevices(): Promise<void> {
+    const prevPairedDevices = await this.tryGetDevicesAsync();
+    for (let i = 0; i < prevPairedDevices.length; ++i) {
+      const d = prevPairedDevices[i];
+      this.device = d;
+      this.log(`connect device: ${d.manufacturerName} ${d.productName}`);
+      this.log(`serial number: ${d.serialNumber}`);
+      try {
+        this.connection = new DAPWrapper(this.device, this.logging);
+        await withTimeout(this.connection.reconnectAsync(), 10_000);
+        // Success, stop trying.
+      } catch (e: any) {
+        // Clean slate and try next one.
+        this.device = undefined;
+        this.connection = undefined;
+        this.log(`connection attempt failed, ${e.message}`);
+      }
     }
+  }
+
+  private async chooseDevice(): Promise<USBDevice> {
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       exclusionFilters: this.exclusionFilters,
@@ -482,6 +526,19 @@ class MicrobitWebUSBConnectionImpl
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
+  }
+
+  // Drawn from https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L530
+  private async tryGetDevicesAsync(): Promise<USBDevice[]> {
+    this.log("Getting web usb devices");
+    try {
+      const devs = await this.withEnrichedErrors(() =>
+        navigator.usb?.getDevices(),
+      );
+      return devs || [];
+    } catch (e: any) {
+      return [];
+    }
   }
 
   protected eventActivated(type: string): void {

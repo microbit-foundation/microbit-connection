@@ -42,6 +42,7 @@ import {
 } from "./usb-radio-bridge.js";
 import {
   createWebUSBConnection,
+  DeviceConnectMode,
   MicrobitWebUSBConnection,
   MicrobitWebUSBConnectionOptions,
 } from "./usb.js";
@@ -58,6 +59,7 @@ export {
   createWebBluetoothConnection,
   createWebUSBConnection,
   DeviceConnectionEventMap,
+  DeviceConnectMode,
   DeviceError,
   FlashDataError,
   FlashEvent,
