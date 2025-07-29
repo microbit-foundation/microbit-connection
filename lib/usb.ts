@@ -500,7 +500,7 @@ class MicrobitWebUSBConnectionImpl
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
   }
-  
+
   /**
    * Attempts to connect to previously paired devices
    * Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361

@@ -19,7 +19,11 @@ import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source"
 import { MagnetometerDataEvent } from "../lib/magnetometer";
 import { SerialDataEvent } from "../lib/serial-events";
 import { UARTDataEvent } from "../lib/uart";
-import { createWebUSBConnection, MicrobitWebUSBConnection } from "../lib/usb";
+import {
+  createWebUSBConnection,
+  DeviceConnectMode,
+  MicrobitWebUSBConnection,
+} from "../lib/usb";
 import {
   createRadioBridgeConnection,
   MicrobitRadioBridgeConnection,
@@ -40,11 +44,20 @@ const createConnections = (
     case "bluetooth":
       return { type, connection: createWebBluetoothConnection() };
     case "usb":
-      return { type, connection: createWebUSBConnection() };
+      return {
+        type,
+        connection: createWebUSBConnection({
+          deviceConnectMode: DeviceConnectMode.TryInitialAndPrevPair,
+        }),
+      };
     case "radio":
       // This only works with the local-sensor hex.
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
-      const connection = createRadioBridgeConnection(createWebUSBConnection());
+      const connection = createRadioBridgeConnection(
+        createWebUSBConnection({
+          deviceConnectMode: DeviceConnectMode.TryInitialAndPrevPair,
+        }),
+      );
       connection.setRemoteDeviceId(0);
       return { type, connection };
   }
