@@ -42,13 +42,13 @@ export enum DeviceConnectMode {
    * First tries to connect to stored device id, if no device id stored
    * trigger device selection and pairing flow.
    */
-  TryInitialPair = "try initial pair",
+  StoredOrSelect = "stored or select",
   /**
    * First tries to connect to stored device id, if no device id stored attempt
    * connection with previously paired devices. If all fail, trigger
    * device selection and pairing flow.
    */
-  TryInitialAndPrevPair = "try initial and prev pair",
+  StoredOrKnownOrSelect = "stored or known or select",
 }
 
 export interface MicrobitWebUSBConnectionOptions {
@@ -201,7 +201,7 @@ class MicrobitWebUSBConnectionImpl
     super();
     this.logging = options.logging || new NullLogging();
     this.deviceConnectMode =
-      options.deviceConnectMode || DeviceConnectMode.TryInitialPair;
+      options.deviceConnectMode || DeviceConnectMode.StoredOrSelect;
   }
 
   private log(v: any) {
@@ -480,7 +480,7 @@ class MicrobitWebUSBConnectionImpl
       this.connection = new DAPWrapper(this.device, this.logging);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     } else if (!this.connection) {
-      await this.connectWithNewDevice();
+      await this.connectWithPreviouslyPairedOrSelectedDevice();
     } else {
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
@@ -490,8 +490,8 @@ class MicrobitWebUSBConnectionImpl
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async connectWithNewDevice(): Promise<void> {
-    if (this.deviceConnectMode === DeviceConnectMode.TryInitialAndPrevPair) {
+  private async connectWithPreviouslyPairedOrSelectedDevice(): Promise<void> {
+    if (this.deviceConnectMode === DeviceConnectMode.StoredOrKnownOrSelect) {
       await this.tryPreviouslyPairedDevices();
     }
     if (!this.connection) {
