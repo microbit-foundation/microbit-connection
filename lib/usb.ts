@@ -43,7 +43,7 @@ export enum DeviceFallbackMode {
    */
   Select = "Select",
   /**
-   * Fallbacks to attempting to connect with allowed devices, and if that fails, 
+   * Fallbacks to attempting to connect with allowed devices, and if that fails,
    * triggers device selection.
    */
   AllowedOrSelect = "AllowedOrSelect",
