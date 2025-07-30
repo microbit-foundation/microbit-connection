@@ -37,11 +37,35 @@ export const isChromeOS105 = (): boolean => {
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
 
+const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
+
+export enum DeviceSelectionMode {
+  /**
+   * Attempts to connect to known device, otherwise asks which device to
+   * connect to.
+   */
+  AlwaysAsk = "AlwaysAsk",
+
+  /**
+   * Attempts to connect to known device, otherwise attempts to connect to any
+   * allowed devices. If that fails, asks which device to connect to.
+   */
+  UseAnyAllowed = "UseAnyAllowed",
+}
+
 export interface MicrobitWebUSBConnectionOptions {
   // We should copy this type when extracting a library, and make it optional.
   // Coupling for now to make it easy to evolve.
 
-  logging: Logging;
+  /**
+   * Determines logging behaviour for events, errors, and logs.
+   */
+  logging?: Logging;
+
+  /**
+   * Determines how a device should be selected.
+   */
+  deviceSelectionMode?: DeviceSelectionMode;
 }
 
 export interface MicrobitWebUSBConnection
@@ -176,16 +200,17 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
+  private deviceSelectionMode: DeviceSelectionMode;
 
   private addedListeners: Record<string, number> = {
     serialdata: 0,
   };
 
-  constructor(
-    options: MicrobitWebUSBConnectionOptions = { logging: new NullLogging() },
-  ) {
+  constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
-    this.logging = options.logging;
+    this.logging = options.logging || new NullLogging();
+    this.deviceSelectionMode =
+      options.deviceSelectionMode || DeviceSelectionMode.AlwaysAsk;
   }
 
   private log(v: any) {
@@ -460,25 +485,86 @@ class MicrobitWebUSBConnectionImpl
   }
 
   private async connectInternal(): Promise<void> {
-    if (!this.connection) {
-      const device = await this.chooseDevice();
-      this.connection = new DAPWrapper(device, this.logging);
+    if (!this.connection && this.device) {
+      this.connection = new DAPWrapper(this.device, this.logging);
+      await withTimeout(this.connection.reconnectAsync(), 10_000);
+    } else if (!this.connection) {
+      await this.connectWithOtherDevice();
+    } else {
+      await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
-    await withTimeout(this.connection.reconnectAsync(), 10_000);
     if (this.addedListeners.serialdata && !this.flashing) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async chooseDevice(): Promise<USBDevice> {
-    if (this.device) {
-      return this.device;
+  private async connectWithOtherDevice(): Promise<void> {
+    if (this.deviceSelectionMode === DeviceSelectionMode.UseAnyAllowed) {
+      await this.attemptConnectAllowedDevices();
     }
+    if (!this.connection) {
+      this.device = await this.chooseDevice();
+      this.connection = new DAPWrapper(this.device, this.logging);
+      await withTimeout(this.connection.reconnectAsync(), 10_000);
+    }
+  }
+
+  // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
+  private async attemptConnectAllowedDevices(): Promise<void> {
+    const pairedDevices = await this.getFilteredAllowedDevices();
+    for (const device of pairedDevices) {
+      const connection = await this.attemptDeviceConnection(device);
+      if (connection) {
+        this.device = device;
+        this.connection = connection;
+        return;
+      }
+    }
+  }
+
+  // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L530
+  private async getFilteredAllowedDevices(): Promise<USBDevice[]> {
+    this.log("Retrieving previously paired USB devices");
+    try {
+      const devices = await this.withEnrichedErrors(() =>
+        navigator.usb?.getDevices(),
+      );
+      if (devices === undefined) {
+        return [];
+      }
+      const filteredDevices = devices.filter((device) =>
+        applyDeviceFilters(device, defaultFilters, this.exclusionFilters ?? []),
+      );
+      return filteredDevices;
+    } catch (error: any) {
+      this.log(`Failed to retrieve paired devices: ${error.message}`);
+      return [];
+    }
+  }
+
+  private async attemptDeviceConnection(
+    device: USBDevice,
+  ): Promise<DAPWrapper | undefined> {
+    this.log(
+      `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
+    );
+    this.log(`Serial number: ${device.serialNumber}`);
+    try {
+      const connection = new DAPWrapper(device, this.logging);
+      await withTimeout(connection.reconnectAsync(), 10_000);
+      return connection;
+    } catch (error: any) {
+      this.log(`Connection attempt failed: ${error.message}`);
+      return;
+    }
+  }
+
+  private async chooseDevice(): Promise<USBDevice> {
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       exclusionFilters: this.exclusionFilters,
-      filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
+      filters: defaultFilters,
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
@@ -508,6 +594,65 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 }
+
+/**
+ * Applying WebUSB device filter. Exported for testing.
+ * Based on: https://wicg.github.io/webusb/#enumeration
+ */
+export const applyDeviceFilters = (
+  device: USBDevice,
+  filters: USBDeviceFilter[],
+  exclusionFilters: USBDeviceFilter[],
+) => {
+  return (
+    (filters.length === 0 ||
+      filters.some((filter) => matchFilter(device, filter))) &&
+    (exclusionFilters.length === 0 ||
+      exclusionFilters.every((filter) => !matchFilter(device, filter)))
+  );
+};
+
+const matchFilter = (device: USBDevice, filter: USBDeviceFilter) => {
+  if (filter.vendorId && device.vendorId !== filter.vendorId) {
+    return false;
+  }
+  if (filter.productId && device.productId !== filter.productId) {
+    return false;
+  }
+  if (filter.serialNumber && device.serialNumber !== filter.serialNumber) {
+    return false;
+  }
+  return hasMatchingInterface(device, filter);
+};
+
+const hasMatchingInterface = (device: USBDevice, filter: USBDeviceFilter) => {
+  if (
+    filter.classCode === undefined &&
+    filter.subclassCode === undefined &&
+    filter.protocolCode === undefined
+  ) {
+    return true;
+  }
+  if (!device.configuration?.interfaces) {
+    return false;
+  }
+  return device.configuration.interfaces.some((configInterface) => {
+    return configInterface.alternates?.some((alternate) => {
+      const classCodeNotMatch =
+        filter.classCode !== undefined &&
+        alternate.interfaceClass !== filter.classCode;
+      const subClassCodeNotMatch =
+        filter.subclassCode !== undefined &&
+        alternate.interfaceSubclass !== filter.subclassCode;
+      const protocolCodeNotMatch =
+        filter.protocolCode !== undefined &&
+        alternate.interfaceProtocol !== filter.protocolCode;
+      return (
+        !classCodeNotMatch || !subClassCodeNotMatch || !protocolCodeNotMatch
+      );
+    });
+  });
+};
 
 const genericErrorSuggestingReconnect = (e: any) =>
   new DeviceError({
