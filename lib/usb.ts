@@ -47,7 +47,7 @@ export enum DeviceSelectionMode {
   AlwaysAsk = "AlwaysAsk",
 
   /**
-   * Attempts to connect to known device, otherwise attempts to connect to any 
+   * Attempts to connect to known device, otherwise attempts to connect to any
    * allowed devices. If that fails, asks which device to connect to.
    */
   UseAnyAllowed = "UseAnyAllowed",
