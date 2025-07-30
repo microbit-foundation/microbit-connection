@@ -37,6 +37,8 @@ export const isChromeOS105 = (): boolean => {
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
 
+const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
+
 export enum DeviceFallbackMode {
   /**
    * Fallbacks to triggering device selection.
@@ -524,7 +526,7 @@ class MicrobitWebUSBConnectionImpl
       const filteredDevices = devices.filter((device) =>
         applyDeviceFilters(
           device,
-          this.defaultFilters,
+          defaultFilters,
           this.exclusionFilters ?? [],
         ),
       );
@@ -552,12 +554,11 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 
-  private defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       exclusionFilters: this.exclusionFilters,
-      filters: this.defaultFilters,
+      filters: defaultFilters,
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
