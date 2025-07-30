@@ -21,7 +21,7 @@ import { SerialDataEvent } from "../lib/serial-events";
 import { UARTDataEvent } from "../lib/uart";
 import {
   createWebUSBConnection,
-  DeviceConnectMode,
+  DeviceFallbackMode,
   MicrobitWebUSBConnection,
 } from "../lib/usb";
 import {
@@ -47,7 +47,7 @@ const createConnections = (
       return {
         type,
         connection: createWebUSBConnection({
-          deviceConnectMode: DeviceConnectMode.TryInitialAndPrevPair,
+          deviceConnectMode: DeviceFallbackMode.AllowedOrSelect,
         }),
       };
     case "radio":
@@ -55,7 +55,7 @@ const createConnections = (
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
       const connection = createRadioBridgeConnection(
         createWebUSBConnection({
-          deviceConnectMode: DeviceConnectMode.TryInitialAndPrevPair,
+          deviceConnectMode: DeviceFallbackMode.AllowedOrSelect,
         }),
       );
       connection.setRemoteDeviceId(0);
