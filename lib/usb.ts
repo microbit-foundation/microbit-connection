@@ -527,11 +527,7 @@ class MicrobitWebUSBConnectionImpl
         return [];
       }
       const filteredDevices = devices.filter((device) =>
-        applyDeviceFilters(
-          device,
-          defaultFilters,
-          this.exclusionFilters ?? [],
-        ),
+        applyDeviceFilters(device, defaultFilters, this.exclusionFilters ?? []),
       );
       return filteredDevices;
     } catch (error: any) {
