@@ -503,8 +503,10 @@ class MicrobitWebUSBConnectionImpl
   private async attemptConnectAllowedDevices(): Promise<void> {
     const pairedDevices = await this.getFilteredAllowedDevices();
     for (const device of pairedDevices) {
-      if (await this.attemptDeviceConnection(device)) {
-        return; // Successfully connected.
+      const connection = await this.attemptDeviceConnection(device)
+      if (connection) {
+        this.device = device;
+        this.connection = connection;
       }
     }
   }
@@ -533,22 +535,20 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 
-  private async attemptDeviceConnection(device: USBDevice): Promise<boolean> {
-    this.device = device;
+  private async attemptDeviceConnection(
+    device: USBDevice,
+  ): Promise<DAPWrapper | undefined> {
     this.log(
       `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
     );
     this.log(`Serial number: ${device.serialNumber}`);
     try {
-      this.connection = new DAPWrapper(device, this.logging);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
-      return true;
+      const connection = new DAPWrapper(device, this.logging);
+      await withTimeout(connection.reconnectAsync(), 10_000);
+      return connection;
     } catch (error: any) {
-      // Clean slate and try next one.
-      this.device = undefined;
-      this.connection = undefined;
       this.log(`Connection attempt failed: ${error.message}`);
-      return false;
+      return;
     }
   }
 
