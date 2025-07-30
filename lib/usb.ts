@@ -39,16 +39,18 @@ export const isChromeOS105 = (): boolean => {
 
 const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
 
-export enum DeviceFallbackMode {
+export enum DeviceSelectionMode {
   /**
-   * Fallbacks to triggering device selection.
+   * Attempts to connect to known micro:bit, otherwise asks which device to
+   * connect with.
    */
-  Select = "Select",
+  AlwaysAsk = "AlwaysAsk",
+
   /**
-   * Fallbacks to attempting to connect with allowed devices, and if that fails,
-   * triggers device selection.
+   * Attempts to connect to known micro:bit, otherwise attempts to connect with
+   * any allowed devices. If that fails, asks which device to connect with.
    */
-  AllowedOrSelect = "AllowedOrSelect",
+  UseAnyAllowed = "UseAnyAllowed",
 }
 
 export interface MicrobitWebUSBConnectionOptions {
@@ -61,9 +63,9 @@ export interface MicrobitWebUSBConnectionOptions {
   logging?: Logging;
 
   /**
-   * Determines what should be the fallback behaviour if no device is known.
+   * Determines how a device should be selected.
    */
-  deviceFallbackMode?: DeviceFallbackMode;
+  deviceSelectionMode?: DeviceSelectionMode;
 }
 
 export interface MicrobitWebUSBConnection
@@ -198,7 +200,7 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
-  private deviceFallbackMode: DeviceFallbackMode;
+  private deviceSelectionMode: DeviceSelectionMode;
 
   private addedListeners: Record<string, number> = {
     serialdata: 0,
@@ -207,8 +209,8 @@ class MicrobitWebUSBConnectionImpl
   constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
-    this.deviceFallbackMode =
-      options.deviceFallbackMode || DeviceFallbackMode.Select;
+    this.deviceSelectionMode =
+      options.deviceSelectionMode || DeviceSelectionMode.AlwaysAsk;
   }
 
   private log(v: any) {
@@ -498,7 +500,7 @@ class MicrobitWebUSBConnectionImpl
   }
 
   private async connectWithOtherDevice(): Promise<void> {
-    if (this.deviceFallbackMode === DeviceFallbackMode.AllowedOrSelect) {
+    if (this.deviceSelectionMode === DeviceSelectionMode.UseAnyAllowed) {
       await this.attemptConnectAllowedDevices();
     }
     if (!this.connection) {
