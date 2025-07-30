@@ -42,13 +42,13 @@ const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
 export enum DeviceSelectionMode {
   /**
    * Attempts to connect to known device, otherwise asks which device to
-   * connect with.
+   * connect to.
    */
   AlwaysAsk = "AlwaysAsk",
 
   /**
-   * Attempts to connect to known device, otherwise attempts to connect with
-   * any allowed devices. If that fails, asks which device to connect with.
+   * Attempts to connect to known device, otherwise attempts to connect to any 
+   * allowed devices. If that fails, asks which device to connect to.
    */
   UseAnyAllowed = "UseAnyAllowed",
 }
