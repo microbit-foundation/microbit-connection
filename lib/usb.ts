@@ -518,6 +518,7 @@ class MicrobitWebUSBConnectionImpl
       if (connection) {
         this.device = device;
         this.connection = connection;
+        return;
       }
     }
   }
