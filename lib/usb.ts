@@ -55,7 +55,11 @@ export interface MicrobitWebUSBConnectionOptions {
   // We should copy this type when extracting a library, and make it optional.
   // Coupling for now to make it easy to evolve.
 
+  /**
+   * Determines logging behaviour for events, errors, and logs.
+   */
   logging?: Logging;
+
   /**
    * Determines what should be the fallback behaviour if no device is known.
    */
