@@ -503,7 +503,7 @@ class MicrobitWebUSBConnectionImpl
   private async attemptConnectAllowedDevices(): Promise<void> {
     const pairedDevices = await this.getFilteredAllowedDevices();
     for (const device of pairedDevices) {
-      const connection = await this.attemptDeviceConnection(device)
+      const connection = await this.attemptDeviceConnection(device);
       if (connection) {
         this.device = device;
         this.connection = connection;
