@@ -37,18 +37,16 @@ export const isChromeOS105 = (): boolean => {
   return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
 };
 
-export enum DeviceConnectMode {
+export enum DeviceFallbackMode {
   /**
-   * First tries to connect to stored device id, if no device id stored
-   * trigger device selection and pairing flow.
+   * Fallbacks to triggering device selection.
    */
-  StoredOrSelect = "stored or select",
+  Select = "Select",
   /**
-   * First tries to connect to stored device id, if no device id stored attempt
-   * connection with previously paired devices. If all fail, trigger
-   * device selection and pairing flow.
+   * Fallbacks to attempting to connect with previously paired devices, and if
+   * that fails, trigger device selection.
    */
-  StoredOrKnownOrSelect = "stored or known or select",
+  AllowedOrSelect = "AllowedOrSelect",
 }
 
 export interface MicrobitWebUSBConnectionOptions {
@@ -56,7 +54,7 @@ export interface MicrobitWebUSBConnectionOptions {
   // Coupling for now to make it easy to evolve.
 
   logging?: Logging;
-  deviceConnectMode?: DeviceConnectMode;
+  deviceConnectMode?: DeviceFallbackMode;
 }
 
 export interface MicrobitWebUSBConnection
@@ -191,7 +189,7 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
-  private deviceConnectMode: DeviceConnectMode;
+  private deviceConnectMode: DeviceFallbackMode;
 
   private addedListeners: Record<string, number> = {
     serialdata: 0,
@@ -201,7 +199,7 @@ class MicrobitWebUSBConnectionImpl
     super();
     this.logging = options.logging || new NullLogging();
     this.deviceConnectMode =
-      options.deviceConnectMode || DeviceConnectMode.StoredOrSelect;
+      options.deviceConnectMode || DeviceFallbackMode.Select;
   }
 
   private log(v: any) {
@@ -480,7 +478,7 @@ class MicrobitWebUSBConnectionImpl
       this.connection = new DAPWrapper(this.device, this.logging);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     } else if (!this.connection) {
-      await this.connectWithPreviouslyPairedOrSelectedDevice();
+      await this.connectWithOtherDevice();
     } else {
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
@@ -490,9 +488,9 @@ class MicrobitWebUSBConnectionImpl
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async connectWithPreviouslyPairedOrSelectedDevice(): Promise<void> {
-    if (this.deviceConnectMode === DeviceConnectMode.StoredOrKnownOrSelect) {
-      await this.tryPreviouslyPairedDevices();
+  private async connectWithOtherDevice(): Promise<void> {
+    if (this.deviceConnectMode === DeviceFallbackMode.AllowedOrSelect) {
+      await this.attemptConnectAllowedDevices();
     }
     if (!this.connection) {
       this.device = await this.chooseDevice();
@@ -501,24 +499,18 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 
-  /**
-   * Attempts to connect to previously paired devices
-   * Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
-   */
-  private async tryPreviouslyPairedDevices(): Promise<void> {
-    const pairedDevices = await this.getPreviouslyPairedDevices();
+  // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
+  private async attemptConnectAllowedDevices(): Promise<void> {
+    const pairedDevices = await this.getFilteredAllowedDevices();
     for (const device of pairedDevices) {
       if (await this.attemptDeviceConnection(device)) {
-        return; // Successfully connected
+        return; // Successfully connected.
       }
     }
   }
 
-  /**
-   * Retrieves previously paired USB devices
-   * Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L530
-   */
-  private async getPreviouslyPairedDevices(): Promise<USBDevice[]> {
+  // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L530
+  private async getFilteredAllowedDevices(): Promise<USBDevice[]> {
     this.log("Retrieving previously paired USB devices");
     try {
       const devices = await this.withEnrichedErrors(() =>
