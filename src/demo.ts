@@ -47,7 +47,7 @@ const createConnections = (
       return {
         type,
         connection: createWebUSBConnection({
-          deviceConnectMode: DeviceFallbackMode.AllowedOrSelect,
+          deviceFallbackMode: DeviceFallbackMode.AllowedOrSelect,
         }),
       };
     case "radio":
@@ -55,7 +55,7 @@ const createConnections = (
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
       const connection = createRadioBridgeConnection(
         createWebUSBConnection({
-          deviceConnectMode: DeviceFallbackMode.AllowedOrSelect,
+          deviceFallbackMode: DeviceFallbackMode.AllowedOrSelect,
         }),
       );
       connection.setRemoteDeviceId(0);

@@ -56,7 +56,10 @@ export interface MicrobitWebUSBConnectionOptions {
   // Coupling for now to make it easy to evolve.
 
   logging?: Logging;
-  deviceConnectMode?: DeviceFallbackMode;
+  /**
+   * Determines what should be the fallback behaviour if no device is known.
+   */
+  deviceFallbackMode?: DeviceFallbackMode;
 }
 
 export interface MicrobitWebUSBConnection
@@ -191,7 +194,7 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private logging: Logging;
-  private deviceConnectMode: DeviceFallbackMode;
+  private deviceFallbackMode: DeviceFallbackMode;
 
   private addedListeners: Record<string, number> = {
     serialdata: 0,
@@ -200,8 +203,8 @@ class MicrobitWebUSBConnectionImpl
   constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
     this.logging = options.logging || new NullLogging();
-    this.deviceConnectMode =
-      options.deviceConnectMode || DeviceFallbackMode.Select;
+    this.deviceFallbackMode =
+      options.deviceFallbackMode || DeviceFallbackMode.Select;
   }
 
   private log(v: any) {
@@ -491,7 +494,7 @@ class MicrobitWebUSBConnectionImpl
   }
 
   private async connectWithOtherDevice(): Promise<void> {
-    if (this.deviceConnectMode === DeviceFallbackMode.AllowedOrSelect) {
+    if (this.deviceFallbackMode === DeviceFallbackMode.AllowedOrSelect) {
       await this.attemptConnectAllowedDevices();
     }
     if (!this.connection) {
