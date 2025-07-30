@@ -59,7 +59,7 @@ export {
   createWebBluetoothConnection,
   createWebUSBConnection,
   DeviceConnectionEventMap,
-  DeviceFallbackMode as DeviceConnectMode,
+  DeviceFallbackMode,
   DeviceError,
   FlashDataError,
   FlashEvent,
