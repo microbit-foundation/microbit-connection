@@ -516,7 +516,17 @@ class MicrobitWebUSBConnectionImpl
       const devices = await this.withEnrichedErrors(() =>
         navigator.usb?.getDevices(),
       );
-      return devices ?? [];
+      if (devices === undefined) {
+        return [];
+      }
+      const filteredDevices = devices.filter((device) =>
+        applyDeviceFilters(
+          device,
+          this.defaultFilters,
+          this.exclusionFilters ?? [],
+        ),
+      );
+      return filteredDevices;
     } catch (error: any) {
       this.log(`Failed to retrieve paired devices: ${error.message}`);
       return [];
@@ -542,11 +552,12 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 
+  private defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     this.device = await navigator.usb.requestDevice({
       exclusionFilters: this.exclusionFilters,
-      filters: [{ vendorId: 0x0d28, productId: 0x0204 }],
+      filters: this.defaultFilters,
     });
     this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     return this.device;
@@ -576,6 +587,65 @@ class MicrobitWebUSBConnectionImpl
     }
   }
 }
+
+/**
+ * Applying WebUSB device filter. Exported for testing.
+ * Based on: https://wicg.github.io/webusb/#enumeration
+ */
+export const applyDeviceFilters = (
+  device: USBDevice,
+  filters: USBDeviceFilter[],
+  exclusionFilters: USBDeviceFilter[],
+) => {
+  return (
+    (filters.length === 0 ||
+      filters.some((filter) => matchFilter(device, filter))) &&
+    (exclusionFilters.length === 0 ||
+      exclusionFilters.every((filter) => !matchFilter(device, filter)))
+  );
+};
+
+const matchFilter = (device: USBDevice, filter: USBDeviceFilter) => {
+  if (filter.vendorId && device.vendorId !== filter.vendorId) {
+    return false;
+  }
+  if (filter.productId && device.productId !== filter.productId) {
+    return false;
+  }
+  if (filter.serialNumber && device.serialNumber !== filter.serialNumber) {
+    return false;
+  }
+  return hasMatchingInterface(device, filter);
+};
+
+const hasMatchingInterface = (device: USBDevice, filter: USBDeviceFilter) => {
+  if (
+    filter.classCode === undefined &&
+    filter.subclassCode === undefined &&
+    filter.protocolCode === undefined
+  ) {
+    return true;
+  }
+  if (!device.configuration?.interfaces) {
+    return false;
+  }
+  return device.configuration.interfaces.some((configInterface) => {
+    return configInterface.alternates?.some((alternate) => {
+      const classCodeNotMatch =
+        filter.classCode !== undefined &&
+        alternate.interfaceClass !== filter.classCode;
+      const subClassCodeNotMatch =
+        filter.subclassCode !== undefined &&
+        alternate.interfaceSubclass !== filter.subclassCode;
+      const protocolCodeNotMatch =
+        filter.protocolCode !== undefined &&
+        alternate.interfaceProtocol !== filter.protocolCode;
+      return (
+        !classCodeNotMatch || !subClassCodeNotMatch || !protocolCodeNotMatch
+      );
+    });
+  });
+};
 
 const genericErrorSuggestingReconnect = (e: any) =>
   new DeviceError({

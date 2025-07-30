@@ -10,7 +10,7 @@
  * with a tweak to Buffer.
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
-import { createWebUSBConnection } from "./usb.js";
+import { applyDeviceFilters, createWebUSBConnection } from "./usb.js";
 import { beforeAll, expect, vi, describe, it } from "vitest";
 
 vi.mock("./webusb-device-wrapper", () => ({
@@ -75,5 +75,112 @@ describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
       ConnectionStatus.CONNECTED,
       ConnectionStatus.DISCONNECTED,
     ]);
+  });
+});
+
+interface MockUSBDeviceConfig {
+  vendorId?: number;
+  productId?: number;
+  serialNumber?: string;
+  interfaceClass?: number;
+  interfaceSubclass?: number;
+  interfaceProtocol?: number;
+  interfaceName?: string;
+  interfaces?: MockUSBInterface[];
+}
+interface MockUSBInterface {
+  interfaceNumber: number;
+  alternates: MockUSBAlternateInterface[];
+}
+interface MockUSBAlternateInterface {
+  interfaceClass: number;
+  interfaceSubclass: number;
+  interfaceProtocol: number;
+  interfaceName?: string;
+}
+
+const mockDevice = (config?: MockUSBDeviceConfig) => ({
+  vendorId: config?.vendorId || 0x2341,
+  productId: config?.productId || 0x0043,
+  serialNumber: config?.serialNumber || "MOCK123456",
+  configuration: {
+    interfaces: config?.interfaces || [
+      {
+        alternates: [
+          {
+            alternateSetting: 0,
+            interfaceClass: config?.interfaceClass || 2,
+            interfaceSubclass: config?.interfaceSubclass || 2,
+            interfaceProtocol: config?.interfaceProtocol || 0,
+          },
+        ],
+      },
+    ],
+  },
+});
+
+const filter: USBDeviceFilter = {
+  classCode: 123,
+  productId: 456,
+  protocolCode: 789,
+  serialNumber: "012",
+  subclassCode: 345,
+  vendorId: 690,
+};
+
+describe("applyDevicesFilter", () => {
+  it("has no filter", () => {
+    const device = mockDevice() as USBDevice;
+    expect(applyDeviceFilters(device, [], [])).toEqual(true);
+  });
+  it("satisfies filter", () => {
+    const device = mockDevice({
+      interfaceClass: filter.classCode,
+      productId: filter.productId,
+      interfaceProtocol: filter.protocolCode,
+      serialNumber: filter.serialNumber,
+      interfaceSubclass: filter.subclassCode,
+      vendorId: filter.vendorId,
+    }) as USBDevice;
+    expect(applyDeviceFilters(device, [filter], [])).toEqual(true);
+  });
+  it("does not satisfies filter", () => {
+    const device = mockDevice({
+      interfaceClass: filter.classCode,
+      productId: filter.productId,
+      interfaceProtocol: filter.protocolCode,
+      serialNumber: "something else",
+      interfaceSubclass: filter.subclassCode,
+      vendorId: filter.vendorId,
+    }) as USBDevice;
+    expect(applyDeviceFilters(device, [filter], [])).toEqual(false);
+  });
+  it("satisfies exclusion filter", () => {
+    const device = mockDevice({
+      interfaceClass: filter.classCode,
+      productId: filter.productId,
+      interfaceProtocol: filter.protocolCode,
+      serialNumber: filter.serialNumber,
+      interfaceSubclass: filter.subclassCode,
+      vendorId: filter.vendorId,
+    }) as USBDevice;
+    expect(applyDeviceFilters(device, [], [filter])).toEqual(false);
+  });
+  it("satifies filter and does not satisfy exclusion filter", () => {
+    const device = mockDevice({
+      interfaceClass: filter.classCode,
+      productId: filter.productId,
+      interfaceProtocol: filter.protocolCode,
+      serialNumber: filter.serialNumber,
+      interfaceSubclass: filter.subclassCode,
+      vendorId: filter.vendorId,
+    }) as USBDevice;
+    expect(
+      applyDeviceFilters(
+        device,
+        [filter],
+        [{ ...filter, serialNumber: "not satisfied" }],
+      ),
+    ).toEqual(true);
   });
 });
