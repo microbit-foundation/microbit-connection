@@ -562,11 +562,14 @@ class MicrobitWebUSBConnectionImpl
 
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
-    this.device = await navigator.usb.requestDevice({
-      exclusionFilters: this.exclusionFilters,
-      filters: defaultFilters,
-    });
-    this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
+    try {
+      this.device = await navigator.usb.requestDevice({
+        exclusionFilters: this.exclusionFilters,
+        filters: defaultFilters,
+      });
+    } finally {
+      this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
+    }
     return this.device;
   }
 
