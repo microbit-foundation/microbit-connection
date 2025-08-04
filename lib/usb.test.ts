@@ -30,6 +30,23 @@ describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
     const microbit = createWebUSBConnection();
     expect(microbit.status).toBe(ConnectionStatus.NOT_SUPPORTED);
   });
+  it("still triggers afterrequestdevice if requestDevice throws", async () => {
+    (global as any).navigator = {
+      usb: {
+        requestDevice: () => {
+          throw new Error();
+        },
+      },
+    };
+    const microbit = createWebUSBConnection();
+    expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    const afterRequestDevice = vi.fn();
+    microbit.addEventListener("afterrequestdevice", afterRequestDevice);
+
+    await expect(() => microbit.connect()).rejects.toThrow();
+
+    expect(afterRequestDevice.mock.calls.length).toEqual(1);
+  });
 });
 
 describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
