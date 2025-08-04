@@ -526,21 +526,14 @@ class MicrobitWebUSBConnectionImpl
   // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L530
   private async getFilteredAllowedDevices(): Promise<USBDevice[]> {
     this.log("Retrieving previously paired USB devices");
-    try {
-      const devices = await this.withEnrichedErrors(() =>
-        navigator.usb?.getDevices(),
-      );
-      if (devices === undefined) {
-        return [];
-      }
-      const filteredDevices = devices.filter((device) =>
-        applyDeviceFilters(device, defaultFilters, this.exclusionFilters ?? []),
-      );
-      return filteredDevices;
-    } catch (error: any) {
-      this.log(`Failed to retrieve paired devices: ${error.message}`);
+    const devices = await navigator.usb?.getDevices();
+    if (devices === undefined) {
       return [];
     }
+    const filteredDevices = devices.filter((device) =>
+      applyDeviceFilters(device, defaultFilters, this.exclusionFilters ?? []),
+    );
+    return filteredDevices;
   }
 
   private async attemptDeviceConnection(
@@ -550,14 +543,9 @@ class MicrobitWebUSBConnectionImpl
       `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
     );
     this.log(`Serial number: ${device.serialNumber}`);
-    try {
-      const connection = new DAPWrapper(device, this.logging);
-      await withTimeout(connection.reconnectAsync(), 10_000);
-      return connection;
-    } catch (error: any) {
-      this.log(`Connection attempt failed: ${error.message}`);
-      return;
-    }
+    const connection = new DAPWrapper(device, this.logging);
+    await withTimeout(connection.reconnectAsync(), 10_000);
+    return connection;
   }
 
   private async chooseDevice(): Promise<USBDevice> {
