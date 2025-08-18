@@ -83,7 +83,10 @@ class MicrobitRadioBridgeConnectionImpl
     const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
-      this.serialSession?.dispose();
+      if (this.serialSessionOpen) {
+        // If the session is already closed we don't need to dispose.
+        this.serialSession?.dispose();
+      }
     } else {
       this.status = ConnectionStatus.DISCONNECTED;
       if (

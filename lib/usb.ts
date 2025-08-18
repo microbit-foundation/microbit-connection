@@ -564,6 +564,10 @@ class MicrobitWebUSBConnectionImpl
   protected eventActivated(type: string): void {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
+        if (this.addedListeners.serialdata) {
+          this.addedListeners.serialdata++;
+          break;
+        }
         // Prevent starting serial when flashing.
         if (!this.flashing) {
           this.startSerialInternal();
@@ -578,8 +582,10 @@ class MicrobitWebUSBConnectionImpl
   protected async eventDeactivated(type: string) {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
-        this.stopSerialInternal();
         this.addedListeners.serialdata--;
+        if (!this.addedListeners.serialdata) {
+          this.stopSerialInternal();
+        }
         break;
       }
     }
