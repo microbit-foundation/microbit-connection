@@ -209,7 +209,9 @@ class MicrobitRadioBridgeConnectionImpl
     }
     this.serialSessionOpen = false;
     this.disconnectPromise = (async () => {
+      this.ignoreDelegateStatus = true;
       await this.serialSession?.dispose(true);
+      this.ignoreDelegateStatus = false;
       this.disconnectPromise = undefined;
     })();
   }
