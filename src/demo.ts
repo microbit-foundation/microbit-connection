@@ -29,6 +29,7 @@ import {
   MicrobitRadioBridgeConnection,
 } from "../lib/usb-radio-bridge";
 import "./demo.css";
+import { Logging } from "../lib/logging";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
@@ -37,16 +38,31 @@ type TypedConnection =
   | { type: "bluetooth"; connection: MicrobitWebBluetoothConnection }
   | { type: "usb"; connection: MicrobitWebUSBConnection };
 
+class NullLogging implements Logging {
+  event(e: unknown): void {
+    console.log(e);
+  }
+  error(e: unknown): void {
+    console.log(e);
+  }
+  log(e: unknown): void {
+    console.log(e);
+  }
+}
+
+const logging = new NullLogging();
+
 const createConnections = (
   type: "usb" | "bluetooth" | "radio",
 ): TypedConnection => {
   switch (type) {
     case "bluetooth":
-      return { type, connection: createWebBluetoothConnection() };
+      return { type, connection: createWebBluetoothConnection({ logging }) };
     case "usb":
       return {
         type,
         connection: createWebUSBConnection({
+          logging,
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
         }),
       };
@@ -55,10 +71,10 @@ const createConnections = (
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
       const connection = createRadioBridgeConnection(
         createWebUSBConnection({
+          logging,
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
         }),
       );
-      connection.setRemoteDeviceId(0);
       return { type, connection };
   }
 };
@@ -109,6 +125,7 @@ const createConnectSection = (): Section => {
   const statusParagraph = crelt("p");
   let name = "";
   let exclusionFilters = JSON.stringify([{ serialNumber: "XXXX" }]);
+  let remoteDeviceId = 0;
   const dom = crelt(
     "section",
     crelt("h2", "Connect"),
@@ -158,6 +175,21 @@ const createConnectSection = (): Section => {
           }),
         )
       : undefined,
+    type === "radio"
+      ? crelt(
+          "label",
+          "Remote device id",
+          crelt("input", {
+            type: "number",
+            value: remoteDeviceId,
+            onchange: (e: Event) => {
+              remoteDeviceId = parseInt(
+                (e.currentTarget as HTMLInputElement).value,
+              );
+            },
+          }),
+        )
+      : undefined,
     crelt(
       "button",
       {
@@ -174,6 +206,8 @@ const createConnectSection = (): Section => {
             connection.setRequestDeviceExclusionFilters(parsedExclusionFilters);
           } else if (type === "bluetooth") {
             connection.setNameFilter(name);
+          } else if (type === "radio") {
+            connection.setRemoteDeviceId(remoteDeviceId);
           }
           void connection.connect();
         },
@@ -196,6 +230,9 @@ const createConnectSection = (): Section => {
     statusParagraph.textContent = status.toString();
   };
   const handleDisplayStatusChange = (event: ConnectionStatusEvent) => {
+    if (type === "usb" && event.status === ConnectionStatus.CONNECTED) {
+      console.log("Device id:", (connection as any).getDeviceId());
+    }
     displayStatus(event.status);
   };
   const backgroundErrorListener = (event: BackgroundErrorEvent) => {
