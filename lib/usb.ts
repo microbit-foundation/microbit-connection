@@ -189,7 +189,7 @@ class MicrobitWebUSBConnectionImpl
         setTimeout(() => {
           if (this.status === ConnectionStatus.CONNECTED) {
             this.unloading = false;
-            if (this.addedListeners.serialdata) {
+            if (this.listeningToSerialData) {
               this.startSerialInternal();
             }
           }
@@ -202,9 +202,7 @@ class MicrobitWebUSBConnectionImpl
   private logging: Logging;
   private deviceSelectionMode: DeviceSelectionMode;
 
-  private addedListeners: Record<string, number> = {
-    serialdata: 0,
-  };
+  private listeningToSerialData = false;
 
   constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
@@ -337,7 +335,7 @@ class MicrobitWebUSBConnectionImpl
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
-        if (this.addedListeners.serialdata) {
+        if (this.listeningToSerialData) {
           this.log("Reinstating serial after flash");
           if (this.connection.daplink) {
             await this.connection.daplink.connect();
@@ -493,7 +491,7 @@ class MicrobitWebUSBConnectionImpl
     } else {
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
-    if (this.addedListeners.serialdata && !this.flashing) {
+    if (this.listeningToSerialData && !this.flashing) {
       this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.CONNECTED);
@@ -569,7 +567,7 @@ class MicrobitWebUSBConnectionImpl
           this.startSerialInternal();
         }
         // Allows for reinstating serial after flashing.
-        this.addedListeners.serialdata++;
+        this.listeningToSerialData = true;
         break;
       }
     }
@@ -579,7 +577,7 @@ class MicrobitWebUSBConnectionImpl
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
         this.stopSerialInternal();
-        this.addedListeners.serialdata--;
+        this.listeningToSerialData = false;
         break;
       }
     }
