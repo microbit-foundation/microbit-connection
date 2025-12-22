@@ -42,7 +42,61 @@ export type DeviceErrorCode =
   /**
    * Bluetooth service is missing on device.
    */
-  | "service-missing";
+  | "service-missing"
+  /**
+   * Failed to establish Bluetooth connection.
+   */
+  | "bluetooth-connection-failed"
+  /**
+   * Bluetooth is disabled on the device.
+   */
+  | "bluetooth-disabled"
+  /**
+   * Missing required Bluetooth permissions.
+   */
+  | "bluetooth-missing-permissions"
+  /**
+   * Partial flash operation failed.
+   */
+  | "flash-partial-failed"
+  /**
+   * Full flash operation failed.
+   */
+  | "flash-full-failed"
+  /**
+   * Flash operation was cancelled.
+   */
+  | "flash-cancelled";
+
+export enum ProgressStage {
+  Initializing = "Initializing",
+  FindingDevice = "FindingDevice",
+  Connecting = "Connecting",
+  PartialFlashing = "PartialFlashing",
+  FullFlashing = "FullFlashing",
+}
+
+/**
+ * Progress callback for tracking operation stages (connection and flashing).
+ *
+ * @param stage - The current stage of the operation
+ * @param progress - Optional progress value (0-1) for PartialFlashing and FullFlashing stages.
+ *                   Initializing, FindingDevice, and Connecting stages are called once
+ *                   without progress values to indicate stage entry.
+ *
+ * @example
+ * const progressCallback = (stage, progress) => {
+ *   if (progress !== undefined) {
+ *     console.log(`${stage}: ${Math.round(progress * 100)}%`);
+ *   } else {
+ *     console.log(`Stage: ${stage}`);
+ *   }
+ * };
+ */
+export type ProgressCallback = (
+  stage: ProgressStage,
+  progress?: number,
+) => void;
 
 /**
  * Error type used for all interactions with this module.
@@ -100,19 +154,27 @@ export enum ConnectionStatus {
   RECONNECTING = "RECONNECTING",
 }
 
+export interface ConnectOptions {
+  /**
+   * Optional progress callback for tracking connection stages.
+   */
+  progress?: ProgressCallback;
+}
+
 export interface FlashOptions {
   /**
    * True to use a partial flash where possible, false to force a full flash.
+   * Default: true.
    */
-  partial: boolean;
+  partial?: boolean;
   /**
-   * A progress callback. Called with undefined when the process is complete or has failed.
+   * Optional progress callback for tracking connection and flash stages.
    *
    * Requesting a partial flash doesn't guarantee one is performed. Partial flashes are avoided
    * if too many blocks have changed and failed partial flashes are retried as full flashes.
    * The partial parameter reports the flash type currently in progress.
    */
-  progress: (percentage: number | undefined, partial: boolean) => void;
+  progress?: ProgressCallback;
   /**
    * Smallest possible progress increment to limit callback rate.
    */
@@ -146,7 +208,10 @@ export class AfterRequestDevice extends Event {
 }
 
 export class BackgroundErrorEvent extends Event {
-  constructor(public readonly errorMessage: string) {
+  constructor(
+    public readonly errorMessage: string,
+    public readonly error?: unknown,
+  ) {
     super("backgrounderror");
   }
 }
@@ -173,11 +238,11 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
 
   /**
    * Connects to a currently paired device or requests pairing.
-   * Throws on error.
    *
-   * @returns the final connection status.
+   * @param options Optional connection options including progress callback.
+   * @throws {DeviceError} On connection failure. The error.code property indicates the failure type.
    */
-  connect(): Promise<ConnectionStatus>;
+  connect(options?: ConnectOptions): Promise<void>;
 
   /**
    * Get the board version.

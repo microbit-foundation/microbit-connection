@@ -38,8 +38,8 @@ import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection
 
 await usb.flash(createUniversalHexFlashDataSource(universalHexString), {
   partial: true,
-  progress: (percentage: number | undefined) => {
-    console.log(percentage);
+  progress: (stage, percentage) => {
+    console.log(stage, percentage);
   },
 });
 ```
@@ -67,8 +67,8 @@ await usb.flash(
   },
   {
     partial: true,
-    progress: (percentage: number | undefined) => {
-      console.log(percentage);
+    progress: (stage, percentage) => {
+      console.log(stage, percentage);
     },
   },
 );

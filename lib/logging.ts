@@ -16,7 +16,7 @@ export interface Logging {
   log(e: any): void;
 }
 
-export class NullLogging implements Logging {
+export class ConsoleLogging implements Logging {
   event(_event: LoggingEvent): void {
     console.log(_event);
   }

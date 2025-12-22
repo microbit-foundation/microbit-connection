@@ -1,69 +1,30 @@
+import { BleClient } from "@capacitor-community/bluetooth-le";
 import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
 import { Service } from "./bluetooth-device-wrapper.js";
-import { profile } from "./bluetooth-profile.js";
-import { BackgroundErrorEvent, DeviceError } from "./device.js";
 import {
-  CharacteristicDataTarget,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
+import { profile } from "./bluetooth-profile.js";
+import { BackgroundErrorEvent } from "./device.js";
 
 export class AccelerometerService implements Service {
-  constructor(
-    private accelerometerDataCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private accelerometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private dispatchTypedEvent: TypedServiceEventDispatcher,
-    private queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-  ) {
-    this.accelerometerDataCharacteristic.addEventListener(
-      "characteristicvaluechanged",
-      (event: Event) => {
-        const target = event.target as CharacteristicDataTarget;
-        const data = this.dataViewToData(target.value);
-        this.dispatchTypedEvent(
-          "accelerometerdatachanged",
-          new AccelerometerDataEvent(data),
-        );
-      },
-    );
+  uuid = profile.accelerometer.id;
+
+  static createService(
+    deviceId: string,
+    dispatchTypedEvent: TypedServiceEventDispatcher,
+  ): AccelerometerService {
+    return new AccelerometerService(deviceId, dispatchTypedEvent);
   }
 
-  static async createService(
-    gattServer: BluetoothRemoteGATTServer,
-    dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-    listenerInit: boolean,
-  ): Promise<AccelerometerService | undefined> {
-    let accelerometerService: BluetoothRemoteGATTService;
-    try {
-      accelerometerService = await gattServer.getPrimaryService(
-        profile.accelerometer.id,
-      );
-    } catch (err) {
-      if (listenerInit) {
-        dispatcher("backgrounderror", new BackgroundErrorEvent(err as string));
-        return;
-      } else {
-        throw new DeviceError({
-          code: "service-missing",
-          message: err as string,
-        });
-      }
-    }
-    const accelerometerDataCharacteristic =
-      await accelerometerService.getCharacteristic(
-        profile.accelerometer.characteristics.data.id,
-      );
-    const accelerometerPeriodCharacteristic =
-      await accelerometerService.getCharacteristic(
-        profile.accelerometer.characteristics.period.id,
-      );
-    return new AccelerometerService(
-      accelerometerDataCharacteristic,
-      accelerometerPeriodCharacteristic,
-      dispatcher,
-      queueGattOperation,
-    );
+  constructor(
+    private deviceId: string,
+    private dispatchTypedEvent: TypedServiceEventDispatcher,
+  ) {}
+
+  getRelevantEvents(): TypedServiceEvent[] {
+    return ["accelerometerdatachanged"];
   }
 
   private dataViewToData(dataView: DataView): AccelerometerData {
@@ -75,15 +36,19 @@ export class AccelerometerService implements Service {
   }
 
   async getData(): Promise<AccelerometerData> {
-    const dataView = await this.queueGattOperation(() =>
-      this.accelerometerDataCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.accelerometer.id,
+      profile.accelerometer.characteristics.data.id,
     );
     return this.dataViewToData(dataView);
   }
 
   async getPeriod(): Promise<number> {
-    const dataView = await this.queueGattOperation(() =>
-      this.accelerometerPeriodCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.accelerometer.id,
+      profile.accelerometer.characteristics.period.id,
     );
     return dataView.getUint16(0, true);
   }
@@ -99,23 +64,66 @@ export class AccelerometerService implements Service {
     // https://lancaster-university.github.io/microbit-docs/ble/profile/#about-the-accelerometer-service
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
-    return this.queueGattOperation(() =>
-      this.accelerometerPeriodCharacteristic.writeValue(dataView),
+    await BleClient.write(
+      this.deviceId,
+      profile.accelerometer.id,
+      profile.accelerometer.characteristics.period.id,
+      dataView,
     );
   }
 
   async startNotifications(type: TypedServiceEvent): Promise<void> {
-    await this.characteristicForEvent(type)?.startNotifications();
+    const result = this.characteristicForEvent(type);
+    if (result) {
+      const { service, characteristic } = result;
+      try {
+        await BleClient.startNotifications(
+          this.deviceId,
+          service,
+          characteristic,
+          (value) => {
+            const data = this.dataViewToData(value);
+            this.dispatchTypedEvent(
+              "accelerometerdatachanged",
+              new AccelerometerDataEvent(data),
+            );
+          },
+        );
+      } catch (e) {
+        this.dispatchTypedEvent(
+          "backgrounderror",
+          new BackgroundErrorEvent("Failed to start notifications", e),
+        );
+      }
+    }
   }
 
   async stopNotifications(type: TypedServiceEvent): Promise<void> {
-    await this.characteristicForEvent(type)?.stopNotifications();
+    const result = this.characteristicForEvent(type);
+    if (result) {
+      const { service, characteristic } = result;
+      try {
+        await BleClient.stopNotifications(
+          this.deviceId,
+          service,
+          characteristic,
+        );
+      } catch (e) {
+        this.dispatchTypedEvent(
+          "backgrounderror",
+          new BackgroundErrorEvent("Failed to stop notifications", e),
+        );
+      }
+    }
   }
 
   private characteristicForEvent(type: TypedServiceEvent) {
     switch (type) {
       case "accelerometerdatachanged": {
-        return this.accelerometerDataCharacteristic;
+        return {
+          service: profile.accelerometer.id,
+          characteristic: profile.accelerometer.characteristics.data.id,
+        };
       }
       default: {
         return undefined;

@@ -27,6 +27,7 @@ import {
   regRequest,
 } from "./usb-partial-flashing-utils.js";
 import { BoardSerialInfo } from "./board-serial-info.js";
+import { DeviceError } from "./device.js";
 
 export class DAPWrapper {
   transport: WebUSB;
@@ -55,7 +56,10 @@ export class DAPWrapper {
    */
   get pageSize(): number {
     if (this._pageSize === undefined) {
-      throw new Error("pageSize not defined until connected");
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: "pageSize not defined until connected",
+      });
     }
     return this._pageSize;
   }
@@ -65,7 +69,10 @@ export class DAPWrapper {
    */
   get numPages() {
     if (this._numPages === undefined) {
-      throw new Error("numPages not defined until connected");
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: "numPages not defined until connected",
+      });
     }
     return this._numPages;
   }
@@ -199,7 +206,10 @@ export class DAPWrapper {
     const buf = await this.send(data);
 
     if (buf[0] !== op) {
-      throw new Error(`Bad response for ${op} -> ${buf[0]}`);
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: `Bad response for ${op} -> ${buf[0]}`,
+      });
     }
 
     switch (op) {
@@ -210,7 +220,10 @@ export class DAPWrapper {
         break;
       default:
         if (buf[1] !== 0) {
-          throw new Error(`Bad status for ${op} -> ${buf[1]}`);
+          throw new DeviceError({
+            code: "reconnect-microbit",
+            message: `Bad status for ${op} -> ${buf[1]}`,
+          });
         }
     }
 
@@ -234,9 +247,15 @@ export class DAPWrapper {
     const buf = await this.cmdNums(DapCmd.DAP_TRANSFER, sendargs);
 
     if (buf[1] !== cnt) {
-      throw new Error("(many) Bad #trans " + buf[1]);
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: "(many) Bad #trans " + buf[1],
+      });
     } else if (buf[2] !== 1) {
-      throw new Error("(many) Bad transfer status " + buf[2]);
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: "(many) Bad transfer status " + buf[2],
+      });
     }
 
     return buf.subarray(3, 3 + cnt * 4);
@@ -265,7 +284,10 @@ export class DAPWrapper {
     const buf = await this.cmdNums(DapCmd.DAP_TRANSFER_BLOCK, sendargs);
 
     if (buf[3] !== 1) {
-      throw new Error("(many-wr) Bad transfer status " + buf[2]);
+      throw new DeviceError({
+        code: "reconnect-microbit",
+        message: "(many-wr) Bad transfer status " + buf[2],
+      });
     }
   }
 
@@ -398,7 +420,10 @@ export class DAPWrapper {
     deadline: number,
   ): Promise<void> {
     if (new Date().getTime() > deadline) {
-      throw new Error("timeout");
+      throw new DeviceError({
+        code: "timeout-error",
+        message: "timeout",
+      });
     }
     if (!halted) {
       const isHalted = await this.cortexM.isHalted();

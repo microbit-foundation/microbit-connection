@@ -3,31 +3,48 @@
  *
  * SPDX-License-Identifier: MIT
  */
+import { BleClient, BleDevice } from "@capacitor-community/bluetooth-le";
+import { Capacitor } from "@capacitor/core";
+import MemoryMap from "nrf-intel-hex";
 import { AccelerometerData } from "./accelerometer.js";
 import {
   BluetoothDeviceWrapper,
-  createBluetoothDeviceWrapper,
+  isAndroid,
+  scanningTimeoutInMs,
 } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
 import {
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
+  ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
+  DeviceError,
+  FlashDataError,
+  FlashDataSource,
+  FlashOptions,
+  ProgressCallback,
+  ProgressStage,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { LedMatrix } from "./led.js";
-import { Logging, NullLogging } from "./logging.js";
+import { Logging, ConsoleLogging } from "./logging.js";
 import { MagnetometerData } from "./magnetometer.js";
+import { fullFlash } from "./flashing/flashing-full.js";
+import partialFlash, {
+  PartialFlashResult,
+} from "./flashing/flashing-partial.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
 } from "./service-events.js";
 
-const requestDeviceTimeoutDuration: number = 30000;
+type BleClientError = { message: string; errorMessage: string };
+
+let bleClientInitialized = false;
 
 export interface MicrobitWebBluetoothConnectionOptions {
   logging?: Logging;
@@ -137,6 +154,16 @@ export interface MicrobitWebBluetoothConnection
    * @param data UART message.
    */
   uartWrite(data: Uint8Array): Promise<void>;
+
+  /**
+   * Flash the micro:bit.
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
+   * @throws {FlashDataError} If data preparation fails.
+   */
+  flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
 }
 
 /**
@@ -160,7 +187,7 @@ class MicrobitWebBluetoothConnectionImpl
    * The USB device we last connected to.
    * Cleared if it is disconnected.
    */
-  private device: BluetoothDevice | undefined;
+  private device: BleDevice | undefined;
 
   private logging: Logging;
   private connection: BluetoothDeviceWrapper | undefined;
@@ -172,10 +199,11 @@ class MicrobitWebBluetoothConnectionImpl
   };
   private availability: boolean | undefined;
   private nameFilter: string | undefined;
+  private deferStatusUpdates: boolean = false;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
-    this.logging = options.logging || new NullLogging();
+    this.logging = options.logging || new ConsoleLogging();
   }
 
   protected eventActivated(type: string): void {
@@ -188,6 +216,10 @@ class MicrobitWebBluetoothConnectionImpl
 
   private log(v: any) {
     this.logging.log(v);
+  }
+
+  private error(message: string, e?: unknown) {
+    this.logging.error(message, e);
   }
 
   async initialize(): Promise<void> {
@@ -210,13 +242,85 @@ class MicrobitWebBluetoothConnectionImpl
     );
   }
 
-  async connect(): Promise<ConnectionStatus> {
-    await this.connectInternal();
-    return this.status;
-  }
-
   getBoardVersion(): BoardVersion | undefined {
     return this.connection?.boardVersion;
+  }
+
+  async connect(options?: ConnectOptions): Promise<void> {
+    const progress = options?.progress ?? (() => {});
+
+    progress(ProgressStage.Initializing);
+    await this.preConnectInitialization();
+
+    if (!this.connection) {
+      progress(ProgressStage.FindingDevice);
+      const device = await this.requestDevice();
+      this.connection = new BluetoothDeviceWrapper(
+        device,
+        this.logging,
+        this.dispatchTypedEvent.bind(this),
+        () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
+        {
+          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
+          onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
+          onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
+          onFail: () => {
+            this.setStatus(ConnectionStatus.DISCONNECTED);
+            this.connection = undefined;
+          },
+        },
+      );
+    }
+
+    progress(ProgressStage.Connecting);
+    await this.connection.connect();
+  }
+
+  /**
+   * Initializes BLE.
+   *
+   * This must happen before requesting a device or connecting.
+   *
+   * We do this just before use not at connection initialize because on Android/iOS
+   * that's the appropriate time to ask for permissions.
+   */
+  private async preConnectInitialization(): Promise<void> {
+    try {
+      if (isAndroid()) {
+        const isLocationEnabled = await BleClient.isLocationEnabled();
+        if (!isLocationEnabled) {
+          throw new DeviceError({
+            code: "bluetooth-missing-permissions",
+            message: "Location services is disabled",
+          });
+        }
+      }
+      if (!bleClientInitialized) {
+        await BleClient.initialize({ androidNeverForLocation: true });
+        bleClientInitialized = true;
+      }
+      const isBluetoothEnabled = await BleClient.isEnabled();
+      if (!isBluetoothEnabled) {
+        throw new DeviceError({
+          code: "bluetooth-disabled",
+          message: "Bluetooth is disabled",
+        });
+      }
+    } catch (e: unknown) {
+      this.error("Error initializing Bluetooth", e);
+      const error = e as BleClientError;
+      if (error.message === "BLE permission denied") {
+        // Error thrown for iOS platform.
+        throw new DeviceError({
+          code: "bluetooth-disabled",
+          message: "Bluetooth is disabled",
+        });
+      }
+      throw new DeviceError({
+        code: "bluetooth-missing-permissions",
+        message: "Missing permissions",
+      });
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -225,7 +329,6 @@ class MicrobitWebBluetoothConnectionImpl
         await this.connection.disconnect();
       }
     } catch (e) {
-      this.log("Error during disconnection:\r\n" + e);
       this.logging.event({
         type: "Bluetooth-error",
         message: "error-disconnecting",
@@ -233,7 +336,6 @@ class MicrobitWebBluetoothConnectionImpl
     } finally {
       this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
-      this.logging.log("Disconnection complete");
       this.logging.event({
         type: "Bluetooth-info",
         message: "disconnected",
@@ -244,7 +346,9 @@ class MicrobitWebBluetoothConnectionImpl
   private setStatus(newStatus: ConnectionStatus) {
     this.status = newStatus;
     this.log("Bluetooth connection status " + newStatus);
-    this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
+    if (!this.deferStatusUpdates) {
+      this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
+    }
   }
 
   serialWrite(data: string): Promise<void> {
@@ -260,162 +364,258 @@ class MicrobitWebBluetoothConnectionImpl
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
-  private async connectInternal(): Promise<void> {
-    if (!this.connection) {
-      const device = await this.chooseDevice();
-      if (!device) {
-        this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
-        return;
-      }
-      this.connection = await createBluetoothDeviceWrapper(
-        device,
-        this.logging,
-        this.dispatchTypedEvent.bind(this),
-        () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
-        {
-          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
-          onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
-          onFail: () => {
-            this.setStatus(ConnectionStatus.DISCONNECTED);
-            this.connection = undefined;
-          },
-        },
-      );
-      return;
-    }
-    // TODO: timeout unification?
-  }
-
   setNameFilter(name: string) {
     this.nameFilter = name;
   }
 
-  private async chooseDevice(): Promise<BluetoothDevice | undefined> {
+  private async requestDevice(): Promise<BleDevice> {
     if (this.device) {
       return this.device;
     }
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     try {
-      // In some situations the Chrome device prompt simply doesn't appear so we time this out after 30 seconds and reload the page
-      // TODO: give control over this to the caller
-      const result = await Promise.race([
-        navigator.bluetooth.requestDevice({
-          filters: [
-            {
-              namePrefix: this.nameFilter
-                ? `BBC micro:bit [${this.nameFilter}]`
-                : "BBC micro:bit",
-            },
-            {
-              // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
-              namePrefix: this.nameFilter
-                ? `uBit [${this.nameFilter}]`
-                : "uBit",
-            },
-          ],
-          optionalServices: [
-            profile.accelerometer.id,
-            profile.button.id,
-            profile.deviceInformation.id,
-            profile.dfuControl.id,
-            profile.event.id,
-            profile.ioPin.id,
-            profile.led.id,
-            profile.magnetometer.id,
-            profile.temperature.id,
-            profile.uart.id,
-          ],
-        }),
-        new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), requestDeviceTimeoutDuration),
-        ),
-      ]);
-      if (result === "timeout") {
-        // btSelectMicrobitDialogOnLoad.set(true);
-        window.location.reload();
-        return undefined;
+      const namePrefix = this.nameFilter
+        ? `BBC micro:bit [${this.nameFilter}]`
+        : "BBC micro:bit";
+      if (Capacitor.isNativePlatform()) {
+        this.device = await this.requestDeviceNative(namePrefix);
+      } else {
+        this.device = await this.requestDeviceWeb(namePrefix);
       }
-      this.device = result;
-      return result;
-    } catch (e) {
-      this.logging.error("Bluetooth request device failed/cancelled", e);
-      return undefined;
+      if (!this.device) {
+        this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+        throw new DeviceError({
+          code: "timeout-error",
+          message: "Timeout scanning for device",
+        });
+      }
+      return this.device;
     } finally {
       this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
     }
   }
 
   async getAccelerometerData(): Promise<AccelerometerData | undefined> {
-    const accelerometerService =
-      await this.connection?.getAccelerometerService();
-    return accelerometerService?.getData();
+    return this.connection?.accelerometer.getData();
   }
 
   async getAccelerometerPeriod(): Promise<number | undefined> {
-    const accelerometerService =
-      await this.connection?.getAccelerometerService();
-    return accelerometerService?.getPeriod();
+    return this.connection?.accelerometer.getPeriod();
   }
 
   async setAccelerometerPeriod(value: number): Promise<void> {
-    const accelerometerService =
-      await this.connection?.getAccelerometerService();
-    return accelerometerService?.setPeriod(value);
+    return this.connection?.accelerometer.setPeriod(value);
   }
 
   async setLedText(text: string): Promise<void> {
-    const ledService = await this.connection?.getLedService();
-    return ledService?.setText(text);
+    return this.connection?.led.setText(text);
   }
 
   async getLedScrollingDelay(): Promise<number | undefined> {
-    const ledService = await this.connection?.getLedService();
-    return ledService?.getScrollingDelay();
+    return this.connection?.led.getScrollingDelay();
   }
 
   async setLedScrollingDelay(delayInMillis: number): Promise<void> {
-    const ledService = await this.connection?.getLedService();
-    await ledService?.setScrollingDelay(delayInMillis);
+    await this.connection?.led.setScrollingDelay(delayInMillis);
   }
 
   async getLedMatrix(): Promise<LedMatrix | undefined> {
-    const ledService = await this.connection?.getLedService();
-    return ledService?.getLedMatrix();
+    return await this.connection?.led.getLedMatrix();
   }
 
   async setLedMatrix(matrix: LedMatrix): Promise<void> {
-    const ledService = await this.connection?.getLedService();
-    ledService?.setLedMatrix(matrix);
+    await this.connection?.led.setLedMatrix(matrix);
   }
 
   async getMagnetometerData(): Promise<MagnetometerData | undefined> {
-    const magnetometerService = await this.connection?.getMagnetometerService();
-    return magnetometerService?.getData();
+    return this.connection?.magnetometer.getData();
   }
 
   async getMagnetometerPeriod(): Promise<number | undefined> {
-    const magnetometerService = await this.connection?.getMagnetometerService();
-    return magnetometerService?.getPeriod();
+    return this.connection?.magnetometer.getPeriod();
   }
 
   async setMagnetometerPeriod(value: number): Promise<void> {
-    const magnetometerService = await this.connection?.getMagnetometerService();
-    return magnetometerService?.setPeriod(value);
+    return this.connection?.magnetometer.setPeriod(value);
   }
 
   async getMagnetometerBearing(): Promise<number | undefined> {
-    const magnetometerService = await this.connection?.getMagnetometerService();
-    return magnetometerService?.getBearing();
+    return this.connection?.magnetometer.getBearing();
   }
 
   async triggerMagnetometerCalibration(): Promise<void> {
-    const magnetometerService = await this.connection?.getMagnetometerService();
-    return magnetometerService?.triggerCalibration();
+    await this.connection?.magnetometer.triggerCalibration();
   }
 
   async uartWrite(data: Uint8Array): Promise<void> {
-    const uartService = await this.connection?.getUARTService();
-    uartService?.writeData(data);
+    await this.connection?.uart.writeData(data);
+  }
+
+  /**
+   * Flash the micro:bit.
+   *
+   * Note that this will always leave the connection disconnected.
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   */
+  async flash(
+    dataSource: FlashDataSource,
+    options: FlashOptions = {},
+  ): Promise<void> {
+    const progress: ProgressCallback = options.progress ?? (() => {});
+    try {
+      // We'll disconnect/reconnect multiple times due to device resets, but reporting this is unhelpful.
+      this.deferStatusUpdates = true;
+
+      if (this.status !== ConnectionStatus.CONNECTED) {
+        await this.connect({ progress });
+      }
+
+      const connection = this.connection!;
+      try {
+        const boardVersion = connection.boardVersion;
+        if (!boardVersion) {
+          throw new DeviceError({
+            code: "device-disconnected",
+            message: "No board version found",
+          });
+        }
+        const memoryMap = convertDataToMemoryMap(
+          await dataSource(boardVersion),
+        );
+        if (!memoryMap) {
+          throw new FlashDataError("Could not convert hex to memory map");
+        }
+
+        if (!this.device) {
+          throw new DeviceError({
+            code: "device-disconnected",
+            message: "No device",
+          });
+        }
+        this.log(`Got board version ${boardVersion}`);
+
+        const partialFlashResult = await partialFlash(
+          connection,
+          memoryMap,
+          progress,
+        );
+
+        if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
+          await fullFlash(connection, boardVersion, memoryMap, progress);
+        }
+      } catch (e) {
+        this.error("Failed to flash", e);
+        throw e;
+      } finally {
+        await this.disconnect();
+      }
+    } finally {
+      this.deferStatusUpdates = false;
+      this.dispatchTypedEvent("status", new ConnectionStatusEvent(this.status));
+    }
+  }
+
+  private async requestDeviceWeb(namePrefix: string): Promise<BleDevice> {
+    return await BleClient.requestDevice({
+      namePrefix: this.nameFilter
+        ? `BBC micro:bit [${namePrefix}]`
+        : "BBC micro:bit",
+
+      // TODO: is this possible to reinstate?
+      // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
+      //namePrefix: this.nameFilter
+      //  ? `uBit [${this.nameFilter}]`
+      //  : "uBit",
+      optionalServices: [
+        profile.accelerometer.id,
+        profile.button.id,
+        profile.deviceInformation.id,
+        profile.dfuControl.id,
+        profile.event.id,
+        profile.ioPin.id,
+        profile.led.id,
+        profile.magnetometer.id,
+        profile.temperature.id,
+        profile.uart.id,
+      ],
+    });
+  }
+
+  /**
+   * Finds device with specified name prefix.
+   *
+   * @returns device or undefined if none can be found.
+   */
+  private async requestDeviceNative(
+    namePrefix: string,
+  ): Promise<BleDevice | undefined> {
+    // Check for existing bonded devices.
+    const bonded = await this.checkBondedDevices((device: BleDevice) => {
+      const name = device.name;
+      return !!name && name.startsWith(namePrefix);
+    });
+    if (bonded) {
+      return bonded;
+    }
+
+    this.log(`Scanning for device - ${namePrefix}`);
+    let found = false;
+    const scanPromise: Promise<BleDevice> = new Promise(
+      (resolve) =>
+        // This only resolves when we stop the scan.
+        void BleClient.requestLEScan({}, async (result) => {
+          // For a V1 in the Nordic bootloader, we see a name of "DfuTarg" that
+          // isn't matched by the name filter but the advertising name is in the
+          // localName on the device. So we filter here instead.  This happens on
+          // iOS if DFU fails / is interrupted.
+          if (
+            result.device.name?.startsWith(namePrefix) ||
+            result.localName?.startsWith(namePrefix)
+          ) {
+            found = true;
+            await BleClient.stopLEScan();
+            resolve(result.device);
+          }
+        }),
+    );
+    const scanTimeoutPromise: Promise<undefined> = new Promise((resolve) =>
+      setTimeout(async () => {
+        if (!found) {
+          await BleClient.stopLEScan();
+          this.log("Timeout scanning for device");
+          resolve(undefined);
+        }
+      }, scanningTimeoutInMs),
+    );
+    return await Promise.race([scanPromise, scanTimeoutPromise]);
+  }
+
+  private async checkBondedDevices(predicate: (device: BleDevice) => boolean) {
+    if (!isAndroid()) {
+      // Not supported.
+      return undefined;
+    }
+    const bondedDevices = await BleClient.getBondedDevices();
+    const result = bondedDevices.find(predicate);
+    this.log(
+      result === undefined
+        ? "No matching bonded device"
+        : "Found matching bonded device",
+    );
+    return result;
   }
 }
+
+const convertDataToMemoryMap = (
+  data: string | Uint8Array | MemoryMap,
+): MemoryMap => {
+  if (data instanceof MemoryMap) {
+    return data;
+  }
+  if (data instanceof Uint8Array) {
+    return MemoryMap.fromPaddedUint8Array(data);
+  }
+  return MemoryMap.fromHex(data);
+};

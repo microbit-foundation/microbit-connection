@@ -1,81 +1,23 @@
-import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
+import { BleClient } from "@capacitor-community/bluetooth-le";
 import { Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
-import { BackgroundErrorEvent, DeviceError } from "./device.js";
+import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
 import {
-  CharacteristicDataTarget,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
+import { BackgroundErrorEvent } from "./device.js";
 
 export class MagnetometerService implements Service {
-  constructor(
-    private magnetometerDataCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private magnetometerPeriodCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private magnetometerBearingCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private magnetometerCalibrationCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private dispatchTypedEvent: TypedServiceEventDispatcher,
-    private queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-  ) {
-    this.magnetometerDataCharacteristic.addEventListener(
-      "characteristicvaluechanged",
-      (event: Event) => {
-        const target = event.target as CharacteristicDataTarget;
-        const data = this.dataViewToData(target.value);
-        this.dispatchTypedEvent(
-          "magnetometerdatachanged",
-          new MagnetometerDataEvent(data),
-        );
-      },
-    );
-  }
+  uuid = profile.magnetometer.id;
 
-  static async createService(
-    gattServer: BluetoothRemoteGATTServer,
-    dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-    listenerInit: boolean,
-  ): Promise<MagnetometerService | undefined> {
-    let magnetometerService: BluetoothRemoteGATTService;
-    try {
-      magnetometerService = await gattServer.getPrimaryService(
-        profile.magnetometer.id,
-      );
-    } catch (err) {
-      if (listenerInit) {
-        dispatcher("backgrounderror", new BackgroundErrorEvent(err as string));
-        return;
-      } else {
-        throw new DeviceError({
-          code: "service-missing",
-          message: err as string,
-        });
-      }
-    }
-    const magnetometerDataCharacteristic =
-      await magnetometerService.getCharacteristic(
-        profile.magnetometer.characteristics.data.id,
-      );
-    const magnetometerPeriodCharacteristic =
-      await magnetometerService.getCharacteristic(
-        profile.magnetometer.characteristics.period.id,
-      );
-    const magnetometerBearingCharacteristic =
-      await magnetometerService.getCharacteristic(
-        profile.magnetometer.characteristics.bearing.id,
-      );
-    const magnetometerCalibrationCharacteristic =
-      await magnetometerService.getCharacteristic(
-        profile.magnetometer.characteristics.calibration.id,
-      );
-    return new MagnetometerService(
-      magnetometerDataCharacteristic,
-      magnetometerPeriodCharacteristic,
-      magnetometerBearingCharacteristic,
-      magnetometerCalibrationCharacteristic,
-      dispatcher,
-      queueGattOperation,
-    );
+  constructor(
+    private deviceId: string,
+    private dispatchTypedEvent: TypedServiceEventDispatcher,
+  ) {}
+
+  getRelevantEvents(): TypedServiceEvent[] {
+    return ["magnetometerdatachanged"];
   }
 
   private dataViewToData(dataView: DataView): MagnetometerData {
@@ -87,15 +29,19 @@ export class MagnetometerService implements Service {
   }
 
   async getData(): Promise<MagnetometerData> {
-    const dataView = await this.queueGattOperation(() =>
-      this.magnetometerDataCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.magnetometer.id,
+      profile.magnetometer.characteristics.data.id,
     );
     return this.dataViewToData(dataView);
   }
 
   async getPeriod(): Promise<number> {
-    const dataView = await this.queueGattOperation(() =>
-      this.magnetometerPeriodCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.magnetometer.id,
+      profile.magnetometer.characteristics.period.id,
     );
     return dataView.getUint16(0, true);
   }
@@ -111,14 +57,19 @@ export class MagnetometerService implements Service {
     // https://lancaster-university.github.io/microbit-docs/ble/profile/#about-the-magnetometer-service
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
-    return this.queueGattOperation(() =>
-      this.magnetometerPeriodCharacteristic.writeValue(dataView),
+    await BleClient.write(
+      this.deviceId,
+      profile.magnetometer.id,
+      profile.magnetometer.characteristics.period.id,
+      dataView,
     );
   }
 
   async getBearing(): Promise<number> {
-    const dataView = await this.queueGattOperation(() =>
-      this.magnetometerBearingCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.magnetometer.id,
+      profile.magnetometer.characteristics.bearing.id,
     );
     return dataView.getUint16(0, true);
   }
@@ -126,26 +77,51 @@ export class MagnetometerService implements Service {
   async triggerCalibration(): Promise<void> {
     const dataView = new DataView(new ArrayBuffer(1));
     dataView.setUint8(0, 1);
-    return this.queueGattOperation(() =>
-      this.magnetometerCalibrationCharacteristic.writeValue(dataView),
+    await BleClient.write(
+      this.deviceId,
+      profile.magnetometer.id,
+      profile.magnetometer.characteristics.calibration.id,
+      dataView,
     );
   }
 
   async startNotifications(type: TypedServiceEvent): Promise<void> {
-    await this.characteristicForEvent(type)?.startNotifications();
+    if (type === "magnetometerdatachanged") {
+      try {
+        await BleClient.startNotifications(
+          this.deviceId,
+          profile.magnetometer.id,
+          profile.magnetometer.characteristics.data.id,
+          (value: DataView) => {
+            const data = this.dataViewToData(value);
+            this.dispatchTypedEvent(
+              "magnetometerdatachanged",
+              new MagnetometerDataEvent(data),
+            );
+          },
+        );
+      } catch (e) {
+        this.dispatchTypedEvent(
+          "backgrounderror",
+          new BackgroundErrorEvent("Failed to start notifications", e),
+        );
+      }
+    }
   }
 
   async stopNotifications(type: TypedServiceEvent): Promise<void> {
-    await this.characteristicForEvent(type)?.stopNotifications();
-  }
-
-  private characteristicForEvent(type: TypedServiceEvent) {
-    switch (type) {
-      case "magnetometerdatachanged": {
-        return this.magnetometerDataCharacteristic;
-      }
-      default: {
-        return undefined;
+    if (type === "magnetometerdatachanged") {
+      try {
+        await BleClient.stopNotifications(
+          this.deviceId,
+          profile.magnetometer.id,
+          profile.magnetometer.characteristics.data.id,
+        );
+      } catch (e) {
+        this.dispatchTypedEvent(
+          "backgrounderror",
+          new BackgroundErrorEvent("Failed to stop notifications", e),
+        );
       }
     }
   }

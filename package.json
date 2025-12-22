@@ -38,6 +38,10 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "^7.3.0",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/filesystem": "^7.1.6",
+    "@microbit/capacitor-community-nordic-dfu": "^7.0.0-microbit.3",
     "@microbit/microbit-universal-hex": "^0.2.2",
     "@types/web-bluetooth": "^0.0.20",
     "crelt": "^1.0.6",

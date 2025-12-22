@@ -11,6 +11,7 @@ import {
   BackgroundErrorEvent,
   BeforeRequestDevice,
   BoardVersion,
+  ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -20,6 +21,8 @@ import {
   FlashDataError,
   FlashDataSource,
   FlashOptions,
+  ProgressCallback,
+  ProgressStage,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { createUniversalHexFlashDataSource } from "./hex-flash-data-source.js";
@@ -63,6 +66,7 @@ export {
   DeviceError,
   FlashDataError,
   FlashEvent,
+  ProgressStage,
   SerialConnectionEventMap,
   SerialDataEvent,
   SerialErrorEvent,
@@ -79,6 +83,7 @@ export type {
   ButtonEvent,
   ButtonEventType,
   ButtonState,
+  ConnectOptions,
   DeviceConnection,
   DeviceErrorCode,
   FlashDataSource,
@@ -94,4 +99,5 @@ export type {
   MicrobitWebBluetoothConnectionOptions,
   MicrobitWebUSBConnection,
   MicrobitWebUSBConnectionOptions,
+  ProgressCallback,
 };

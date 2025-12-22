@@ -1,11 +1,8 @@
+import { BleClient } from "@capacitor-community/bluetooth-le";
 import { Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
-import { BackgroundErrorEvent, DeviceError } from "./device.js";
 import { LedMatrix } from "./led.js";
-import {
-  TypedServiceEvent,
-  TypedServiceEventDispatcher,
-} from "./service-events.js";
+import { TypedServiceEvent } from "./service-events.js";
 
 const createLedMatrix = (): LedMatrix => {
   return [
@@ -18,61 +15,30 @@ const createLedMatrix = (): LedMatrix => {
 };
 
 export class LedService implements Service {
-  constructor(
-    private matrixStateCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private scrollingDelayCharacteristic: BluetoothRemoteGATTCharacteristic,
-    private textCharactertistic: BluetoothRemoteGATTCharacteristic,
-    private queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-  ) {}
+  uuid = profile.led.id;
 
-  static async createService(
-    gattServer: BluetoothRemoteGATTServer,
-    dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-    listenerInit: boolean,
-  ): Promise<LedService | undefined> {
-    let ledService: BluetoothRemoteGATTService;
-    try {
-      ledService = await gattServer.getPrimaryService(profile.led.id);
-    } catch (err) {
-      if (listenerInit) {
-        dispatcher("backgrounderror", new BackgroundErrorEvent(err as string));
-        return;
-      } else {
-        throw new DeviceError({
-          code: "service-missing",
-          message: err as string,
-        });
-      }
-    }
-    const matrixStateCharacteristic = await ledService.getCharacteristic(
-      profile.led.characteristics.matrixState.id,
-    );
-    const scrollingDelayCharacteristic = await ledService.getCharacteristic(
-      profile.led.characteristics.scrollingDelay.id,
-    );
-    const textCharacteristic = await ledService.getCharacteristic(
-      profile.led.characteristics.text.id,
-    );
-    return new LedService(
-      matrixStateCharacteristic,
-      scrollingDelayCharacteristic,
-      textCharacteristic,
-      queueGattOperation,
-    );
+  constructor(private deviceId: string) {}
+
+  getRelevantEvents(): TypedServiceEvent[] {
+    return [];
   }
 
   async getLedMatrix(): Promise<LedMatrix> {
-    const dataView = await this.queueGattOperation(() =>
-      this.matrixStateCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.led.id,
+      profile.led.characteristics.matrixState.id,
     );
     return this.dataViewToLedMatrix(dataView);
   }
 
   async setLedMatrix(value: LedMatrix): Promise<void> {
     const dataView = this.ledMatrixToDataView(value);
-    return this.queueGattOperation(() =>
-      this.matrixStateCharacteristic.writeValue(dataView),
+    await BleClient.write(
+      this.deviceId,
+      profile.led.id,
+      profile.led.characteristics.matrixState.id,
+      dataView,
     );
   }
 
@@ -111,22 +77,30 @@ export class LedService implements Service {
     if (bytes.length > 20) {
       throw new Error("Text must be <= 20 bytes when encoded as UTF-8");
     }
-    return this.queueGattOperation(() =>
-      this.textCharactertistic.writeValue(bytes),
+    await BleClient.write(
+      this.deviceId,
+      profile.led.id,
+      profile.led.characteristics.text.id,
+      new DataView(bytes.buffer),
     );
   }
 
   async setScrollingDelay(value: number) {
     const dataView = new DataView(new ArrayBuffer(2));
     dataView.setUint16(0, value, true);
-    return this.queueGattOperation(() =>
-      this.scrollingDelayCharacteristic.writeValue(dataView),
+    await BleClient.write(
+      this.deviceId,
+      profile.led.id,
+      profile.led.characteristics.scrollingDelay.id,
+      dataView,
     );
   }
 
   async getScrollingDelay(): Promise<number> {
-    const dataView = await this.queueGattOperation(() =>
-      this.scrollingDelayCharacteristic.readValue(),
+    const dataView = await BleClient.read(
+      this.deviceId,
+      profile.led.id,
+      profile.led.characteristics.scrollingDelay.id,
     );
     return dataView.getUint16(0, true);
   }

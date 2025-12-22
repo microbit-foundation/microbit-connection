@@ -8,6 +8,7 @@ import {
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
+  ConnectOptions,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -16,9 +17,11 @@ import {
   FlashDataError,
   FlashDataSource,
   FlashOptions,
+  ProgressCallback,
+  ProgressStage,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
-import { Logging, NullLogging } from "./logging.js";
+import { Logging, ConsoleLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
 import {
   FlashEvent,
@@ -87,8 +90,10 @@ export interface MicrobitWebUSBConnection
    *
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
+   * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
+   * @throws {FlashDataError} If data preparation fails.
    */
-  flash(dataSource: FlashDataSource, options: {}): Promise<void>;
+  flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
 
   /**
    * Gets micro:bit device.
@@ -208,7 +213,7 @@ class MicrobitWebUSBConnectionImpl
 
   constructor(options: MicrobitWebUSBConnectionOptions = {}) {
     super();
-    this.logging = options.logging || new NullLogging();
+    this.logging = options.logging || new ConsoleLogging();
     this.deviceSelectionMode =
       options.deviceSelectionMode || DeviceSelectionMode.AlwaysAsk;
   }
@@ -251,9 +256,9 @@ class MicrobitWebUSBConnectionImpl
     this.exclusionFilters = exclusionFilters;
   }
 
-  async connect(): Promise<ConnectionStatus> {
-    return this.withEnrichedErrors(async () => {
-      await this.connectInternal();
+  async connect(options?: ConnectOptions): Promise<void> {
+    await this.withEnrichedErrors(async () => {
+      await this.connectInternal(options?.progress);
       return this.status;
     });
   }
@@ -297,22 +302,27 @@ class MicrobitWebUSBConnectionImpl
 
   private async flashInternal(
     dataSource: FlashDataSource,
-    options: FlashOptions,
+    options: FlashOptions = {},
   ): Promise<void> {
-    this.log("Stopping serial before flash");
-    await this.stopSerialInternal();
-    this.log("Reconnecting before flash");
-    await this.connectInternal();
-    if (!this.connection) {
-      throw new Error("Must be connected now");
-    }
-
-    const partial = options.partial;
+    const partial = options.partial ?? true;
     const progress = rateLimitProgress(
       options.minimumProgressIncrement ?? 0.0025,
       options.progress || (() => {}),
     );
 
+    this.log("Stopping serial before flash");
+    await this.stopSerialInternal();
+
+    this.log("Reconnecting before flash");
+    await this.connectInternal(progress);
+    if (!this.connection) {
+      throw new DeviceError({
+        code: "device-disconnected",
+        message: "Must be connected now",
+      });
+    }
+
+    progress(ProgressStage.Initializing, undefined);
     const boardId = this.connection.boardSerialInfo.id;
     const boardVersion = boardId.toBoardVersion();
     const data = await dataSource(boardVersion);
@@ -329,7 +339,10 @@ class MicrobitWebUSBConnectionImpl
         await flashing.fullFlashAsync(data, progress);
       }
     } finally {
-      progress(undefined, wasPartial);
+      progress(
+        wasPartial ? ProgressStage.PartialFlashing : ProgressStage.FullFlashing,
+        undefined,
+      );
 
       if (this.disconnectAfterFlash) {
         this.log("Disconnecting after flash due to tab visibility");
@@ -420,6 +433,9 @@ class MicrobitWebUSBConnectionImpl
       if (e instanceof FlashDataError) {
         throw e;
       }
+      if (e instanceof DeviceError) {
+        throw e;
+      }
 
       // Log error to console for feedback
       this.log("An error occurred whilst attempting to use WebUSB.");
@@ -484,13 +500,17 @@ class MicrobitWebUSBConnectionImpl
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
-  private async connectInternal(): Promise<void> {
+  private async connectInternal(progress?: ProgressCallback): Promise<void> {
+    const reportProgress = progress ?? (() => {});
+
     if (!this.connection && this.device) {
+      reportProgress(ProgressStage.Connecting);
       this.connection = new DAPWrapper(this.device, this.logging);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     } else if (!this.connection) {
-      await this.connectWithOtherDevice();
+      await this.connectWithOtherDevice(reportProgress);
     } else {
+      reportProgress(ProgressStage.Connecting);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
     if (this.addedListeners.serialdata && !this.flashing) {
@@ -499,12 +519,16 @@ class MicrobitWebUSBConnectionImpl
     this.setStatus(ConnectionStatus.CONNECTED);
   }
 
-  private async connectWithOtherDevice(): Promise<void> {
+  private async connectWithOtherDevice(
+    progress: ProgressCallback,
+  ): Promise<void> {
     if (this.deviceSelectionMode === DeviceSelectionMode.UseAnyAllowed) {
       await this.attemptConnectAllowedDevices();
     }
     if (!this.connection) {
+      progress(ProgressStage.FindingDevice);
       this.device = await this.chooseDevice();
+      progress(ProgressStage.Connecting);
       this.connection = new DAPWrapper(this.device, this.logging);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
@@ -709,18 +733,21 @@ const enrichedError = (err: any): DeviceError => {
 
 const rateLimitProgress = (
   minimumProgressIncrement: number,
-  callback: (value: number | undefined, partial: boolean) => void,
+  callback: (stage: ProgressStage, value: number | undefined) => void,
 ) => {
   let lastCallValue = -1;
-  return (value: number | undefined, partial: boolean) => {
+  let lastStage: ProgressStage | undefined;
+  return (stage: ProgressStage, value: number | undefined) => {
     if (
+      lastStage !== stage ||
       value === undefined ||
       value === 0 ||
       value === 1 ||
       value >= lastCallValue + minimumProgressIncrement
     ) {
+      lastStage = stage;
       lastCallValue = value ?? -1;
-      callback(value, partial);
+      callback(stage, value);
     }
   };
 };

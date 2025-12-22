@@ -14,7 +14,7 @@ import {
   DeviceConnectionEventMap,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
-import { Logging, NullLogging } from "./logging.js";
+import { Logging, ConsoleLogging } from "./logging.js";
 import { SerialDataEvent, SerialErrorEvent } from "./serial-events.js";
 import {
   ServiceConnectionEventMap,
@@ -103,7 +103,7 @@ class MicrobitRadioBridgeConnectionImpl
     options?: MicrobitRadioBridgeConnectionOptions,
   ) {
     super();
-    this.logging = options?.logging ?? new NullLogging();
+    this.logging = options?.logging ?? new ConsoleLogging();
     this.status = this.statusFromDelegate();
   }
 
@@ -134,7 +134,7 @@ class MicrobitRadioBridgeConnectionImpl
     this.remoteDeviceId = remoteDeviceId;
   }
 
-  async connect(): Promise<ConnectionStatus> {
+  async connect(): Promise<void> {
     if (this.disconnectPromise) {
       await this.disconnectPromise;
     }
@@ -194,7 +194,6 @@ class MicrobitRadioBridgeConnectionImpl
         type: "Connect",
         message: "Serial connect success",
       });
-      return this.status;
     } catch (e) {
       this.serialSessionOpen = false;
       this.logging.error("Failed to initialise serial protocol", e);

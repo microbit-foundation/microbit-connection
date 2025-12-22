@@ -5,6 +5,12 @@
  */
 export class TimeoutError extends Error {}
 
+export class DisconnectError extends Error {
+  constructor(message: string = "Disconnect") {
+    super(message);
+  }
+}
+
 /**
  * Utility to time out an action after a delay.
  *
@@ -14,11 +20,28 @@ export async function withTimeout<T>(
   actionPromise: Promise<T>,
   timeout: number,
 ): Promise<T> {
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new TimeoutError());
-    }, timeout);
+  return Promise.race([
+    actionPromise,
+    timeoutErrorAfter(timeout),
+  ]) as Promise<T>;
+}
+
+export async function delay(millis: number) {
+  return new Promise((resolve) => setTimeout(resolve, millis));
+}
+
+export async function timeoutErrorAfter<T>(
+  millis: number,
+  message: string = "Timeout",
+): Promise<T> {
+  await delay(millis);
+  throw new TimeoutError(message);
+}
+
+export function disconnectErrorCallback<T>(message: string = "Disconnect") {
+  let callback: () => void | undefined;
+  const promise = new Promise<T>((_, reject) => {
+    callback = () => reject(new DisconnectError(message));
   });
-  // timeoutPromise never resolves so result must be from action
-  return Promise.race([actionPromise, timeoutPromise]) as Promise<T>;
+  return { promise, callback: callback! };
 }

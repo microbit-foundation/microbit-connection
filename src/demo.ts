@@ -241,8 +241,8 @@ const createFlashSection = (): Section => {
             console.time("flash");
             await connection.flash(createUniversalHexFlashDataSource(text), {
               partial: true,
-              progress: (percentage: number | undefined) => {
-                console.log(percentage);
+              progress: (stage, percentage) => {
+                console.log(stage, percentage);
               },
             });
             console.timeEnd("flash");

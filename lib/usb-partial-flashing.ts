@@ -58,10 +58,8 @@ import {
   pageAlignBlocks,
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
-import { BoardVersion } from "./device.js";
+import { BoardVersion, ProgressCallback, ProgressStage } from "./device.js";
 import MemoryMap from "nrf-intel-hex";
-
-type ProgressCallback = (n: number, partial: boolean) => void;
 
 // Source code for binaries in can be found at https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/external/sha/source/main.c
 // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L243
@@ -198,10 +196,10 @@ export class PartialFlashing {
   ) {
     this.log("Partial flash");
     for (let i = 0; i < pages.length; ++i) {
-      updateProgress(i / pages.length, true);
+      updateProgress(ProgressStage.PartialFlashing, i / pages.length);
       await this.partialFlashPageAsync(pages[i], pages[i + 1], i);
     }
-    updateProgress(1, true);
+    updateProgress(ProgressStage.PartialFlashing, 1);
   }
 
   // Flash the micro:bit's ROM with the provided image by only copying over the pages that differ.
@@ -260,7 +258,7 @@ export class PartialFlashing {
     this.log("Full flash");
 
     const fullFlashProgress = (progress: number) => {
-      updateProgress(progress, false);
+      updateProgress(ProgressStage.FullFlashing, progress);
     };
     this.dapwrapper.daplink.on(DAPLinkValue.EVENT_PROGRESS, fullFlashProgress);
     try {

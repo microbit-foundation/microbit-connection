@@ -4,14 +4,30 @@
  * SPDX-License-Identifier: MIT
  */
 
+import {
+  BleClient,
+  BleDevice,
+  TimeoutOptions,
+} from "@capacitor-community/bluetooth-le";
+import { Capacitor } from "@capacitor/core";
 import { AccelerometerService } from "./accelerometer-service.js";
-import { profile } from "./bluetooth-profile.js";
+import {
+  delay,
+  DisconnectError,
+  disconnectErrorCallback,
+  TimeoutError,
+  timeoutErrorAfter,
+} from "./async-util.js";
 import { ButtonService } from "./button-service.js";
+import { DeviceInformationService } from "./device-information-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
 import { LedService } from "./led-service.js";
-import { Logging, NullLogging } from "./logging.js";
+import { Logging, LoggingEvent, ConsoleLogging } from "./logging.js";
 import { MagnetometerService } from "./magnetometer-service.js";
-import { PromiseQueue } from "./promise-queue.js";
+import {
+  MicroBitMode,
+  PartialFlashingService,
+} from "./partial-flashing-service.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
@@ -19,68 +35,17 @@ import {
 } from "./service-events.js";
 import { UARTService } from "./uart-service.js";
 
-const deviceIdToWrapper: Map<string, BluetoothDeviceWrapper> = new Map();
+export const bondingTimeoutInMs = 40_000;
+export const connectTimeoutInMs = 10_000;
+export const scanningTimeoutInMs = 10_000;
 
-const connectTimeoutDuration: number = 10000;
-
-function findPlatform(): string | undefined {
-  const navigator: any =
-    typeof window !== "undefined" ? window.navigator : undefined;
-  if (!navigator) {
-    return "unknown";
-  }
-  const platform = navigator.userAgentData?.platform;
-  if (platform) {
-    return platform;
-  }
-  const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
-  return isAndroid ? "android" : navigator.platform ?? "unknown";
-}
-const platform = findPlatform();
-const isWindowsOS = platform && /^Win/.test(platform);
+export const isAndroid = () => Capacitor.getPlatform() === "android";
 
 export interface Service {
+  readonly uuid: string;
+  getRelevantEvents(): TypedServiceEvent[];
   startNotifications(type: TypedServiceEvent): Promise<void>;
   stopNotifications(type: TypedServiceEvent): Promise<void>;
-}
-
-class ServiceInfo<T extends Service> {
-  private service: T | undefined;
-
-  constructor(
-    private serviceFactory: (
-      gattServer: BluetoothRemoteGATTServer,
-      dispatcher: TypedServiceEventDispatcher,
-      queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-      listenerInit: boolean,
-    ) => Promise<T | undefined>,
-    public events: TypedServiceEvent[],
-  ) {}
-
-  get(): T | undefined {
-    return this.service;
-  }
-
-  async createIfNeeded(
-    gattServer: BluetoothRemoteGATTServer,
-    dispatcher: TypedServiceEventDispatcher,
-    queueGattOperation: <R>(action: () => Promise<R>) => Promise<R>,
-    listenerInit: boolean,
-  ): Promise<T | undefined> {
-    this.service =
-      this.service ??
-      (await this.serviceFactory(
-        gattServer,
-        dispatcher,
-        queueGattOperation,
-        listenerInit,
-      ));
-    return this.service;
-  }
-
-  dispose() {
-    this.service = undefined;
-  }
 }
 
 interface ConnectCallbacks {
@@ -90,76 +55,85 @@ interface ConnectCallbacks {
   onSuccess: () => void;
 }
 
-export class BluetoothDeviceWrapper {
+// TODO: We've removed the support for these behaviours as we need to
+// re-evaluate how best to support then via capacitor-ble (or reinstate
+// the direct Web Bluetooth connection code.
+//
+// On ChromeOS and Mac there's no timeout and no clear way to abort
+// device.gatt.connect(), so we accept that sometimes we'll still
+// be trying to connect when we'd rather not be. If it succeeds when
+// we no longer intend to be connected then we disconnect at that
+// point. If we try to connect when a previous connection attempt is
+// still around then we wait for it for our timeout period.
+//
+// On Windows it times out after 7s.
+// https://bugs.chromium.org/p/chromium/issues/detail?id=684073
+//
+// Additionally we've remove the delay before trying to connect again
+// on Windows.
+//
+// We also used to have a timeout around requestDevice that reloaded the page.
+//
+// > In some situations the Chrome device prompt simply doesn't appear so we time
+// > this out after 30 seconds and reload the page
+
+export class BluetoothDeviceWrapper implements Logging {
   // Used to avoid automatic reconnection during user triggered connect/disconnect
   // or reconnection itself.
   private duringExplicitConnectDisconnect: number = 0;
 
-  // On ChromeOS and Mac there's no timeout and no clear way to abort
-  // device.gatt.connect(), so we accept that sometimes we'll still
-  // be trying to connect when we'd rather not be. If it succeeds when
-  // we no longer intend to be connected then we disconnect at that
-  // point. If we try to connect when a previous connection attempt is
-  // still around then we wait for it for our timeout period.
-  //
-  // On Windows it times out after 7s.
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=684073
-  private gattConnectPromise: Promise<void> | undefined;
-  private disconnectPromise: Promise<unknown> | undefined;
-  private connecting = false;
+  private connected = false;
   private isReconnect = false;
-  private connectReadyPromise: Promise<void> | undefined;
 
-  private accelerometer = new ServiceInfo(AccelerometerService.createService, [
-    "accelerometerdatachanged",
-  ]);
-  private buttons = new ServiceInfo(ButtonService.createService, [
-    "buttonachanged",
-    "buttonbchanged",
-  ]);
-  private led = new ServiceInfo(LedService.createService, []);
-  private magnetometer = new ServiceInfo(MagnetometerService.createService, [
-    "magnetometerdatachanged",
-  ]);
-  private uart = new ServiceInfo(UARTService.createService, ["uartdata"]);
+  // Only updated after the full connection flow completes not during bond handling.
+  private serviceIds: Set<string> = new Set();
 
-  private serviceInfo = [
-    this.accelerometer,
-    this.buttons,
-    this.led,
-    this.magnetometer,
-    this.uart,
-  ];
+  accelerometer: AccelerometerService;
+  buttons: ButtonService;
+  deviceInformation: DeviceInformationService;
+  led: LedService;
+  magnetometer: MagnetometerService;
+  uart: UARTService;
 
+  /**
+   * Only defined after connection.
+   */
   boardVersion: BoardVersion | undefined;
 
-  private disconnectedRejectionErrorFactory = () => {
-    return new DeviceError({
-      code: "device-disconnected",
-      message: "Error processing gatt operations queue - device disconnected",
-    });
-  };
+  private services: Service[];
 
-  private gattOperations = new PromiseQueue({
-    abortCheck: () => {
-      if (!this.device.gatt?.connected) {
-        return this.disconnectedRejectionErrorFactory;
-      }
-      return undefined;
-    },
-  });
+  private waitingForDisconnectEventCallbacks: Array<() => void> = [];
+  private internalNotificationListeners = new Map<
+    string,
+    Set<(data: Uint8Array) => void>
+  >();
 
   constructor(
-    public readonly device: BluetoothDevice,
-    private logging: Logging = new NullLogging(),
-    private dispatchTypedEvent: TypedServiceEventDispatcher,
+    public readonly device: BleDevice,
+    private logging: Logging = new ConsoleLogging(),
+    dispatchTypedEvent: TypedServiceEventDispatcher,
     private currentEvents: () => Array<keyof ServiceConnectionEventMap>,
     private callbacks: ConnectCallbacks,
   ) {
-    device.addEventListener(
-      "gattserverdisconnected",
-      this.handleDisconnectEvent,
+    this.accelerometer = new AccelerometerService(
+      device.deviceId,
+      dispatchTypedEvent,
     );
+    this.buttons = new ButtonService(device.deviceId, dispatchTypedEvent);
+    this.deviceInformation = new DeviceInformationService(device.deviceId);
+    this.led = new LedService(device.deviceId);
+    this.magnetometer = new MagnetometerService(
+      device.deviceId,
+      dispatchTypedEvent,
+    );
+    this.uart = new UARTService(device.deviceId, dispatchTypedEvent);
+    this.services = [
+      this.accelerometer,
+      this.buttons,
+      this.led,
+      this.magnetometer,
+      this.uart,
+    ];
   }
 
   async connect(): Promise<void> {
@@ -167,100 +141,27 @@ export class BluetoothDeviceWrapper {
       type: this.isReconnect ? "Reconnect" : "Connect",
       message: "Bluetooth connect start",
     });
-    if (this.duringExplicitConnectDisconnect) {
-      this.logging.log(
-        "Skipping connect attempt when one is already in progress",
-      );
-      // Wait for the gattConnectPromise while showing a "connecting" dialog.
-      // If the user clicks disconnect while the automatic reconnect is in progress,
-      // then clicks reconnect, we need to wait rather than return immediately.
-      await this.gattConnectPromise;
-      return;
-    }
     if (this.isReconnect) {
       this.callbacks.onReconnecting();
     } else {
       this.callbacks.onConnecting();
     }
-    this.duringExplicitConnectDisconnect++;
-    if (this.device.gatt === undefined) {
-      throw new Error(
-        "BluetoothRemoteGATTServer for micro:bit device is undefined",
-      );
-    }
 
-    if (isWindowsOS) {
-      // On Windows, the micro:bit can take around 3 seconds to respond to gatt.disconnect().
-      // Attempting to connect/reconnect before the micro:bit has responded results in another
-      // gattserverdisconnected event being fired. We then fail to get primaryService on a
-      // disconnected GATT server.
-      await this.connectReadyPromise;
-    }
+    this.duringExplicitConnectDisconnect++;
 
     try {
-      // A previous connect might have completed in the background as a device was replugged etc.
-      await this.disconnectPromise;
-      this.gattConnectPromise =
-        this.gattConnectPromise ??
-        this.device.gatt
-          .connect()
-          .then(async () => {
-            // We always do this even if we might immediately disconnect as disconnecting
-            // without using services causes getPrimaryService calls to hang on subsequent
-            // reconnect - probably a device-side issue.
-            this.boardVersion = await this.getBoardVersion();
-            // This connection could be arbitrarily later when our manual timeout may have passed.
-            // Do we still want to be connected?
-            if (!this.connecting) {
-              this.logging.log(
-                "Bluetooth GATT server connect after timeout, triggering disconnect",
-              );
-              this.disconnectPromise = (async () => {
-                await this.disconnectInternal(false);
-                this.disconnectPromise = undefined;
-              })();
-            } else {
-              this.logging.log(
-                "Bluetooth GATT server connected when connecting",
-              );
-            }
-          })
-          .catch((e) => {
-            if (this.connecting) {
-              // Error will be logged by main connect error handling.
-              throw e;
-            } else {
-              this.logging.error(
-                "Bluetooth GATT server connect error after our timeout",
-                e,
-              );
-              return undefined;
-            }
-          })
-          .finally(() => {
-            this.logging.log("Bluetooth GATT server promise field cleared");
-            this.gattConnectPromise = undefined;
-          });
-
-      this.connecting = true;
-      try {
-        const gattConnectResult = await Promise.race([
-          this.gattConnectPromise,
-          new Promise<"timeout">((resolve) =>
-            setTimeout(() => resolve("timeout"), connectTimeoutDuration),
-          ),
-        ]);
-        if (gattConnectResult === "timeout") {
-          this.logging.log("Bluetooth GATT server connect timeout");
-          throw new Error("Bluetooth GATT server connect timeout");
-        }
-      } finally {
-        this.connecting = false;
+      if (Capacitor.isNativePlatform()) {
+        await this.connectHandlingBond();
+      } else {
+        await this.connectInternal();
       }
+      await this.getBoardVersion();
 
-      this.currentEvents().forEach((e) =>
-        this.startNotifications(e as TypedServiceEvent),
-      );
+      const events = this.currentEvents();
+      const services = await BleClient.getServices(this.device.deviceId);
+      this.serviceIds = new Set(services.map((s) => s.uuid));
+      this.logging.log(`Starting notifications for current events ${events}`);
+      events.forEach((e) => this.startNotifications(e as TypedServiceEvent));
 
       this.logging.event({
         type: this.isReconnect ? "Reconnect" : "Connect",
@@ -275,12 +176,33 @@ export class BluetoothDeviceWrapper {
       });
       await this.disconnectInternal(false);
       this.callbacks.onFail();
-      throw new Error("Failed to establish a connection!");
+
+      if (e instanceof DeviceError) {
+        throw e;
+      }
+      if (e instanceof TimeoutError) {
+        throw new DeviceError({
+          code: "timeout-error",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+      throw new DeviceError({
+        code: "bluetooth-connection-failed",
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       this.duringExplicitConnectDisconnect--;
       // Reset isReconnect for next time
       this.isReconnect = false;
     }
+  }
+
+  private async connectInternal() {
+    this.waitingForDisconnectEventCallbacks.length = 0;
+    await BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
+      timeout: connectTimeoutInMs,
+    });
+    this.connected = true;
   }
 
   async disconnect(): Promise<void> {
@@ -293,19 +215,15 @@ export class BluetoothDeviceWrapper {
     );
     this.duringExplicitConnectDisconnect++;
     try {
-      if (this.device.gatt?.connected) {
-        this.device.gatt?.disconnect();
+      if (this.connected) {
+        await BleClient.disconnect(this.device.deviceId);
       }
     } catch (e) {
       this.logging.error("Bluetooth GATT disconnect error (ignored)", e);
       // We might have already lost the connection.
     } finally {
-      this.disposeServices();
       this.duringExplicitConnectDisconnect--;
     }
-    this.connectReadyPromise = new Promise((resolve) =>
-      setTimeout(resolve, 3_500),
-    );
   }
 
   async reconnect(): Promise<void> {
@@ -315,17 +233,19 @@ export class BluetoothDeviceWrapper {
   }
 
   handleDisconnectEvent = async (): Promise<void> => {
+    this.waitingForDisconnectEventCallbacks.forEach((cb) => cb());
+    this.waitingForDisconnectEventCallbacks.length = 0;
+
+    this.connected = false;
     try {
       if (!this.duringExplicitConnectDisconnect) {
         this.logging.log(
-          "Bluetooth GATT disconnected... automatically trying reconnect",
+          "Bluetooth disconnected... automatically trying reconnect",
         );
-        // stateOnReconnectionAttempt();
-        this.disposeServices();
         await this.reconnect();
       } else {
         this.logging.log(
-          "Bluetooth GATT disconnect ignored during explicit disconnect",
+          "Bluetooth disconnect ignored during explicit disconnect",
         );
       }
     } catch (e) {
@@ -336,123 +256,268 @@ export class BluetoothDeviceWrapper {
     }
   };
 
-  private assertGattServer(): BluetoothRemoteGATTServer {
-    if (!this.device.gatt?.connected) {
-      throw new Error("Could not listen to services, no microbit connected!");
+  async getBoardVersion(): Promise<BoardVersion> {
+    // We read this when we connect and it won't change.
+    if (this.boardVersion) {
+      return this.boardVersion;
     }
-    return this.device.gatt;
-  }
-
-  private async getBoardVersion(): Promise<BoardVersion> {
-    this.assertGattServer();
-    const serviceMeta = profile.deviceInformation;
-    try {
-      const deviceInfo = await this.assertGattServer().getPrimaryService(
-        serviceMeta.id,
-      );
-      const characteristic = await deviceInfo.getCharacteristic(
-        serviceMeta.characteristics.modelNumber.id,
-      );
-      const modelNumberBytes = await characteristic.readValue();
-      const modelNumber = new TextDecoder().decode(modelNumberBytes);
-      if (modelNumber.toLowerCase() === "BBC micro:bit".toLowerCase()) {
-        return "V1";
-      }
-      if (
-        modelNumber.toLowerCase().includes("BBC micro:bit v2".toLowerCase())
-      ) {
-        return "V2";
-      }
-      throw new Error(`Unexpected model number ${modelNumber}`);
-    } catch (e) {
-      this.logging.error("Could not read model number", e);
-      throw new Error("Could not read model number");
-    }
-  }
-
-  private queueGattOperation<T>(action: () => Promise<T>): Promise<T> {
-    // Previously we wrapped rejections with:
-    // new DeviceError({ code: "background-comms-error", message: err }),
-    return this.gattOperations.add(action);
-  }
-
-  private createIfNeeded<T extends Service>(
-    info: ServiceInfo<T>,
-    listenerInit: boolean,
-  ): Promise<T | undefined> {
-    const gattServer = this.assertGattServer();
-    return info.createIfNeeded(
-      gattServer,
-      this.dispatchTypedEvent,
-      this.queueGattOperation.bind(this),
-      listenerInit,
-    );
-  }
-
-  async getAccelerometerService(): Promise<AccelerometerService | undefined> {
-    return this.createIfNeeded(this.accelerometer, false);
-  }
-
-  async getLedService(): Promise<LedService | undefined> {
-    return this.createIfNeeded(this.led, false);
-  }
-
-  async getMagnetometerService(): Promise<MagnetometerService | undefined> {
-    return this.createIfNeeded(this.magnetometer, false);
-  }
-
-  async getUARTService(): Promise<UARTService | undefined> {
-    return this.createIfNeeded(this.uart, false);
+    this.boardVersion = await this.deviceInformation.getBoardVersion();
+    return this.boardVersion;
   }
 
   async startNotifications(type: TypedServiceEvent) {
-    const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-    if (serviceInfo) {
-      this.queueGattOperation(async () => {
-        // TODO: type cheat! why?
-        const service = await this.createIfNeeded(serviceInfo as any, true);
-        await service?.startNotifications(type);
-      });
-    }
+    await this.getServicesForEvent(type)?.startNotifications(type);
   }
 
   async stopNotifications(type: TypedServiceEvent) {
-    this.queueGattOperation(async () => {
-      const serviceInfo = this.serviceInfo.find((s) => s.events.includes(type));
-      await serviceInfo?.get()?.stopNotifications(type);
-    });
+    await this.getServicesForEvent(type)?.stopNotifications(type);
   }
 
-  private disposeServices() {
-    this.serviceInfo.forEach((s) => s.dispose());
-    this.gattOperations.clear(this.disconnectedRejectionErrorFactory);
+  private getServicesForEvent(type: TypedServiceEvent) {
+    return this.services.find(
+      (s) =>
+        this.serviceIds.has(s.uuid) && s.getRelevantEvents().includes(type),
+    );
+  }
+
+  async startInternalNotifications(
+    serviceId: string,
+    characteristicId: string,
+    options?: TimeoutOptions,
+  ): Promise<void> {
+    const key = this.getNotificationKey(serviceId, characteristicId);
+    await this.raceDisconnectAndTimeout(
+      BleClient.startNotifications(
+        this.device.deviceId,
+        serviceId,
+        characteristicId,
+        (value: DataView) => {
+          const bytes = new Uint8Array(value.buffer);
+          // Notify all registered callbacks.
+          this.internalNotificationListeners
+            .get(key)
+            ?.forEach((cb) => cb(bytes));
+        },
+        options,
+      ),
+      { actionName: "start notifications" },
+    );
+  }
+
+  subscribe(
+    serviceId: string,
+    characteristicId: string,
+    callback: (data: Uint8Array) => void,
+  ): void {
+    const key = this.getNotificationKey(serviceId, characteristicId);
+    if (!this.internalNotificationListeners.has(key)) {
+      this.internalNotificationListeners.set(key, new Set());
+    }
+    this.internalNotificationListeners.get(key)!.add(callback);
+  }
+
+  unsubscribe(
+    serviceId: string,
+    characteristicId: string,
+    callback: (data: Uint8Array) => void,
+  ): void {
+    const key = this.getNotificationKey(serviceId, characteristicId);
+    this.internalNotificationListeners.get(key)?.delete(callback);
+  }
+
+  async stopInternalNotifications(
+    serviceId: string,
+    characteristicId: string,
+  ): Promise<void> {
+    await BleClient.stopNotifications(
+      this.device.deviceId,
+      serviceId,
+      characteristicId,
+    );
+    const key = this.getNotificationKey(serviceId, characteristicId);
+    this.internalNotificationListeners.delete(key);
+  }
+
+  /**
+   * Write to characteristic and wait for a notification response.
+   *
+   * It is the responsibility of the caller to have started notifications
+   * for the characteristic.
+   */
+  async writeForNotification(
+    serviceId: string,
+    characteristicId: string,
+    value: DataView,
+    notificationId: number,
+    isFinalNotification: (p: Uint8Array) => boolean = () => true,
+  ): Promise<Uint8Array> {
+    let notificationListener: ((bytes: Uint8Array) => void) | undefined;
+    const notificationPromise = new Promise<Uint8Array>((resolve) => {
+      notificationListener = (bytes: Uint8Array) => {
+        if (bytes[0] === notificationId && isFinalNotification(bytes)) {
+          resolve(bytes);
+        }
+      };
+      this.subscribe(serviceId, characteristicId, notificationListener);
+    });
+
+    try {
+      await BleClient.writeWithoutResponse(
+        this.device.deviceId,
+        serviceId,
+        characteristicId,
+        value,
+      );
+      return await this.raceDisconnectAndTimeout(notificationPromise, {
+        timeout: 3_000,
+        actionName: "flash notification wait",
+      });
+    } finally {
+      if (notificationListener) {
+        this.unsubscribe(serviceId, characteristicId, notificationListener);
+      }
+    }
+  }
+
+  async waitForDisconnect(timeout: number): Promise<void> {
+    if (!this.connected) {
+      this.log("Waiting for disconnect but not connected");
+      return;
+    }
+    this.log(`Waiting for disconnect (timeout ${timeout})`);
+    try {
+      await Promise.race([
+        this.disconnectErrorPromise("wait"),
+        timeoutErrorAfter(timeout),
+      ]);
+    } catch (e) {
+      if (e instanceof TimeoutError) {
+        this.error("Timeout waiting for disconnect");
+      }
+      if (!(e instanceof DisconnectError)) {
+        throw e;
+      }
+    }
+  }
+
+  /**
+   * Suitable for running a series of BLE interactions with an overall timeout
+   * and general disconnection
+   */
+  async raceDisconnectAndTimeout<T>(
+    promise: Promise<T>,
+    options: {
+      actionName?: string;
+      timeout?: number;
+    } = {},
+  ): Promise<T> {
+    if (!this.connected) {
+      throw new DisconnectError();
+    }
+    const actionName = options.actionName ?? "action";
+    const errorOnDisconnectPromise = this.disconnectErrorPromise<T>(actionName);
+    return await Promise.race<T>([
+      promise,
+      errorOnDisconnectPromise,
+      ...(options.timeout ? [timeoutErrorAfter<T>(options.timeout)] : []),
+    ]);
+  }
+
+  private disconnectErrorPromise<T>(actionName: string): Promise<T> {
+    const { promise, callback } = disconnectErrorCallback<T>(
+      `Disconnected during ${actionName}`,
+    );
+    this.waitingForDisconnectEventCallbacks.push(callback);
+    return promise;
+  }
+
+  event(event: LoggingEvent) {
+    this.logging.event(event);
+  }
+
+  log(message: string) {
+    this.logging.log(message);
+  }
+
+  error(message: string, e?: unknown) {
+    this.logging.error(message, e);
+  }
+
+  private getNotificationKey(
+    serviceId: string,
+    characteristicId: string,
+  ): string {
+    return `${serviceId}:${characteristicId}`;
+  }
+
+  /**
+   * Bonds with device and handles the post-bond device state only returning
+   * when we can reattempt a connection with the device.
+   */
+  private async connectHandlingBond(): Promise<void> {
+    const startTime = Date.now();
+    const maybeJustBonded = await this.bondConnectDeviceInternal();
+    if (maybeJustBonded) {
+      // If we did just bond then the device disconnects after 2_000 and then
+      // resets after a further 13_000 In future we'd like a firmware change
+      // that means it doesn't reset when partial flashing is in progress.
+      this.log(isAndroid() ? "New bond" : "Potential new bond");
+
+      // On Android with micro:bit V1 we don't see this disconnect (just the 15s
+      // reboot) so we hit the timeout and then continue to reset into pairing
+      // mode.
+      // TODO: document what happens with iOS micro:bit V1 in the new bond case.
+      try {
+        await this.waitForDisconnect(3000);
+      } catch (e) {
+        if (e instanceof TimeoutError) {
+          this.log("No disconnect after bond, assuming connection is stable");
+          if (!isAndroid()) {
+            // We never knew for sure whether this was a new bond. Assume we
+            // were already bonded on the basis we didn't get disconnected.
+            return;
+          }
+        } else {
+          throw e;
+        }
+      }
+
+      await this.connectInternal();
+      // TODO: check this is needed, potentially inline into connect if always needed
+      await delay(500);
+      this.log("Resetting to pairing mode");
+      const pf = new PartialFlashingService(this);
+      await pf.resetToMode(MicroBitMode.Pairing);
+      await this.waitForDisconnect(10_000);
+      await this.connectInternal();
+      this.log(`Connection ready; took ${Date.now() - startTime}`);
+    }
+  }
+
+  private async bondConnectDeviceInternal(): Promise<boolean> {
+    const { deviceId } = this.device;
+    if (isAndroid()) {
+      let justBonded = false;
+      // This gets us a nicer pairing dialog than just going straight for the characteristic.
+      if (!(await BleClient.isBonded(deviceId))) {
+        await BleClient.createBond(deviceId, { timeout: bondingTimeoutInMs });
+        justBonded = true;
+      }
+      await this.connectInternal();
+
+      return justBonded;
+    } else {
+      // Long timeout as this is the point that the pairing dialog will show.
+      // If this responds very quickly maybe we could assume there was a bond?
+      // At the moment we always do the disconnect dance so subsequent code will
+      // need to call startNotifications again. We need to be connected to
+      // startNotifications.
+      await this.connectInternal();
+      const pf = new PartialFlashingService(this);
+      await pf.startNotifications({ timeout: bondingTimeoutInMs });
+      // We just did it now to trigger pairing at a well defined point.
+      await pf.stopNotifications();
+      return true;
+    }
   }
 }
-
-export const createBluetoothDeviceWrapper = async (
-  device: BluetoothDevice,
-  logging: Logging,
-  dispatchTypedEvent: TypedServiceEventDispatcher,
-  currentEvents: () => Array<keyof ServiceConnectionEventMap>,
-  callbacks: ConnectCallbacks,
-): Promise<BluetoothDeviceWrapper | undefined> => {
-  try {
-    // Reuse our connection objects for the same device as they
-    // track the GATT connect promise that never resolves.
-    const bluetooth =
-      deviceIdToWrapper.get(device.id) ??
-      new BluetoothDeviceWrapper(
-        device,
-        logging,
-        dispatchTypedEvent,
-        currentEvents,
-        callbacks,
-      );
-    deviceIdToWrapper.set(device.id, bluetooth);
-    await bluetooth.connect();
-    return bluetooth;
-  } catch (e) {
-    logging.error("Bluetooth connect error", e);
-    return undefined;
-  }
-};
