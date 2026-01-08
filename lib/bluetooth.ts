@@ -374,19 +374,22 @@ class MicrobitWebBluetoothConnectionImpl
     }
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     try {
+      // TODO: is this possible to reinstate?
+      // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
+      // namePrefix: this.nameFilter
+      //   ? `uBit [${this.nameFilter}]`
+      //   : "uBit",
       const namePrefix = this.nameFilter
         ? `BBC micro:bit [${this.nameFilter}]`
         : "BBC micro:bit";
-      if (Capacitor.isNativePlatform()) {
-        this.device = await this.requestDeviceNative(namePrefix);
-      } else {
-        this.device = await this.requestDeviceWeb(namePrefix);
-      }
+      this.device = Capacitor.isNativePlatform()
+        ? await this.requestDeviceNative(namePrefix)
+        : await this.requestDeviceWeb(namePrefix);
       if (!this.device) {
         this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
         throw new DeviceError({
-          code: "timeout-error",
-          message: "Timeout scanning for device",
+          code: "no-device-selected",
+          message: "No device selected",
         });
       }
       return this.device;
@@ -517,30 +520,36 @@ class MicrobitWebBluetoothConnectionImpl
     }
   }
 
-  private async requestDeviceWeb(namePrefix: string): Promise<BleDevice> {
-    return await BleClient.requestDevice({
-      namePrefix: this.nameFilter
-        ? `BBC micro:bit [${namePrefix}]`
-        : "BBC micro:bit",
-
-      // TODO: is this possible to reinstate?
-      // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
-      //namePrefix: this.nameFilter
-      //  ? `uBit [${this.nameFilter}]`
-      //  : "uBit",
-      optionalServices: [
-        profile.accelerometer.id,
-        profile.button.id,
-        profile.deviceInformation.id,
-        profile.dfuControl.id,
-        profile.event.id,
-        profile.ioPin.id,
-        profile.led.id,
-        profile.magnetometer.id,
-        profile.temperature.id,
-        profile.uart.id,
-      ],
-    });
+  /**
+   * Requests a device via the browser's Bluetooth device chooser.
+   *
+   * @returns device or undefined if user cancels.
+   */
+  private async requestDeviceWeb(
+    namePrefix: string,
+  ): Promise<BleDevice | undefined> {
+    try {
+      return await BleClient.requestDevice({
+        namePrefix,
+        optionalServices: [
+          profile.accelerometer.id,
+          profile.button.id,
+          profile.deviceInformation.id,
+          profile.dfuControl.id,
+          profile.event.id,
+          profile.ioPin.id,
+          profile.led.id,
+          profile.magnetometer.id,
+          profile.temperature.id,
+          profile.uart.id,
+        ],
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "NotFoundError") {
+        return undefined;
+      }
+      throw e;
+    }
   }
 
   /**
