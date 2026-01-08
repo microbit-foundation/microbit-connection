@@ -8,7 +8,7 @@ import {
   DeviceError,
   ProgressCallback,
   ProgressStage,
-} from "../device";
+} from "../device.js";
 
 const appBinFilename = "application.bin";
 const appDatFilename = "application.dat";
