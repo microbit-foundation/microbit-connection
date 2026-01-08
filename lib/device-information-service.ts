@@ -1,6 +1,6 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
-import { BoardVersion } from "./device";
-import { profile } from "./bluetooth-profile";
+import { BoardVersion } from "./device.js";
+import { profile } from "./bluetooth-profile.js";
 
 export class DeviceInformationService {
   constructor(private deviceId: string) {}

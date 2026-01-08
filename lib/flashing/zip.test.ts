@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createZip } from "./zip";
+import { createZip } from "./zip.js";
 
 const isWindows = process.platform === "win32";
 

@@ -5,12 +5,12 @@ import {
   FlashDataError,
   ProgressCallback,
   ProgressStage,
-} from "../device";
-import { DfuService, NORDIC_DFU_SERVICE } from "../dfu-service";
-import { refreshServicesForV1IfDesiredServiceMissing } from "./flashing-v1";
-import { flashDfu } from "./nordic-dfu";
-import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper";
-import { delay } from "../async-util";
+} from "../device.js";
+import { DfuService, NORDIC_DFU_SERVICE } from "../dfu-service.js";
+import { refreshServicesForV1IfDesiredServiceMissing } from "./flashing-v1.js";
+import { flashDfu } from "./nordic-dfu.js";
+import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper.js";
+import { delay } from "../async-util.js";
 
 /**
  * Perform a full flash via Nordic's DFU service.

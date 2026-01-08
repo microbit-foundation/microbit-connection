@@ -5,8 +5,8 @@ import {
   TimeoutOptions,
 } from "@capacitor-community/bluetooth-le";
 import MemoryMap from "nrf-intel-hex";
-import { BluetoothDeviceWrapper } from "./bluetooth-device-wrapper";
-import { profile } from "./bluetooth-profile";
+import { BluetoothDeviceWrapper } from "./bluetooth-device-wrapper.js";
+import { profile } from "./bluetooth-profile.js";
 
 const MICROBIT_RESET_COMMAND = 0xff;
 const REGION_INFO_COMMAND = 0x0;

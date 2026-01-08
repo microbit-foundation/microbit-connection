@@ -1,8 +1,8 @@
 import { Capacitor, PluginListenerHandle } from "@capacitor/core";
 import { Directory, Filesystem, WriteFileOptions } from "@capacitor/filesystem";
 import { DfuState, NordicDfu } from "@microbit/capacitor-community-nordic-dfu";
-import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper";
-import { createZip } from "./zip";
+import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper.js";
+import { createZip } from "./zip.js";
 import {
   BoardVersion,
   DeviceError,

@@ -1,13 +1,13 @@
 import MemoryMap from "nrf-intel-hex";
-import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper";
+import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper.js";
 import {
   PacketState,
   PartialFlashingService,
   RegionId,
-} from "../partial-flashing-service";
-import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode";
-import { delay, DisconnectError } from "../async-util";
-import { DeviceError, ProgressCallback, ProgressStage } from "../device";
+} from "../partial-flashing-service.js";
+import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
+import { delay, DisconnectError } from "../async-util.js";
+import { DeviceError, ProgressCallback, ProgressStage } from "../device.js";
 
 export enum PartialFlashResult {
   Success = "Success",
