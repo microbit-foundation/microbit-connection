@@ -322,7 +322,6 @@ class MicrobitWebUSBConnectionImpl
       });
     }
 
-    progress(ProgressStage.Initializing, undefined);
     const boardId = this.connection.boardSerialInfo.id;
     const boardVersion = boardId.toBoardVersion();
     const data = await dataSource(boardVersion);
@@ -502,6 +501,7 @@ class MicrobitWebUSBConnectionImpl
 
   private async connectInternal(progress?: ProgressCallback): Promise<void> {
     const reportProgress = progress ?? (() => {});
+    reportProgress(ProgressStage.Initializing);
 
     if (!this.connection && this.device) {
       reportProgress(ProgressStage.Connecting);
