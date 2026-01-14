@@ -86,7 +86,10 @@ class MicrobitRadioBridgeConnectionImpl
       // Don't dispose the serial session when PAUSED - USB is temporarily
       // unavailable due to tab visibility, but we'll reconnect when visible.
       // Attempting dispose would fail anyway since USB is disconnected.
-      if (e.status !== ConnectionStatus.PAUSED && this.serialSessionOpen) {
+      if (e.status === ConnectionStatus.PAUSED) {
+        // Clear timestamp so stale values don't trigger reconnection when resuming.
+        this.serialSession?.clearLastReceivedTimestamp();
+      } else if (this.serialSessionOpen) {
         // If the session is already closed we don't need to dispose.
         this.serialSession?.dispose();
       }
@@ -325,7 +328,6 @@ class RadioBridgeSerialSession {
   ) {}
 
   async connect() {
-    this.lastReceivedMessageTimestamp = Date.now();
     this.delegate.addEventListener("serialdata", this.serialDataListener);
     this.delegate.addEventListener("serialerror", this.serialErrorListener);
     try {
@@ -466,6 +468,10 @@ class RadioBridgeSerialSession {
   private stopConnectionCheck() {
     clearInterval(this.connectionCheckIntervalId);
     this.connectionCheckIntervalId = undefined;
+    this.lastReceivedMessageTimestamp = undefined;
+  }
+
+  clearLastReceivedTimestamp() {
     this.lastReceivedMessageTimestamp = undefined;
   }
 
