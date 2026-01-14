@@ -161,8 +161,7 @@ class MicrobitWebUSBConnectionImpl
       if (!this.unloading && this.status === ConnectionStatus.CONNECTED) {
         if (!this.flashing) {
           this.log("Pausing connection for hidden tab");
-          // Pass PAUSED as the final status to transition directly without
-          // firing DISCONNECTED first.
+          // Transition to PAUSED not DISCONNECTED
           this.disconnect(false, ConnectionStatus.PAUSED);
         } else {
           this.log("Scheduling disconnect of hidden tab for after flash");
