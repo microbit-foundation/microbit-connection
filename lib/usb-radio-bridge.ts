@@ -83,16 +83,22 @@ class MicrobitRadioBridgeConnectionImpl
     const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
-      if (this.serialSessionOpen) {
+      // Don't dispose the serial session when PAUSED - USB is temporarily
+      // unavailable due to tab visibility, but we'll reconnect when visible.
+      // Attempting dispose would fail anyway since USB is disconnected.
+      if (e.status !== ConnectionStatus.PAUSED && this.serialSessionOpen) {
         // If the session is already closed we don't need to dispose.
         this.serialSession?.dispose();
       }
     } else {
       this.status = ConnectionStatus.DISCONNECTED;
-      if (
-        currentStatus === ConnectionStatus.DISCONNECTED &&
-        this.serialSessionOpen
-      ) {
+      // Reconnect the serial session if we were previously disconnected or paused.
+      // PAUSED means the USB connection was temporarily suspended due to tab
+      // visibility, and now the tab is visible again so we should reconnect.
+      const shouldReconnect =
+        currentStatus === ConnectionStatus.DISCONNECTED ||
+        currentStatus === ConnectionStatus.PAUSED;
+      if (shouldReconnect && this.serialSessionOpen) {
         this.serialSession?.connect();
       }
     }
@@ -319,6 +325,7 @@ class RadioBridgeSerialSession {
   ) {}
 
   async connect() {
+    this.lastReceivedMessageTimestamp = Date.now();
     this.delegate.addEventListener("serialdata", this.serialDataListener);
     this.delegate.addEventListener("serialerror", this.serialErrorListener);
     try {
@@ -412,6 +419,11 @@ class RadioBridgeSerialSession {
     // Check for connection lost
     if (this.connectionCheckIntervalId === undefined) {
       this.connectionCheckIntervalId = setInterval(async () => {
+        // Don't check connection while USB is paused/disconnected.
+        // The check will resume when USB reconnects.
+        if (this.delegate.status !== ConnectionStatus.CONNECTED) {
+          return;
+        }
         if (
           this.lastReceivedMessageTimestamp &&
           Date.now() - this.lastReceivedMessageTimestamp <= 1_000
