@@ -148,15 +148,10 @@ class MicrobitWebUSBConnectionImpl
 
   private flashing: boolean = false;
   private disconnectAfterFlash: boolean = false;
-  private visibilityReconnect: boolean = false;
   private visibilityChangeListener = () => {
     if (document.visibilityState === "visible") {
-      if (
-        this.visibilityReconnect &&
-        this.status !== ConnectionStatus.CONNECTED
-      ) {
+      if (this.status === ConnectionStatus.PAUSED) {
         this.disconnectAfterFlash = false;
-        this.visibilityReconnect = false;
         if (!this.flashing) {
           this.log("Reconnecting visible tab");
           this.connect();
@@ -165,10 +160,9 @@ class MicrobitWebUSBConnectionImpl
     } else {
       if (!this.unloading && this.status === ConnectionStatus.CONNECTED) {
         if (!this.flashing) {
-          this.log("Disconnecting hidden tab");
-          this.disconnect().then(() => {
-            this.visibilityReconnect = true;
-          });
+          this.log("Pausing connection for hidden tab");
+          // Transition to PAUSED not DISCONNECTED
+          this.disconnect(false, ConnectionStatus.PAUSED);
         } else {
           this.log("Scheduling disconnect of hidden tab for after flash");
           this.disconnectAfterFlash = true;
@@ -346,8 +340,7 @@ class MicrobitWebUSBConnectionImpl
       if (this.disconnectAfterFlash) {
         this.log("Disconnecting after flash due to tab visibility");
         this.disconnectAfterFlash = false;
-        await this.disconnect();
-        this.visibilityReconnect = true;
+        await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
         if (this.addedListeners.serialdata) {
           this.log("Reinstating serial after flash");
@@ -391,7 +384,10 @@ class MicrobitWebUSBConnectionImpl
     });
   }
 
-  async disconnect(quiet?: boolean): Promise<void> {
+  async disconnect(
+    quiet?: boolean,
+    finalStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
+  ): Promise<void> {
     try {
       if (this.connection) {
         await this.stopSerialInternal();
@@ -407,7 +403,7 @@ class MicrobitWebUSBConnectionImpl
       }
     } finally {
       this.connection = undefined;
-      this.setStatus(ConnectionStatus.DISCONNECTED);
+      this.setStatus(finalStatus);
       if (!quiet) {
         this.logging.log("Disconnection complete");
         this.logging.event({
@@ -420,7 +416,6 @@ class MicrobitWebUSBConnectionImpl
 
   private setStatus(newStatus: ConnectionStatus) {
     this.status = newStatus;
-    this.visibilityReconnect = false;
     this.log("USB connection status " + newStatus);
     this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
   }

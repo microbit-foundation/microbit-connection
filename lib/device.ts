@@ -152,6 +152,12 @@ export enum ConnectionStatus {
    * a reconnection is attempted.
    */
   RECONNECTING = "RECONNECTING",
+  /**
+   * Paused due to tab visibility. The connection was temporarily suspended
+   * because the browser tab became hidden. Reconnection will be attempted
+   * automatically when the tab becomes visible again.
+   */
+  PAUSED = "PAUSED",
 }
 
 export interface ConnectOptions {
