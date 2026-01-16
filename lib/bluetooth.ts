@@ -5,7 +5,6 @@
  */
 import { BleClient, BleDevice } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
-import { Device } from "@capacitor/device";
 import MemoryMap from "nrf-intel-hex";
 import { AccelerometerData } from "./accelerometer.js";
 import {
@@ -246,17 +245,13 @@ class MicrobitWebBluetoothConnectionImpl
 
   private async checkNativeBluetoothAvailability(): Promise<ConnectionAvailabilityStatus> {
     try {
-      // On Android < 12 (API < 31), check if location services are enabled.
-      // Android 12+ doesn't require location for Bluetooth scanning when
-      // androidNeverForLocation is set.
+      // On Android, check if location services are enabled. This is only
+      // required on Android < 12 (API < 31), but isLocationEnabled() returns
+      // true on newer Android, so we can always check it.
       if (isAndroid()) {
-        const info = await Device.getInfo();
-        const sdkVersion = info.androidSDKVersion ?? 0;
-        if (sdkVersion < 31) {
-          const isLocationEnabled = await BleClient.isLocationEnabled();
-          if (!isLocationEnabled) {
-            return "location-disabled";
-          }
+        const isLocationEnabled = await BleClient.isLocationEnabled();
+        if (!isLocationEnabled) {
+          return "location-disabled";
         }
       }
 

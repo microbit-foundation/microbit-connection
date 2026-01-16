@@ -40,7 +40,6 @@
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^7.3.0",
     "@capacitor/core": "^7.4.4",
-    "@capacitor/device": "^7.0.1",
     "@capacitor/filesystem": "^7.1.6",
     "@microbit/capacitor-community-nordic-dfu": "^7.0.0-microbit.3",
     "@microbit/microbit-universal-hex": "^0.2.2",
