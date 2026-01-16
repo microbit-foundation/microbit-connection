@@ -18,6 +18,7 @@ import {
   BeforeRequestDevice,
   BoardVersion,
   ConnectOptions,
+  ConnectionAvailabilityStatus,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -41,6 +42,8 @@ import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
 } from "./service-events.js";
+
+import { throwIfUnavailable } from "./availability.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -181,7 +184,7 @@ class MicrobitWebBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitWebBluetoothConnection
 {
-  status: ConnectionStatus = ConnectionStatus.SUPPORT_NOT_KNOWN;
+  status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
 
   /**
    * The USB device we last connected to.
@@ -192,12 +195,6 @@ class MicrobitWebBluetoothConnectionImpl
   private logging: Logging;
   private connection: BluetoothDeviceWrapper | undefined;
 
-  private availabilityListener = (e: Event) => {
-    // TODO: is this called? is `value` correct?
-    const value = (e as any).value as boolean;
-    this.availability = value;
-  };
-  private availability: boolean | undefined;
   private nameFilter: string | undefined;
   private deferStatusUpdates: boolean = false;
 
@@ -222,24 +219,73 @@ class MicrobitWebBluetoothConnectionImpl
     this.logging.error(message, e);
   }
 
-  async initialize(): Promise<void> {
-    navigator.bluetooth?.addEventListener(
-      "availabilitychanged",
-      this.availabilityListener,
-    );
-    this.availability = await navigator.bluetooth?.getAvailability();
-    this.setStatus(
-      this.availability
-        ? ConnectionStatus.NO_AUTHORIZED_DEVICE
-        : ConnectionStatus.NOT_SUPPORTED,
-    );
+  async initialize(): Promise<void> {}
+
+  dispose() {}
+
+  async checkAvailability(): Promise<ConnectionAvailabilityStatus> {
+    if (Capacitor.isNativePlatform()) {
+      return this.checkNativeBluetoothAvailability();
+    }
+    return this.checkWebBluetoothAvailability();
   }
 
-  dispose() {
-    navigator.bluetooth?.removeEventListener(
-      "availabilitychanged",
-      this.availabilityListener,
-    );
+  private async checkWebBluetoothAvailability(): Promise<ConnectionAvailabilityStatus> {
+    if (!navigator.bluetooth) {
+      return "unsupported";
+    }
+
+    try {
+      const available = await navigator.bluetooth.getAvailability();
+      return available ? "available" : "disabled";
+    } catch {
+      return "disabled";
+    }
+  }
+
+  private async checkNativeBluetoothAvailability(): Promise<ConnectionAvailabilityStatus> {
+    try {
+      // On Android, check if location services are enabled. This is only
+      // required on Android < 12 (API < 31), but isLocationEnabled() returns
+      // true on newer Android, so we can always check it.
+      if (isAndroid()) {
+        const isLocationEnabled = await BleClient.isLocationEnabled();
+        if (!isLocationEnabled) {
+          return "location-disabled";
+        }
+      }
+
+      // Initialize BLE (requests permissions automatically on first call).
+      if (!bleClientInitialized) {
+        await BleClient.initialize({ androidNeverForLocation: true });
+        bleClientInitialized = true;
+      }
+
+      // Check if Bluetooth is enabled.
+      const isBluetoothEnabled = await BleClient.isEnabled();
+      if (!isBluetoothEnabled) {
+        return "disabled";
+      }
+
+      return "available";
+    } catch (e) {
+      // Handle errors from BleClient.initialize() which rejects for permission
+      // or unsupported states. Error messages are hardcoded in the plugin:
+      // https://github.com/capacitor-community/bluetooth-le/blob/main/ios/Plugin/DeviceManager.swift
+      const errorMessage =
+        e instanceof Error ? e.message : (e as BleClientError)?.message ?? "";
+      this.log(`Bluetooth availability check failed: "${errorMessage}"`);
+
+      if (errorMessage === "BLE permission denied") {
+        return "permission-denied";
+      }
+      if (errorMessage === "BLE unsupported") {
+        return "unsupported";
+      }
+
+      // Unknown error - default to permission-denied
+      return "permission-denied";
+    }
   }
 
   getBoardVersion(): BoardVersion | undefined {
@@ -249,8 +295,10 @@ class MicrobitWebBluetoothConnectionImpl
   async connect(options?: ConnectOptions): Promise<void> {
     const progress = options?.progress ?? (() => {});
 
+    // Check availability before connecting. Done here rather than at initialize()
+    // because on Android/iOS that's the appropriate time to ask for permissions.
     progress(ProgressStage.Initializing);
-    await this.preConnectInitialization();
+    throwIfUnavailable(await this.checkAvailability());
 
     if (!this.connection) {
       progress(ProgressStage.FindingDevice);
@@ -274,53 +322,6 @@ class MicrobitWebBluetoothConnectionImpl
 
     progress(ProgressStage.Connecting);
     await this.connection.connect();
-  }
-
-  /**
-   * Initializes BLE.
-   *
-   * This must happen before requesting a device or connecting.
-   *
-   * We do this just before use not at connection initialize because on Android/iOS
-   * that's the appropriate time to ask for permissions.
-   */
-  private async preConnectInitialization(): Promise<void> {
-    try {
-      if (isAndroid()) {
-        const isLocationEnabled = await BleClient.isLocationEnabled();
-        if (!isLocationEnabled) {
-          throw new DeviceError({
-            code: "bluetooth-missing-permissions",
-            message: "Location services is disabled",
-          });
-        }
-      }
-      if (!bleClientInitialized) {
-        await BleClient.initialize({ androidNeverForLocation: true });
-        bleClientInitialized = true;
-      }
-      const isBluetoothEnabled = await BleClient.isEnabled();
-      if (!isBluetoothEnabled) {
-        throw new DeviceError({
-          code: "bluetooth-disabled",
-          message: "Bluetooth is disabled",
-        });
-      }
-    } catch (e: unknown) {
-      this.error("Error initializing Bluetooth", e);
-      const error = e as BleClientError;
-      if (error.message === "BLE permission denied") {
-        // Error thrown for iOS platform.
-        throw new DeviceError({
-          code: "bluetooth-disabled",
-          message: "Bluetooth is disabled",
-        });
-      }
-      throw new DeviceError({
-        code: "bluetooth-missing-permissions",
-        message: "Missing permissions",
-      });
-    }
   }
 
   async disconnect(): Promise<void> {

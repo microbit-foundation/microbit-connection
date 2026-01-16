@@ -6,6 +6,17 @@
 import { TypedEventTarget, ValueIsEvent } from "./events.js";
 
 /**
+ * Connection availability status returned by checkAvailability().
+ * Used for pre-flight UX decisions before attempting to connect.
+ */
+export type ConnectionAvailabilityStatus =
+  | "available"
+  | "unsupported"
+  | "disabled"
+  | "permission-denied"
+  | "location-disabled";
+
+/**
  * Specific identified error types.
  *
  * New members may be added over time.
@@ -48,14 +59,6 @@ export type DeviceErrorCode =
    */
   | "bluetooth-connection-failed"
   /**
-   * Bluetooth is disabled on the device.
-   */
-  | "bluetooth-disabled"
-  /**
-   * Missing required Bluetooth permissions.
-   */
-  | "bluetooth-missing-permissions"
-  /**
    * Partial flash operation failed.
    */
   | "flash-partial-failed"
@@ -66,7 +69,27 @@ export type DeviceErrorCode =
   /**
    * Flash operation was cancelled.
    */
-  | "flash-cancelled";
+  | "flash-cancelled"
+  /**
+   * Connection type is not supported on this platform/browser.
+   * Aligns with ConnectionAvailabilityStatus "unsupported".
+   */
+  | "unsupported"
+  /**
+   * Connection is disabled (e.g., Bluetooth turned off).
+   * Aligns with ConnectionAvailabilityStatus "disabled".
+   */
+  | "disabled"
+  /**
+   * Required permissions were denied.
+   * Aligns with ConnectionAvailabilityStatus "permission-denied".
+   */
+  | "permission-denied"
+  /**
+   * Location services are disabled (Android < 12 only).
+   * Aligns with ConnectionAvailabilityStatus "location-disabled".
+   */
+  | "location-disabled";
 
 export enum ProgressStage {
   Initializing = "Initializing",
@@ -116,23 +139,17 @@ export class DeviceError extends Error {
 }
 
 /**
- * Tracks connection status,
+ * Tracks connection status.
  */
 export enum ConnectionStatus {
   /**
-   * Determining whether the connection type is supported requires
-   * initialize() to complete.
-   */
-  SUPPORT_NOT_KNOWN = "SUPPORT_NOT_KNOWN",
-  /**
-   * Not supported.
-   */
-  NOT_SUPPORTED = "NOT_SUPPORTED",
-  /**
-   * Supported but no device available.
+   * No device available.
    *
-   * This will be the case even when a device is physically connected
-   * but has not been connected via the browser security UI.
+   * This is the initial status and will be the case even when a device is
+   * physically connected but has not been connected via the browser security UI.
+   *
+   * Use checkAvailability() to determine whether the connection type is
+   * supported before attempting to connect.
    */
   NO_AUTHORIZED_DEVICE = "NO_AUTHORIZED_DEVICE",
   /**
@@ -237,6 +254,17 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
    * Initializes the device.
    */
   initialize(): Promise<void>;
+
+  /**
+   * Checks if this connection type is currently available.
+   *
+   * Use this for pre-flight UX decisions (e.g., showing "enable Bluetooth" dialog).
+   * Note: Even if this returns "available", connect() can still fail.
+   *
+   * @returns A promise resolving to the current availability status.
+   */
+  checkAvailability(): Promise<ConnectionAvailabilityStatus>;
+
   /**
    * Removes all listeners.
    */

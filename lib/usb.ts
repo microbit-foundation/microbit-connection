@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: MIT
  */
 import { TimeoutError, withTimeout } from "./async-util.js";
+import { throwIfUnavailable } from "./availability.js";
 import {
   AfterRequestDevice,
   BeforeRequestDevice,
   BoardVersion,
   ConnectOptions,
+  ConnectionAvailabilityStatus,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -122,10 +124,7 @@ class MicrobitWebUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
   implements MicrobitWebUSBConnection
 {
-  status: ConnectionStatus =
-    navigator.usb && !isChromeOS105()
-      ? ConnectionStatus.NO_AUTHORIZED_DEVICE
-      : ConnectionStatus.NOT_SUPPORTED;
+  status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
 
   private exclusionFilters: USBDeviceFilter[] | undefined;
   /**
@@ -230,6 +229,13 @@ class MicrobitWebUSBConnectionImpl
         );
       }
     }
+  }
+
+  async checkAvailability(): Promise<ConnectionAvailabilityStatus> {
+    if (!navigator.usb || isChromeOS105()) {
+      return "unsupported";
+    }
+    return "available";
   }
 
   dispose() {
@@ -498,6 +504,7 @@ class MicrobitWebUSBConnectionImpl
   private async connectInternal(progress?: ProgressCallback): Promise<void> {
     const reportProgress = progress ?? (() => {});
     reportProgress(ProgressStage.Initializing);
+    throwIfUnavailable(await this.checkAvailability());
 
     if (!this.connection && this.device) {
       reportProgress(ProgressStage.Connecting);

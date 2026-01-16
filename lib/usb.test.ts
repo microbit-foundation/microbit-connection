@@ -27,10 +27,10 @@ const describeDeviceOnly = process.env.TEST_MODE_DEVICE
   : describe.skip;
 
 describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
-  it("notices if WebUSB isn't supported", () => {
+  it("checkAvailability returns unsupported when WebUSB isn't available", async () => {
     vi.stubGlobal("navigator", {});
     const microbit = createWebUSBConnection();
-    expect(microbit.status).toBe(ConnectionStatus.NOT_SUPPORTED);
+    expect(await microbit.checkAvailability()).toBe("unsupported");
     vi.unstubAllGlobals();
   });
   it("still triggers afterrequestdevice if requestDevice throws", async () => {
