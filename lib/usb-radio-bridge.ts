@@ -8,6 +8,7 @@ import { AccelerometerDataEvent } from "./accelerometer.js";
 import { ButtonEvent, ButtonState } from "./buttons.js";
 import {
   BoardVersion,
+  ConnectionAvailabilityStatus,
   ConnectionStatus,
   ConnectionStatusEvent,
   DeviceConnection,
@@ -128,6 +129,10 @@ class MicrobitRadioBridgeConnectionImpl
     await this.delegate.initialize();
     this.setStatus(this.statusFromDelegate());
     this.delegate.addEventListener("status", this.delegateStatusListener);
+  }
+
+  async checkAvailability(): Promise<ConnectionAvailabilityStatus> {
+    return this.delegate.checkAvailability();
   }
 
   dispose(): void {
