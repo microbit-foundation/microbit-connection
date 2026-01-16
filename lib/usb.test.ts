@@ -11,12 +11,14 @@
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
 import { applyDeviceFilters, createWebUSBConnection } from "./usb.js";
-import { beforeAll, expect, vi, describe, it } from "vitest";
+import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
-vi.mock("./webusb-device-wrapper", () => ({
+vi.mock("./usb-device-wrapper.js", () => ({
   DAPWrapper: class DapWrapper {
     startSerial = vi.fn().mockReturnValue(Promise.resolve());
-    reconnectAsync = vi.fn();
+    reconnectAsync = vi.fn().mockResolvedValue(undefined);
+    disconnectAsync = vi.fn().mockResolvedValue(undefined);
+    stopSerial = vi.fn();
   },
 }));
 
@@ -146,6 +148,87 @@ const filter: USBDeviceFilter = {
   subclassCode: 345,
   vendorId: 690,
 };
+
+describe("Tab visibility and PAUSED state", () => {
+  let visibilityState = "visible";
+  let visibilityListeners: Array<() => void> = [];
+
+  beforeAll(() => {
+    vi.stubGlobal("navigator", {
+      usb: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        requestDevice: () => ({}),
+      },
+    });
+    vi.stubGlobal("document", {
+      get visibilityState() {
+        return visibilityState;
+      },
+      addEventListener: (_: string, listener: () => void) => {
+        visibilityListeners.push(listener);
+      },
+      removeEventListener: vi.fn(),
+    });
+    vi.stubGlobal("window", {
+      document,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+  });
+
+  beforeEach(() => {
+    visibilityState = "visible";
+    visibilityListeners = [];
+  });
+
+  const waitForStatus = (
+    connection: ReturnType<typeof createWebUSBConnection>,
+    status: ConnectionStatus,
+  ) =>
+    new Promise<void>((resolve) => {
+      if (connection.status === status) {
+        resolve();
+        return;
+      }
+      const listener = (event: ConnectionStatusEvent) => {
+        if (event.status === status) {
+          connection.removeEventListener("status", listener);
+          resolve();
+        }
+      };
+      connection.addEventListener("status", listener);
+    });
+
+  it("pauses when tab becomes hidden while connected", async () => {
+    const connection = createWebUSBConnection();
+    await connection.initialize();
+    await connection.connect();
+    expect(connection.status).toBe(ConnectionStatus.CONNECTED);
+
+    visibilityState = "hidden";
+    visibilityListeners.forEach((l) => l());
+
+    await waitForStatus(connection, ConnectionStatus.PAUSED);
+    expect(connection.status).toBe(ConnectionStatus.PAUSED);
+  });
+
+  it("reconnects when tab becomes visible while paused", async () => {
+    const connection = createWebUSBConnection();
+    await connection.initialize();
+    await connection.connect();
+
+    visibilityState = "hidden";
+    visibilityListeners.forEach((l) => l());
+    await waitForStatus(connection, ConnectionStatus.PAUSED);
+
+    visibilityState = "visible";
+    visibilityListeners.forEach((l) => l());
+
+    await waitForStatus(connection, ConnectionStatus.CONNECTED);
+    expect(connection.status).toBe(ConnectionStatus.CONNECTED);
+  });
+});
 
 describe("applyDevicesFilter", () => {
   it("has no filter", () => {

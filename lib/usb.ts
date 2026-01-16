@@ -150,8 +150,9 @@ class MicrobitWebUSBConnectionImpl
   private pauseAfterFlash: boolean = false;
   private visibilityChangeListener = () => {
     if (document.visibilityState === "visible") {
+      // We may not have actually paused when we became hidden due to an in-progress flash.
+      this.pauseAfterFlash = false;
       if (this.status === ConnectionStatus.PAUSED) {
-        this.pauseAfterFlash = false;
         if (!this.flashing) {
           this.log("Reconnecting visible tab");
           this.connect();
