@@ -147,11 +147,11 @@ class MicrobitWebUSBConnectionImpl
   };
 
   private flashing: boolean = false;
-  private disconnectAfterFlash: boolean = false;
+  private pauseAfterFlash: boolean = false;
   private visibilityChangeListener = () => {
     if (document.visibilityState === "visible") {
       if (this.status === ConnectionStatus.PAUSED) {
-        this.disconnectAfterFlash = false;
+        this.pauseAfterFlash = false;
         if (!this.flashing) {
           this.log("Reconnecting visible tab");
           this.connect();
@@ -165,7 +165,7 @@ class MicrobitWebUSBConnectionImpl
           this.disconnect(false, ConnectionStatus.PAUSED);
         } else {
           this.log("Scheduling disconnect of hidden tab for after flash");
-          this.disconnectAfterFlash = true;
+          this.pauseAfterFlash = true;
         }
       }
     }
@@ -337,9 +337,9 @@ class MicrobitWebUSBConnectionImpl
         undefined,
       );
 
-      if (this.disconnectAfterFlash) {
+      if (this.pauseAfterFlash) {
         this.log("Disconnecting after flash due to tab visibility");
-        this.disconnectAfterFlash = false;
+        this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
         if (this.addedListeners.serialdata) {
