@@ -234,10 +234,14 @@ class MicrobitRadioBridgeConnectionImpl
     this.logging.log(v);
   }
 
-  private setStatus(status: ConnectionStatus) {
-    this.status = status;
-    this.log("Radio connection status " + status);
-    this.dispatchTypedEvent("status", new ConnectionStatusEvent(status));
+  private setStatus(newStatus: ConnectionStatus) {
+    const previousStatus = this.status;
+    this.status = newStatus;
+    this.log("Radio connection status " + newStatus);
+    this.dispatchTypedEvent(
+      "status",
+      new ConnectionStatusEvent(newStatus, previousStatus),
+    );
   }
 
   private statusFromDelegate(): ConnectionStatus {

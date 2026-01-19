@@ -196,7 +196,7 @@ class MicrobitWebBluetoothConnectionImpl
   private connection: BluetoothDeviceWrapper | undefined;
 
   private nameFilter: string | undefined;
-  private deferStatusUpdates: boolean = false;
+  private deferredUpdatesPreviousStatus: ConnectionStatus | undefined;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -345,10 +345,14 @@ class MicrobitWebBluetoothConnectionImpl
   }
 
   private setStatus(newStatus: ConnectionStatus) {
+    const previousStatus = this.status;
     this.status = newStatus;
     this.log("Bluetooth connection status " + newStatus);
-    if (!this.deferStatusUpdates) {
-      this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
+    if (this.deferredUpdatesPreviousStatus === undefined) {
+      this.dispatchTypedEvent(
+        "status",
+        new ConnectionStatusEvent(newStatus, previousStatus),
+      );
     }
   }
 
@@ -470,7 +474,7 @@ class MicrobitWebBluetoothConnectionImpl
     const progress: ProgressCallback = options.progress ?? (() => {});
     try {
       // We'll disconnect/reconnect multiple times due to device resets, but reporting this is unhelpful.
-      this.deferStatusUpdates = true;
+      this.deferredUpdatesPreviousStatus = this.status;
 
       if (this.status !== ConnectionStatus.CONNECTED) {
         await this.connect({ progress });
@@ -516,8 +520,12 @@ class MicrobitWebBluetoothConnectionImpl
         await this.disconnect();
       }
     } finally {
-      this.deferStatusUpdates = false;
-      this.dispatchTypedEvent("status", new ConnectionStatusEvent(this.status));
+      const previousStatus = this.deferredUpdatesPreviousStatus!;
+      this.deferredUpdatesPreviousStatus = undefined;
+      this.dispatchTypedEvent(
+        "status",
+        new ConnectionStatusEvent(this.status, previousStatus),
+      );
     }
   }
 

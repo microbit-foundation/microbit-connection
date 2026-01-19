@@ -213,7 +213,10 @@ export type FlashDataSource = (
 export type BoardVersion = "V1" | "V2";
 
 export class ConnectionStatusEvent extends Event {
-  constructor(public readonly status: ConnectionStatus) {
+  constructor(
+    public readonly status: ConnectionStatus,
+    public readonly previousStatus: ConnectionStatus,
+  ) {
     super("status");
   }
 }
