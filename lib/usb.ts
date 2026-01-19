@@ -416,9 +416,13 @@ class MicrobitWebUSBConnectionImpl
   }
 
   private setStatus(newStatus: ConnectionStatus) {
+    const previousStatus = this.status;
     this.status = newStatus;
     this.log("USB connection status " + newStatus);
-    this.dispatchTypedEvent("status", new ConnectionStatusEvent(newStatus));
+    this.dispatchTypedEvent(
+      "status",
+      new ConnectionStatusEvent(newStatus, previousStatus),
+    );
   }
 
   private async withEnrichedErrors<T>(f: () => Promise<T>): Promise<T> {
