@@ -409,9 +409,10 @@ export class BluetoothDeviceWrapper implements Logging {
     options: {
       actionName?: string;
       timeout?: number;
+      initiallyDisconnected?: boolean;
     } = {},
   ): Promise<T> {
-    if (!this.connected) {
+    if (!this.connected && !options.initiallyDisconnected) {
       throw new DisconnectError();
     }
     const actionName = options.actionName ?? "action";
@@ -503,8 +504,25 @@ export class BluetoothDeviceWrapper implements Logging {
         await BleClient.createBond(deviceId, { timeout: bondingTimeoutInMs });
         justBonded = true;
       }
-      await this.connectInternal();
 
+      // Connection after flashing fails. Subsequent attempt succeeds.
+      const maxAttempts = 2;
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          // Fail immediately if disconnect occurs whilst connecting.
+          await this.raceDisconnectAndTimeout(this.connectInternal(), {
+            actionName: "bond connect device internal",
+            timeout: connectTimeoutInMs,
+            initiallyDisconnected: true,
+          });
+        } catch (error) {
+          const numAttempts = i + 1;
+          if (numAttempts === maxAttempts) {
+            throw error;
+          }
+          console.log(`Attempt ${numAttempts} failed, retry...`);
+        }
+      }
       return justBonded;
     } else {
       // Long timeout as this is the point that the pairing dialog will show.
