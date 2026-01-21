@@ -321,6 +321,13 @@ class MicrobitWebUSBConnectionImpl
       this.logging,
       boardVersion,
     );
+
+    // Drain stale serial data before flashing.
+    // For partial flash, target will be halted inside flashAsync.
+    // For full flash, target may still be running but we drain anyway.
+    this.log("Draining serial buffer before flash");
+    await this.connection.drainSerialBuffer();
+
     let wasPartial: boolean = false;
     try {
       if (partial) {
@@ -337,13 +344,21 @@ class MicrobitWebUSBConnectionImpl
         await this.disconnect();
         this.visibilityReconnect = true;
       } else {
+        // Reconnect after flash. Partial flash disconnects at the end,
+        // and full flash may leave connection in an inconsistent state.
+        this.log("Reconnecting after flash");
+        await this.connection.reconnectAsync();
+
+        // Start serial BEFORE resetting so we capture all startup output
+        // (e.g., MicroPython REPL banner).
         if (this.addedListeners.serialdata) {
-          this.log("Reinstating serial after flash");
-          if (this.connection.daplink) {
-            await this.connection.daplink.connect();
-            await this.startSerialInternal();
-          }
+          this.log("Starting serial before reset");
+          await this.startSerialInternal();
         }
+
+        // Reset target to start the new program.
+        this.log("Resetting target to start program");
+        await this.connection.softwareReset();
       }
     }
   }

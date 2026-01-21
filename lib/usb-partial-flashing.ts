@@ -45,9 +45,6 @@
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
 
-// dapjs import faff needed for Vitest https://github.com/ARMmbed/dapjs/issues/118
-import * as dapjs from "dapjs";
-const { DAPLink: DAPLinkValue } = dapjs;
 import { Logging } from "./logging.js";
 import { withTimeout, TimeoutError } from "./async-util.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
@@ -243,40 +240,33 @@ export class PartialFlashing {
       }
     }
 
-    try {
-      await this.dapwrapper.reset();
-    } catch (e) {
-      // Allow errors on resetting, user can always manually reset if necessary.
-    }
-    this.log("Flashing complete");
+    // Note: Caller is responsible for resetting the target after starting serial.
+    // This allows capturing all serial output from program startup.
+    this.log("Flashing complete (awaiting reset)");
     return partial;
   }
 
-  // Perform full flash of micro:bit's ROM using daplink.
+  // Perform full flash of micro:bit's ROM without auto-reset.
   async fullFlashAsync(
     data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ) {
     this.log("Full flash");
 
-    const fullFlashProgress = (progress: number) => {
-      updateProgress(progress, false);
-    };
-    this.dapwrapper.daplink.on(DAPLinkValue.EVENT_PROGRESS, fullFlashProgress);
-    try {
-      data = this.convertDataToHexString(data);
-      await this.dapwrapper.transport.open();
-      await this.dapwrapper.daplink.flash(new TextEncoder().encode(data));
-      this.logging.event({
-        type: "WebUSB-info",
-        message: "full-flash-successful",
-      });
-    } finally {
-      this.dapwrapper.daplink.removeListener(
-        DAPLinkValue.EVENT_PROGRESS,
-        fullFlashProgress,
-      );
-    }
+    const hexString = this.convertDataToHexString(data);
+    const hexBytes = new TextEncoder().encode(hexString);
+
+    await this.dapwrapper.transport.open();
+    await this.dapwrapper.fullFlashWithoutReset(
+      hexBytes,
+      1, // streamType 1 = text (hex file)
+      (progress) => updateProgress(progress, false),
+    );
+
+    this.logging.event({
+      type: "WebUSB-info",
+      message: "full-flash-successful",
+    });
   }
 
   // Flash the micro:bit's ROM with the provided image, resetting the micro:bit first.

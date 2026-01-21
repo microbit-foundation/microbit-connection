@@ -28,6 +28,19 @@ export const DapCmd = {
   // Many more.
 };
 
+// DAPLink vendor commands for serial
+export const DAPLinkSerial = {
+  READ: 0x83,
+};
+
+// DAPLink vendor commands for flashing
+export const DAPLinkFlash = {
+  OPEN: 0x8a,
+  CLOSE: 0x8b,
+  WRITE: 0x8c,
+  RESET: 0x89,
+};
+
 export const Csw = {
   CSW_SIZE: 0x00000007,
   CSW_SIZE32: 0x00000002,

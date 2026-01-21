@@ -17,6 +17,7 @@ import {
   CortexSpecialReg,
   Csw,
   DapCmd,
+  DAPLinkFlash,
   DapVal,
   FICR,
 } from "./constants.js";
@@ -167,6 +168,93 @@ export class DAPWrapper {
   stopSerial(listener: (data: string) => void): void {
     this.daplink.stopSerialRead();
     this.daplink.removeListener(DAPLinkValue.EVENT_SERIAL_DATA, listener);
+  }
+
+  /**
+   * Drain any stale data from the serial buffer.
+   * Call this while target is halted to ensure buffer is truly empty.
+   */
+  async drainSerialBuffer(): Promise<void> {
+    let totalDrained = 0;
+    while (true) {
+      const data = await this.daplink.serialRead();
+      if (!data || data.byteLength === 0) {
+        break;
+      }
+      totalDrained += data.byteLength;
+    }
+    if (totalDrained > 0) {
+      this.logging.log(`Drained ${totalDrained} bytes of stale serial data`);
+    }
+  }
+
+  /**
+   * Flash the target using DAPLink MSD commands, without resetting afterward.
+   * This allows the caller to start serial listening before resuming the target.
+   * @param data The data to flash
+   * @param streamType 0 for binary, 1 for text (hex file)
+   * @param progress Optional progress callback
+   */
+  async fullFlashWithoutReset(
+    data: Uint8Array,
+    streamType: number,
+    progress?: (percent: number) => void,
+  ): Promise<void> {
+
+    // OPEN
+    const openResult = await this.sendVendorCommand(
+      DAPLinkFlash.OPEN,
+      new Uint8Array([streamType]),
+    );
+    if (openResult[1] !== 0) {
+      throw new Error("Flash open failed");
+    }
+
+    // WRITE in chunks
+    const pageSize = 62;
+    for (let offset = 0; offset < data.length; offset += pageSize) {
+      const end = Math.min(offset + pageSize, data.length);
+      const chunk = data.slice(offset, end);
+      const packet = new Uint8Array(chunk.length + 1);
+      packet[0] = chunk.length;
+      packet.set(chunk, 1);
+
+      const writeResult = await this.sendVendorCommand(DAPLinkFlash.WRITE, packet);
+      if (writeResult[1] !== 0) {
+        throw new Error(`Flash write failed at offset ${offset}`);
+      }
+
+      if (progress) {
+        progress(offset / data.length);
+      }
+    }
+    if (progress) {
+      progress(1);
+    }
+
+    // CLOSE (but no RESET - caller controls that)
+    const closeResult = await this.sendVendorCommand(DAPLinkFlash.CLOSE);
+    if (closeResult[1] !== 0) {
+      throw new Error("Flash close failed");
+    }
+
+    this.logging.log("Flash complete (no auto-reset)");
+  }
+
+  private async sendVendorCommand(
+    command: number,
+    data?: Uint8Array,
+  ): Promise<Uint8Array> {
+    const packet = data
+      ? new Uint8Array([command, ...data])
+      : new Uint8Array([command]);
+    await this.transport.write(packet.buffer);
+    const response = await this.transport.read();
+    const result = new Uint8Array(response.buffer);
+    if (result[0] !== command) {
+      throw new Error(`Bad response for vendor command ${command} -> ${result[0]}`);
+    }
+    return result;
   }
 
   async disconnectAsync(): Promise<void> {
