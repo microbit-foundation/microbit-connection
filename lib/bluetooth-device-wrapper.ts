@@ -223,7 +223,7 @@ export class BluetoothDeviceWrapper implements Logging {
           throw error;
         }
         const delayDuration = Math.pow(2, i) * 1000; // 1s, 2s, 4s
-        console.log(
+        this.logging.log(
           `Attempt ${attempts} failed, retrying in ${delayDuration}ms...`,
         );
         await delay(delayDuration);
