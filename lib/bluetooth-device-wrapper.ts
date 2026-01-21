@@ -36,8 +36,9 @@ import {
 import { UARTService } from "./uart-service.js";
 
 export const bondingTimeoutInMs = 40_000;
-export const connectTimeoutInMs = 10_000;
+export const connectTimeoutInMs = 4_000;
 export const scanningTimeoutInMs = 10_000;
+const connectionMaxAttempts = 4;
 
 export const isAndroid = () => Capacitor.getPlatform() === "android";
 
@@ -199,10 +200,35 @@ export class BluetoothDeviceWrapper implements Logging {
 
   private async connectInternal() {
     this.waitingForDisconnectEventCallbacks.length = 0;
-    await BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
+
+    // Attempt multiple connection tries.
+    for (let i = 0; i < connectionMaxAttempts; i++) {
+      try {
+        // Fail immediately if disconnect occurs whilst connecting.
+        await this.raceDisconnectAndTimeout(
+          BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
+            timeout: connectTimeoutInMs,
+          }),
+          {
+            actionName: "connect internal",
       timeout: connectTimeoutInMs,
-    });
+            initiallyDisconnected: true,
+          },
+        );
     this.connected = true;
+        return;
+      } catch (error) {
+        const attempts = i + 1;
+        if (attempts === connectionMaxAttempts) {
+          throw error;
+        }
+        const delayDuration = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+        console.log(
+          `Attempt ${attempts} failed, retrying in ${delayDuration}ms...`,
+        );
+        await delay(delayDuration);
+      }
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -504,25 +530,7 @@ export class BluetoothDeviceWrapper implements Logging {
         await BleClient.createBond(deviceId, { timeout: bondingTimeoutInMs });
         justBonded = true;
       }
-
-      // Connection after flashing fails. Subsequent attempt succeeds.
-      const maxAttempts = 2;
-      for (let i = 0; i < maxAttempts; i++) {
-        try {
-          // Fail immediately if disconnect occurs whilst connecting.
-          await this.raceDisconnectAndTimeout(this.connectInternal(), {
-            actionName: "bond connect device internal",
-            timeout: connectTimeoutInMs,
-            initiallyDisconnected: true,
-          });
-        } catch (error) {
-          const numAttempts = i + 1;
-          if (numAttempts === maxAttempts) {
-            throw error;
-          }
-          console.log(`Attempt ${numAttempts} failed, retry...`);
-        }
-      }
+      await this.connectInternal();
       return justBonded;
     } else {
       // Long timeout as this is the point that the pairing dialog will show.
