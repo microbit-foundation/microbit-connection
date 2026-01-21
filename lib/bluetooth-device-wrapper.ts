@@ -159,6 +159,9 @@ export class BluetoothDeviceWrapper implements Logging {
       await this.getBoardVersion();
 
       const events = this.currentEvents();
+
+      // Ensure services is ready for starting notifications.
+      await delay(1000);
       const services = await BleClient.getServices(this.device.deviceId);
       this.serviceIds = new Set(services.map((s) => s.uuid));
       this.logging.log(`Starting notifications for current events ${events}`);
@@ -211,11 +214,11 @@ export class BluetoothDeviceWrapper implements Logging {
           }),
           {
             actionName: "connect internal",
-      timeout: connectTimeoutInMs,
+            timeout: connectTimeoutInMs,
             initiallyDisconnected: true,
           },
         );
-    this.connected = true;
+        this.connected = true;
         return;
       } catch (error) {
         const attempts = i + 1;
