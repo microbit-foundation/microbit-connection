@@ -36,8 +36,9 @@ import {
 import { UARTService } from "./uart-service.js";
 
 export const bondingTimeoutInMs = 40_000;
-export const connectTimeoutInMs = 10_000;
+export const connectTimeoutInMs = 4_000;
 export const scanningTimeoutInMs = 10_000;
+const connectionMaxAttempts = 4;
 
 export const isAndroid = () => Capacitor.getPlatform() === "android";
 
@@ -158,6 +159,8 @@ export class BluetoothDeviceWrapper implements Logging {
       await this.getBoardVersion();
 
       const events = this.currentEvents();
+
+      await BleClient.discoverServices(this.device.deviceId);
       const services = await BleClient.getServices(this.device.deviceId);
       this.serviceIds = new Set(services.map((s) => s.uuid));
       this.logging.log(`Starting notifications for current events ${events}`);
@@ -199,10 +202,33 @@ export class BluetoothDeviceWrapper implements Logging {
 
   private async connectInternal() {
     this.waitingForDisconnectEventCallbacks.length = 0;
-    await BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
-      timeout: connectTimeoutInMs,
-    });
-    this.connected = true;
+
+    // Attempt multiple connection tries.
+    for (let i = 0; i < connectionMaxAttempts; i++) {
+      try {
+        // Fail immediately if disconnect occurs whilst connecting.
+        await this.raceDisconnectAndTimeout(
+          BleClient.connect(this.device.deviceId, this.handleDisconnectEvent),
+          {
+            actionName: "connect internal",
+            timeout: connectTimeoutInMs,
+            initiallyDisconnected: true,
+          },
+        );
+        this.connected = true;
+        return;
+      } catch (error) {
+        const attempts = i + 1;
+        if (attempts === connectionMaxAttempts) {
+          throw error;
+        }
+        const delayDuration = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+        this.logging.log(
+          `Attempt ${attempts} failed, retrying in ${delayDuration}ms...`,
+        );
+        await delay(delayDuration);
+      }
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -409,9 +435,10 @@ export class BluetoothDeviceWrapper implements Logging {
     options: {
       actionName?: string;
       timeout?: number;
+      initiallyDisconnected?: boolean;
     } = {},
   ): Promise<T> {
-    if (!this.connected) {
+    if (!this.connected && !options.initiallyDisconnected) {
       throw new DisconnectError();
     }
     const actionName = options.actionName ?? "action";
