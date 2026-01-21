@@ -160,8 +160,7 @@ export class BluetoothDeviceWrapper implements Logging {
 
       const events = this.currentEvents();
 
-      // Ensure services is ready for starting notifications.
-      await delay(1000);
+      await BleClient.discoverServices(this.device.deviceId);
       const services = await BleClient.getServices(this.device.deviceId);
       this.serviceIds = new Set(services.map((s) => s.uuid));
       this.logging.log(`Starting notifications for current events ${events}`);
