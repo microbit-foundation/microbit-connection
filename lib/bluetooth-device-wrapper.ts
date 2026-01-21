@@ -156,11 +156,9 @@ export class BluetoothDeviceWrapper implements Logging {
       } else {
         await this.connectInternal();
       }
-      await this.getBoardVersion();
-
-      const events = this.currentEvents();
-
       await BleClient.discoverServices(this.device.deviceId);
+      await this.getBoardVersion();
+      const events = this.currentEvents();
       const services = await BleClient.getServices(this.device.deviceId);
       this.serviceIds = new Set(services.map((s) => s.uuid));
       this.logging.log(`Starting notifications for current events ${events}`);
