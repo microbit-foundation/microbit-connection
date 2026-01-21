@@ -153,10 +153,10 @@ export class BluetoothDeviceWrapper implements Logging {
     try {
       if (Capacitor.isNativePlatform()) {
         await this.connectHandlingBond();
+        await BleClient.discoverServices(this.device.deviceId);
       } else {
         await this.connectInternal();
       }
-      await BleClient.discoverServices(this.device.deviceId);
       await this.getBoardVersion();
       const events = this.currentEvents();
       const services = await BleClient.getServices(this.device.deviceId);
