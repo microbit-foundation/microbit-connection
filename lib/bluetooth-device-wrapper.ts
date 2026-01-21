@@ -208,9 +208,7 @@ export class BluetoothDeviceWrapper implements Logging {
       try {
         // Fail immediately if disconnect occurs whilst connecting.
         await this.raceDisconnectAndTimeout(
-          BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
-            timeout: connectTimeoutInMs,
-          }),
+          BleClient.connect(this.device.deviceId, this.handleDisconnectEvent),
           {
             actionName: "connect internal",
             timeout: connectTimeoutInMs,
@@ -533,6 +531,7 @@ export class BluetoothDeviceWrapper implements Logging {
         justBonded = true;
       }
       await this.connectInternal();
+
       return justBonded;
     } else {
       // Long timeout as this is the point that the pairing dialog will show.
