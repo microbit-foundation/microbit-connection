@@ -512,6 +512,10 @@ class MicrobitWebBluetoothConnectionImpl
 
         if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
           await fullFlash(connection, boardVersion, memoryMap, progress);
+        } else if (partialFlashResult === PartialFlashResult.Success) {
+          if (connection.connected) {
+            await connection.waitForDisconnect(10_000);
+          }
         }
       } catch (e) {
         this.error("Failed to flash", e);
