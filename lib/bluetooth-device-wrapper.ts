@@ -203,7 +203,7 @@ export class BluetoothDeviceWrapper implements Logging {
 
     // Attempt multiple connection tries if not reconnecting.
     if (this.isReconnect) {
-      this.logging.log("Reconnect - skipping internal connection attempts")
+      this.logging.log("Reconnect - skipping internal connection attempts");
     }
     const maxAttempts = this.isReconnect ? 1 : connectionMaxAttempts;
     for (let i = 0; i < maxAttempts; i++) {
