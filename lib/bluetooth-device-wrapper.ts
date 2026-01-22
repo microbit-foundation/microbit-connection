@@ -201,8 +201,12 @@ export class BluetoothDeviceWrapper implements Logging {
   private async connectInternal() {
     this.waitingForDisconnectEventCallbacks.length = 0;
 
-    // Attempt multiple connection tries.
-    for (let i = 0; i < connectionMaxAttempts; i++) {
+    // Attempt multiple connection tries if not reconnecting.
+    if (this.isReconnect) {
+      this.logging.log("Reconnect - skipping internal connection attempts")
+    }
+    const maxAttempts = this.isReconnect ? 1 : connectionMaxAttempts;
+    for (let i = 0; i < maxAttempts; i++) {
       try {
         // Fail immediately if disconnect occurs whilst connecting.
         await this.raceDisconnectAndTimeout(
@@ -217,7 +221,7 @@ export class BluetoothDeviceWrapper implements Logging {
         return;
       } catch (error) {
         const attempts = i + 1;
-        if (attempts === connectionMaxAttempts) {
+        if (attempts === maxAttempts) {
           throw error;
         }
         const delayDuration = Math.pow(2, i) * 1000; // 1s, 2s, 4s
