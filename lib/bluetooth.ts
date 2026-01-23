@@ -374,19 +374,29 @@ class MicrobitWebBluetoothConnectionImpl
   }
 
   private async requestDevice(): Promise<BleDevice> {
+    // TODO: is this possible to reinstate?
+    // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
+    // namePrefix: this.nameFilter
+    //   ? `uBit [${this.nameFilter}]`
+    //   : "uBit",
+    const namePrefix = this.nameFilter
+      ? `BBC micro:bit [${this.nameFilter}]`
+      : "BBC micro:bit";
+
+    // If we have a cached device, check if it still matches the current filter.
+    // If not, clear it so we find a new device.
     if (this.device) {
-      return this.device;
+      if (this.device.name?.startsWith(namePrefix)) {
+        return this.device;
+      }
+      this.log(
+        `Cached device "${this.device.name}" doesn't match filter "${namePrefix}", clearing`,
+      );
+      await this.clearDevice();
     }
+
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     try {
-      // TODO: is this possible to reinstate?
-      // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
-      // namePrefix: this.nameFilter
-      //   ? `uBit [${this.nameFilter}]`
-      //   : "uBit",
-      const namePrefix = this.nameFilter
-        ? `BBC micro:bit [${this.nameFilter}]`
-        : "BBC micro:bit";
       this.device = Capacitor.isNativePlatform()
         ? await this.requestDeviceNative(namePrefix)
         : await this.requestDeviceWeb(namePrefix);
