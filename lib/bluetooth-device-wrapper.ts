@@ -188,6 +188,15 @@ export class BluetoothDeviceWrapper implements Logging {
           message: e instanceof Error ? e.message : String(e),
         });
       }
+      if (
+        e instanceof Error &&
+        e.message === "Peer removed pairing information"
+      ) {
+        throw new DeviceError({
+          code: "pairing-information-lost",
+          message: e.message,
+        });
+      }
       throw new DeviceError({
         code: "bluetooth-connection-failed",
         message: e instanceof Error ? e.message : String(e),

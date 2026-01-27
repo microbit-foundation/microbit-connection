@@ -59,6 +59,10 @@ export type DeviceErrorCode =
    */
   | "bluetooth-connection-failed"
   /**
+   * Pairing information lost on micro:bit.
+   */
+  | "pairing-information-lost"
+  /**
    * Partial flash operation failed.
    */
   | "flash-partial-failed"
