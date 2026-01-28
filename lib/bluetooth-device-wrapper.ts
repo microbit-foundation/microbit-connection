@@ -20,7 +20,13 @@ import {
 } from "./async-util.js";
 import { ButtonService } from "./button-service.js";
 import { DeviceInformationService } from "./device-information-service.js";
-import { BoardVersion, ConnectOptions, DeviceError, ProgressCallback, ProgressStage } from "./device.js";
+import {
+  BoardVersion,
+  ConnectOptions,
+  DeviceError,
+  ProgressCallback,
+  ProgressStage,
+} from "./device.js";
 import { LedService } from "./led-service.js";
 import { Logging, LoggingEvent, ConsoleLogging } from "./logging.js";
 import { MagnetometerService } from "./magnetometer-service.js";
@@ -156,7 +162,7 @@ export class BluetoothDeviceWrapper implements Logging {
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.device.deviceId);
       } else {
-        progress(ProgressStage.Connecting)
+        progress(ProgressStage.Connecting);
         await this.connectInternal();
       }
       await this.getBoardVersion();
@@ -468,7 +474,7 @@ export class BluetoothDeviceWrapper implements Logging {
    * when we can reattempt a connection with the device.
    */
   private async connectHandlingBond(progress: ProgressCallback): Promise<void> {
-    progress(ProgressStage.CheckingBond)
+    progress(ProgressStage.CheckingBond);
     const startTime = Date.now();
     const maybeJustBonded = await this.bondConnectDeviceInternal();
     if (maybeJustBonded) {
