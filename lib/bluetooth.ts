@@ -167,6 +167,11 @@ export interface MicrobitWebBluetoothConnection
    * @throws {FlashDataError} If data preparation fails.
    */
   flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
+
+  /**
+   * Stops device scanning.
+   */
+  abortDeviceScan(): Promise<void>;
 }
 
 /**
@@ -575,6 +580,9 @@ class MicrobitWebBluetoothConnectionImpl
     }
   }
 
+  private hasAbortedDeviceScan: boolean = false;
+  private abortScanPromiseResolve: undefined | (() => Promise<undefined>);
+
   /**
    * Finds device with specified name prefix.
    *
@@ -591,8 +599,8 @@ class MicrobitWebBluetoothConnectionImpl
     if (bonded) {
       return bonded;
     }
-
     this.log(`Scanning for device - ${namePrefix}`);
+    this.hasAbortedDeviceScan = false;
     let found = false;
     const scanPromise: Promise<BleDevice> = new Promise(
       (resolve) =>
@@ -612,16 +620,34 @@ class MicrobitWebBluetoothConnectionImpl
           }
         }),
     );
+    const abortScanPromise: Promise<undefined> = new Promise((resolve) => {
+      this.abortScanPromiseResolve = async () => {
+        this.hasAbortedDeviceScan = true;
+        await BleClient.stopLEScan();
+        this.log("Abort scanning for devices");
+        resolve(undefined);
+      };
+    });
     const scanTimeoutPromise: Promise<undefined> = new Promise((resolve) =>
       setTimeout(async () => {
-        if (!found) {
+        if (!found && !this.hasAbortedDeviceScan) {
           await BleClient.stopLEScan();
           this.log("Timeout scanning for device");
           resolve(undefined);
         }
       }, scanningTimeoutInMs),
     );
-    return await Promise.race([scanPromise, scanTimeoutPromise]);
+    return await Promise.race([
+      scanPromise,
+      scanTimeoutPromise,
+      abortScanPromise,
+    ]);
+  }
+
+  async abortDeviceScan() {
+    if (Capacitor.isNativePlatform()) {
+      this.abortScanPromiseResolve && (await this.abortScanPromiseResolve());
+    }
   }
 
   private async checkBondedDevices(predicate: (device: BleDevice) => boolean) {
