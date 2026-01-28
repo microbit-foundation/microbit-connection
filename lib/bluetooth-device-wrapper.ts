@@ -20,7 +20,7 @@ import {
 } from "./async-util.js";
 import { ButtonService } from "./button-service.js";
 import { DeviceInformationService } from "./device-information-service.js";
-import { BoardVersion, DeviceError } from "./device.js";
+import { BoardVersion, ConnectOptions, DeviceError, ProgressCallback, ProgressStage } from "./device.js";
 import { LedService } from "./led-service.js";
 import { Logging, LoggingEvent, ConsoleLogging } from "./logging.js";
 import { MagnetometerService } from "./magnetometer-service.js";
@@ -136,7 +136,8 @@ export class BluetoothDeviceWrapper implements Logging {
     ];
   }
 
-  async connect(): Promise<void> {
+  async connect(options?: ConnectOptions): Promise<void> {
+    const progress = options?.progress ?? (() => {});
     this.logging.event({
       type: this.isReconnect ? "Reconnect" : "Connect",
       message: "Bluetooth connect start",
@@ -151,10 +152,11 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        await this.connectHandlingBond();
+        await this.connectHandlingBond(progress);
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.device.deviceId);
       } else {
+        progress(ProgressStage.Connecting)
         await this.connectInternal();
       }
       await this.getBoardVersion();
@@ -465,7 +467,8 @@ export class BluetoothDeviceWrapper implements Logging {
    * Bonds with device and handles the post-bond device state only returning
    * when we can reattempt a connection with the device.
    */
-  private async connectHandlingBond(): Promise<void> {
+  private async connectHandlingBond(progress: ProgressCallback): Promise<void> {
+    progress(ProgressStage.CheckingBond)
     const startTime = Date.now();
     const maybeJustBonded = await this.bondConnectDeviceInternal();
     if (maybeJustBonded) {
@@ -496,10 +499,14 @@ export class BluetoothDeviceWrapper implements Logging {
       await this.connectInternal();
       // TODO: check this is needed, potentially inline into connect if always needed
       await delay(500);
+
+      progress(ProgressStage.ResettingDevice);
       this.log("Resetting to pairing mode");
       const pf = new PartialFlashingService(this);
       await pf.resetToMode(MicroBitMode.Pairing);
       await this.waitForDisconnect(10_000);
+
+      progress(ProgressStage.Connecting);
       await this.connectInternal();
       this.log(`Connection ready; took ${Date.now() - startTime}`);
     }

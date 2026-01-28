@@ -96,10 +96,33 @@ export type DeviceErrorCode =
   | "location-disabled";
 
 export enum ProgressStage {
+  /**
+   * Checking permissions and availability before connecting.
+   */
   Initializing = "Initializing",
+  /**
+   * Finding device.
+   */
   FindingDevice = "FindingDevice",
+  /**
+   * Checking that a bond is established. Only applicable on Native platforms.
+   */
+  CheckingBond = "CheckingBond",
+  /**
+   * Resetting device in preparation for flashing. Only applicable on Native platforms.
+   */
+  ResettingDevice = "ResettingDevice",
+  /**
+   * Connecting for flashing.
+   */
   Connecting = "Connecting",
+  /**
+   * Partial flashing.
+   */
   PartialFlashing = "PartialFlashing",
+  /**
+   * Full flashing.
+   */
   FullFlashing = "FullFlashing",
 }
 
@@ -108,7 +131,8 @@ export enum ProgressStage {
  *
  * @param stage - The current stage of the operation
  * @param progress - Optional progress value (0-1) for PartialFlashing and FullFlashing stages.
- *                   Initializing, FindingDevice, and Connecting stages are called once
+ *                   Initializing, FindingDevice, CheckingBond (only for native platforms),
+ *                   ResettingDevice (only for native platforms), and Connecting stages are called once
  *                   without progress values to indicate stage entry.
  *
  * @example

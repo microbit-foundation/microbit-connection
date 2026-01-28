@@ -325,8 +325,7 @@ class MicrobitWebBluetoothConnectionImpl
       );
     }
 
-    progress(ProgressStage.Connecting);
-    await this.connection.connect();
+    await this.connection.connect(options);
   }
 
   async disconnect(): Promise<void> {
