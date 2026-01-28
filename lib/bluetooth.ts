@@ -580,7 +580,7 @@ class MicrobitWebBluetoothConnectionImpl
   }
 
   private hasAbortedDeviceScan: boolean = false;
-  private abortScanPromiseResolve: undefined | (() => Promise<undefined>);
+  private abortScanPromiseResolve: undefined | (() => void);
 
   /**
    * Finds device with specified name prefix.
@@ -620,10 +620,8 @@ class MicrobitWebBluetoothConnectionImpl
         }),
     );
     const abortScanPromise: Promise<undefined> = new Promise((resolve) => {
-      this.abortScanPromiseResolve = async () => {
-        this.hasAbortedDeviceScan = true;
-        await BleClient.stopLEScan();
-        this.log("Abort scanning for devices");
+      this.abortScanPromiseResolve = () => {
+        this.abortScanPromiseResolve = undefined;
         resolve(undefined);
       };
     });
@@ -633,6 +631,7 @@ class MicrobitWebBluetoothConnectionImpl
           await BleClient.stopLEScan();
           this.log("Timeout scanning for device");
           resolve(undefined);
+          this.abortScanPromiseResolve && this.abortScanPromiseResolve();
         }
       }, scanningTimeoutInMs),
     );
@@ -644,8 +643,11 @@ class MicrobitWebBluetoothConnectionImpl
   }
 
   async abortDeviceScan() {
-    if (Capacitor.isNativePlatform()) {
-      this.abortScanPromiseResolve && (await this.abortScanPromiseResolve());
+    if (Capacitor.isNativePlatform() && this.abortScanPromiseResolve) {
+      this.hasAbortedDeviceScan = true;
+      await BleClient.stopLEScan();
+      this.log("Abort scanning for devices");
+      this.abortScanPromiseResolve();
     }
   }
 
