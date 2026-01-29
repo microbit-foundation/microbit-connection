@@ -624,7 +624,9 @@ class MicrobitWebBluetoothConnectionImpl
           aborted = true;
           await BleClient.stopLEScan();
           this.log("Abort scanning for devices");
-          reject(new DeviceError({ code: "aborted", message: "Connection aborted" }));
+          reject(
+            new DeviceError({ code: "aborted", message: "Connection aborted" }),
+          );
         },
         { once: true },
       );
