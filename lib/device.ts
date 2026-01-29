@@ -23,9 +23,9 @@ export type ConnectionAvailabilityStatus =
  */
 export type DeviceErrorCode =
   /**
-   * Operation was cancelled via an AbortSignal.
+   * Operation was aborted via an AbortSignal.
    */
-  | "cancelled"
+  | "aborted"
   /**
    * Device not selected, e.g. because the user cancelled the dialog.
    */
@@ -215,13 +215,13 @@ export interface ConnectOptions {
    */
   progress?: ProgressCallback;
   /**
-   * Optional AbortSignal to cancel the connection attempt.
+   * Optional AbortSignal to abort the connection attempt.
    * When aborted, the connect promise will reject with a DeviceError
-   * with code "cancelled".
+   * with code "aborted".
    *
-   * Note: Currently only cancels during the FindingDevice stage on native
+   * Note: Currently only aborts during the FindingDevice stage on native
    * platforms. Web platform device selection (browser picker) cannot be
-   * cancelled programmatically.
+   * aborted programmatically.
    */
   signal?: AbortSignal;
 }
@@ -245,13 +245,13 @@ export interface FlashOptions {
    */
   minimumProgressIncrement?: number;
   /**
-   * Optional AbortSignal to cancel the flash operation.
+   * Optional AbortSignal to abort the flash operation.
    * When aborted, the flash promise will reject with a DeviceError
-   * with code "cancelled".
+   * with code "aborted".
    *
-   * Note: Currently only cancels during the FindingDevice stage on native
+   * Note: Currently only aborts during the FindingDevice stage on native
    * platforms. Once a device is found and flashing begins, the operation
-   * cannot be cancelled.
+   * cannot be aborted.
    */
   signal?: AbortSignal;
 }

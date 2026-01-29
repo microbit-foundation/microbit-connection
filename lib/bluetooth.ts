@@ -578,14 +578,14 @@ class MicrobitWebBluetoothConnectionImpl
    * Finds device with specified name prefix.
    *
    * @returns device or undefined if none can be found.
-   * @throws DeviceError with code "cancelled" if signal is aborted.
+   * @throws DeviceError with code "aborted" if signal is aborted.
    */
   private async requestDeviceNative(
     namePrefix: string,
     signal?: AbortSignal,
   ): Promise<BleDevice | undefined> {
     if (signal?.aborted) {
-      throw new DeviceError({ code: "cancelled", message: "Connection aborted" });
+      throw new DeviceError({ code: "aborted", message: "Connection aborted" });
     }
 
     // Check for existing bonded devices.
@@ -624,7 +624,7 @@ class MicrobitWebBluetoothConnectionImpl
           aborted = true;
           await BleClient.stopLEScan();
           this.log("Abort scanning for devices");
-          reject(new DeviceError({ code: "cancelled", message: "Connection aborted" }));
+          reject(new DeviceError({ code: "aborted", message: "Connection aborted" }));
         },
         { once: true },
       );
