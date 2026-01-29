@@ -302,7 +302,7 @@ class MicrobitWebBluetoothConnectionImpl
 
     if (!this.connection) {
       progress(ProgressStage.FindingDevice);
-      const device = await this.requestDevice();
+      const device = await this.requestDevice(options?.signal);
       this.connection = new BluetoothDeviceWrapper(
         device,
         this.logging,
@@ -320,8 +320,7 @@ class MicrobitWebBluetoothConnectionImpl
       );
     }
 
-    progress(ProgressStage.Connecting);
-    await this.connection.connect();
+    await this.connection.connect(options);
   }
 
   async disconnect(): Promise<void> {
@@ -373,7 +372,7 @@ class MicrobitWebBluetoothConnectionImpl
     this.nameFilter = name;
   }
 
-  private async requestDevice(): Promise<BleDevice> {
+  private async requestDevice(signal?: AbortSignal): Promise<BleDevice> {
     // TODO: is this possible to reinstate?
     // See https://github.com/bsiever/microbit-pxt-blehid/issues/31
     // namePrefix: this.nameFilter
@@ -398,7 +397,7 @@ class MicrobitWebBluetoothConnectionImpl
     this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
     try {
       this.device = Capacitor.isNativePlatform()
-        ? await this.requestDeviceNative(namePrefix)
+        ? await this.requestDeviceNative(namePrefix, signal)
         : await this.requestDeviceWeb(namePrefix);
       if (!this.device) {
         this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
@@ -487,7 +486,7 @@ class MicrobitWebBluetoothConnectionImpl
       this.deferredUpdatesPreviousStatus = this.status;
 
       if (this.status !== ConnectionStatus.CONNECTED) {
-        await this.connect({ progress });
+        await this.connect({ progress, signal: options.signal });
       }
 
       const connection = this.connection!;
@@ -579,10 +578,16 @@ class MicrobitWebBluetoothConnectionImpl
    * Finds device with specified name prefix.
    *
    * @returns device or undefined if none can be found.
+   * @throws DeviceError with code "aborted" if signal is aborted.
    */
   private async requestDeviceNative(
     namePrefix: string,
+    signal?: AbortSignal,
   ): Promise<BleDevice | undefined> {
+    if (signal?.aborted) {
+      throw new DeviceError({ code: "aborted", message: "Connection aborted" });
+    }
+
     // Check for existing bonded devices.
     const bonded = await this.checkBondedDevices((device: BleDevice) => {
       const name = device.name;
@@ -591,9 +596,9 @@ class MicrobitWebBluetoothConnectionImpl
     if (bonded) {
       return bonded;
     }
-
     this.log(`Scanning for device - ${namePrefix}`);
     let found = false;
+    let aborted = false;
     const scanPromise: Promise<BleDevice> = new Promise(
       (resolve) =>
         // This only resolves when we stop the scan.
@@ -612,16 +617,30 @@ class MicrobitWebBluetoothConnectionImpl
           }
         }),
     );
+    const abortPromise = new Promise<never>((_, reject) => {
+      signal?.addEventListener(
+        "abort",
+        async () => {
+          aborted = true;
+          await BleClient.stopLEScan();
+          this.log("Abort scanning for devices");
+          reject(
+            new DeviceError({ code: "aborted", message: "Connection aborted" }),
+          );
+        },
+        { once: true },
+      );
+    });
     const scanTimeoutPromise: Promise<undefined> = new Promise((resolve) =>
       setTimeout(async () => {
-        if (!found) {
+        if (!found && !aborted) {
           await BleClient.stopLEScan();
           this.log("Timeout scanning for device");
           resolve(undefined);
         }
       }, scanningTimeoutInMs),
     );
-    return await Promise.race([scanPromise, scanTimeoutPromise]);
+    return await Promise.race([scanPromise, scanTimeoutPromise, abortPromise]);
   }
 
   private async checkBondedDevices(predicate: (device: BleDevice) => boolean) {
