@@ -23,6 +23,10 @@ export type ConnectionAvailabilityStatus =
  */
 export type DeviceErrorCode =
   /**
+   * Operation was cancelled via an AbortSignal.
+   */
+  | "cancelled"
+  /**
    * Device not selected, e.g. because the user cancelled the dialog.
    */
   | "no-device-selected"
@@ -210,6 +214,16 @@ export interface ConnectOptions {
    * Optional progress callback for tracking connection stages.
    */
   progress?: ProgressCallback;
+  /**
+   * Optional AbortSignal to cancel the connection attempt.
+   * When aborted, the connect promise will reject with a DeviceError
+   * with code "cancelled".
+   *
+   * Note: Currently only cancels during the FindingDevice stage on native
+   * platforms. Web platform device selection (browser picker) cannot be
+   * cancelled programmatically.
+   */
+  signal?: AbortSignal;
 }
 
 export interface FlashOptions {
@@ -230,6 +244,16 @@ export interface FlashOptions {
    * Smallest possible progress increment to limit callback rate.
    */
   minimumProgressIncrement?: number;
+  /**
+   * Optional AbortSignal to cancel the flash operation.
+   * When aborted, the flash promise will reject with a DeviceError
+   * with code "cancelled".
+   *
+   * Note: Currently only cancels during the FindingDevice stage on native
+   * platforms. Once a device is found and flashing begins, the operation
+   * cannot be cancelled.
+   */
+  signal?: AbortSignal;
 }
 
 export class FlashDataError extends Error {}
@@ -304,7 +328,7 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
   /**
    * Connects to a currently paired device or requests pairing.
    *
-   * @param options Optional connection options including progress callback.
+   * @param options Optional connection options including progress callback and abort signal.
    * @throws {DeviceError} On connection failure. The error.code property indicates the failure type.
    */
   connect(options?: ConnectOptions): Promise<void>;
