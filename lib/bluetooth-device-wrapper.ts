@@ -197,6 +197,7 @@ export class BluetoothDeviceWrapper implements Logging {
         });
       }
       if (
+        // Error thrown in iOS only.
         e instanceof Error &&
         e.message === "Peer removed pairing information"
       ) {
