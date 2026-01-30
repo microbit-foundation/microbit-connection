@@ -6,7 +6,7 @@ import {
   RegionId,
 } from "../partial-flashing-service.js";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { delay, DisconnectError } from "../async-util.js";
+import { DisconnectError } from "../async-util.js";
 import { DeviceError, ProgressCallback, ProgressStage } from "../device.js";
 
 export enum PartialFlashResult {
@@ -125,12 +125,8 @@ const partialFlashInternal = async (
       }
       offset += 64;
     }
-
-    await delay(100); // allow time for write to complete
     await pf.writeEndOfFlashPacket();
-    await delay(100); // allow time for write to complete
     progress(ProgressStage.PartialFlashing, 1);
-
     return PartialFlashResult.Success;
   } catch (e) {
     connection.error("Partial flash failed", e);
