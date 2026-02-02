@@ -56,7 +56,6 @@ export interface Service {
 
 interface ConnectCallbacks {
   onConnecting: () => void;
-  onReconnecting: () => void;
   onFail: () => void;
   onSuccess: () => void;
 }
@@ -84,12 +83,7 @@ interface ConnectCallbacks {
 // > this out after 30 seconds and reload the page
 
 export class BluetoothDeviceWrapper implements Logging {
-  // Used to avoid automatic reconnection during user triggered connect/disconnect
-  // or reconnection itself.
-  private duringExplicitConnectDisconnect: number = 0;
-
   connected = false;
-  private isReconnect = false;
 
   // Only updated after the full connection flow completes not during bond handling.
   private serviceIds: Set<string> = new Set();
@@ -145,16 +139,10 @@ export class BluetoothDeviceWrapper implements Logging {
   async connect(options?: ConnectOptions): Promise<void> {
     const progress = options?.progress ?? (() => {});
     this.logging.event({
-      type: this.isReconnect ? "Reconnect" : "Connect",
+      type: "Connect",
       message: "Bluetooth connect start",
     });
-    if (this.isReconnect) {
-      this.callbacks.onReconnecting();
-    } else {
-      this.callbacks.onConnecting();
-    }
-
-    this.duringExplicitConnectDisconnect++;
+    this.callbacks.onConnecting();
 
     try {
       if (Capacitor.isNativePlatform()) {
@@ -174,17 +162,17 @@ export class BluetoothDeviceWrapper implements Logging {
       events.forEach((e) => this.startNotifications(e as TypedServiceEvent));
 
       this.logging.event({
-        type: this.isReconnect ? "Reconnect" : "Connect",
+        type: "Connect",
         message: "Bluetooth connect success",
       });
       this.callbacks.onSuccess();
     } catch (e) {
       this.logging.error("Bluetooth connect error", e);
       this.logging.event({
-        type: this.isReconnect ? "Reconnect" : "Connect",
+        type: "Connect",
         message: "Bluetooth connect failed",
       });
-      await this.disconnectInternal(false);
+      await this.disconnectInternal();
       this.callbacks.onFail();
 
       if (e instanceof DeviceError) {
@@ -210,10 +198,6 @@ export class BluetoothDeviceWrapper implements Logging {
         code: "bluetooth-connection-failed",
         message: e instanceof Error ? e.message : String(e),
       });
-    } finally {
-      this.duringExplicitConnectDisconnect--;
-      // Reset isReconnect for next time
-      this.isReconnect = false;
     }
   }
 
@@ -226,14 +210,11 @@ export class BluetoothDeviceWrapper implements Logging {
   }
 
   async disconnect(): Promise<void> {
-    return this.disconnectInternal(true);
+    return this.disconnectInternal();
   }
 
-  private async disconnectInternal(userTriggered: boolean): Promise<void> {
-    this.logging.log(
-      `Bluetooth disconnect ${userTriggered ? "(user triggered)" : "(programmatic)"}`,
-    );
-    this.duringExplicitConnectDisconnect++;
+  private async disconnectInternal(): Promise<void> {
+    this.logging.log("Bluetooth disconnect");
     try {
       if (this.connected) {
         await BleClient.disconnect(this.device.deviceId);
@@ -241,39 +222,16 @@ export class BluetoothDeviceWrapper implements Logging {
     } catch (e) {
       this.logging.error("Bluetooth GATT disconnect error (ignored)", e);
       // We might have already lost the connection.
-    } finally {
-      this.duringExplicitConnectDisconnect--;
     }
   }
 
-  async reconnect(): Promise<void> {
-    this.logging.log("Bluetooth reconnect");
-    this.isReconnect = true;
-    await this.connect();
-  }
-
-  handleDisconnectEvent = async (): Promise<void> => {
+  handleDisconnectEvent = (): void => {
     this.waitingForDisconnectEventCallbacks.forEach((cb) => cb());
     this.waitingForDisconnectEventCallbacks.length = 0;
 
     this.connected = false;
-    try {
-      if (!this.duringExplicitConnectDisconnect) {
-        this.logging.log(
-          "Bluetooth disconnected... automatically trying reconnect",
-        );
-        await this.reconnect();
-      } else {
-        this.logging.log(
-          "Bluetooth disconnect ignored during explicit disconnect",
-        );
-      }
-    } catch (e) {
-      this.logging.error(
-        "Bluetooth connect triggered by disconnect listener failed",
-        e,
-      );
-    }
+    this.logging.log("Bluetooth disconnect");
+    this.callbacks.onFail();
   };
 
   async getBoardVersion(): Promise<BoardVersion> {

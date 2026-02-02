@@ -310,7 +310,6 @@ class MicrobitWebBluetoothConnectionImpl
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
           onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
           onFail: () => {
             this.setStatus(ConnectionStatus.DISCONNECTED);
