@@ -24,7 +24,7 @@ import {
 import * as protocol from "./usb-serial-protocol.js";
 import { MicrobitWebUSBConnection } from "./usb.js";
 
-const connectTimeoutDuration: number = 10000;
+const connectTimeoutDuration: number = 3_000;
 
 class BridgeError extends Error {}
 class RemoteError extends Error {}
@@ -35,7 +35,7 @@ export interface MicrobitRadioBridgeConnectionOptions {
 
 interface ConnectCallbacks {
   onConnecting: () => void;
-  onRestartConnection: () => void;
+  onBeforeConnectionLostDispose: () => void;
   onFail: () => void;
   onSuccess: () => void;
 }
@@ -95,13 +95,12 @@ class MicrobitRadioBridgeConnectionImpl
       }
     } else {
       this.status = ConnectionStatus.DISCONNECTED;
-      // Reconnect the serial session if we were previously disconnected or paused.
+      // Reconnect the serial session if we were previously paused.
       // PAUSED means the USB connection was temporarily suspended due to tab
       // visibility, and now the tab is visible again so we should reconnect.
-      const shouldReconnect =
-        currentStatus === ConnectionStatus.DISCONNECTED ||
-        currentStatus === ConnectionStatus.PAUSED;
+      const shouldReconnect = currentStatus === ConnectionStatus.PAUSED;
       if (shouldReconnect && this.serialSessionOpen) {
+        console.log("delegate listener serial session connect");
         this.serialSession?.connect();
       }
     }
@@ -173,17 +172,14 @@ class MicrobitRadioBridgeConnectionImpl
         this.dispatchTypedEvent.bind(this),
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onRestartConnection: () => {
-            // So that serial session does not get repetitively disposed in
-            // delegate status listener when delegate is disconnected for restarting connection
-            this.ignoreDelegateStatus = true;
+          onBeforeConnectionLostDispose: () => {
+            this.ignoreDelegateStatus = false;
+            this.serialSessionOpen = false;
           },
           onFail: () => {
             if (this.status !== ConnectionStatus.DISCONNECTED) {
               this.setStatus(ConnectionStatus.DISCONNECTED);
             }
-            this.ignoreDelegateStatus = false;
-            this.serialSessionOpen = false;
           },
           onSuccess: () => {
             if (this.status !== ConnectionStatus.CONNECTED) {
@@ -442,21 +438,16 @@ class RadioBridgeSerialSession {
           Date.now() - this.lastReceivedMessageTimestamp >
             connectTimeoutDuration
         ) {
-          await this.restartConnection();
+          this.logging.event({
+            type: "Serial",
+            message: "Serial connection lost",
+          });
+          this.callbacks.onBeforeConnectionLostDispose();
+          await this.dispose(true);
+          this.callbacks.onFail();
         }
       }, 1000);
     }
-  }
-
-  private async restartConnection() {
-    this.logging.event({
-      type: "Serial",
-      message: "Serial connection lost...restart connection",
-    });
-    this.callbacks.onRestartConnection();
-    await this.dispose(true);
-    await this.delegate.connect();
-    await this.connect();
   }
 
   private stopConnectionCheck() {
