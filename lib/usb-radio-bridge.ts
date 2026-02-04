@@ -100,7 +100,6 @@ class MicrobitRadioBridgeConnectionImpl
       // visibility, and now the tab is visible again so we should reconnect.
       const shouldReconnect = currentStatus === ConnectionStatus.PAUSED;
       if (shouldReconnect && this.serialSessionOpen) {
-        console.log("delegate listener serial session connect");
         this.serialSession?.connect();
       }
     }
