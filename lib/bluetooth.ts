@@ -311,9 +311,11 @@ class MicrobitWebBluetoothConnectionImpl
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
           onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
-          onFail: () => {
+          onDisconnect: (clearConnection: boolean) => {
             this.setStatus(ConnectionStatus.DISCONNECTED);
-            this.connection = undefined;
+            if (clearConnection) {
+              this.connection = undefined;
+            }
           },
         },
       );
@@ -333,6 +335,7 @@ class MicrobitWebBluetoothConnectionImpl
         message: "error-disconnecting",
       });
     } finally {
+      console.trace("disconnected!");
       this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.event({
@@ -487,8 +490,10 @@ class MicrobitWebBluetoothConnectionImpl
       if (this.status !== ConnectionStatus.CONNECTED) {
         await this.connect({ progress, signal: options.signal });
       }
-
-      const connection = this.connection!;
+      if (!this.connection) {
+        throw new Error("Unexpected connection undefined!");
+      }
+      const connection = this.connection;
       try {
         const boardVersion = connection.boardVersion;
         if (!boardVersion) {
@@ -526,9 +531,11 @@ class MicrobitWebBluetoothConnectionImpl
           }
         }
       } catch (e) {
+        this.logging.log(`error! ${JSON.stringify(e)}`);
         this.error("Failed to flash", e);
         throw e;
       } finally {
+        this.logging.log("Disconnect finally!");
         await this.disconnect();
       }
     } finally {

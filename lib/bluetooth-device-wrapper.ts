@@ -56,7 +56,7 @@ export interface Service {
 
 interface ConnectCallbacks {
   onConnecting: () => void;
-  onFail: () => void;
+  onDisconnect: (isFail: boolean) => void;
   onSuccess: () => void;
 }
 
@@ -173,7 +173,7 @@ export class BluetoothDeviceWrapper implements Logging {
         message: "Bluetooth connect failed",
       });
       await this.disconnectInternal();
-      this.callbacks.onFail();
+      this.callbacks.onDisconnect(true);
 
       if (e instanceof DeviceError) {
         throw e;
@@ -226,12 +226,16 @@ export class BluetoothDeviceWrapper implements Logging {
   }
 
   handleDisconnectEvent = (): void => {
+    const isExpectedDisconnect =
+      this.waitingForDisconnectEventCallbacks.length > 0;
     this.waitingForDisconnectEventCallbacks.forEach((cb) => cb());
     this.waitingForDisconnectEventCallbacks.length = 0;
 
     this.connected = false;
-    this.logging.log("Bluetooth disconnect");
-    this.callbacks.onFail();
+    this.logging.log(
+      `Bluetooth ${isExpectedDisconnect ? "expected" : "unexpected"} disconnect`,
+    );
+    this.callbacks.onDisconnect(!isExpectedDisconnect);
   };
 
   async getBoardVersion(): Promise<BoardVersion> {
