@@ -483,7 +483,7 @@ class MicrobitWebBluetoothConnectionImpl
       if (this.status !== ConnectionStatus.CONNECTED) {
         await this.connect({ progress, signal: options.signal });
       }
-      
+
       const connection = this.connection!;
       try {
         const boardVersion = connection.boardVersion;
