@@ -335,7 +335,6 @@ class MicrobitWebBluetoothConnectionImpl
         message: "error-disconnecting",
       });
     } finally {
-      console.trace("disconnected!");
       this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.event({
@@ -531,11 +530,9 @@ class MicrobitWebBluetoothConnectionImpl
           }
         }
       } catch (e) {
-        this.logging.log(`error! ${JSON.stringify(e)}`);
         this.error("Failed to flash", e);
         throw e;
       } finally {
-        this.logging.log("Disconnect finally!");
         await this.disconnect();
       }
     } finally {
