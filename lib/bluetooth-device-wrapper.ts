@@ -56,7 +56,7 @@ export interface Service {
 
 interface ConnectCallbacks {
   onConnecting: () => void;
-  onDisconnect: (isFail: boolean) => void;
+  onDisconnect: (clearConnection: boolean) => void;
   onSuccess: () => void;
 }
 
