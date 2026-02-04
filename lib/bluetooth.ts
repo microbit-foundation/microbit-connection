@@ -483,10 +483,8 @@ class MicrobitWebBluetoothConnectionImpl
       if (this.status !== ConnectionStatus.CONNECTED) {
         await this.connect({ progress, signal: options.signal });
       }
-      if (!this.connection) {
-        throw new Error("Unexpected connection undefined!");
-      }
-      const connection = this.connection;
+      
+      const connection = this.connection!;
       try {
         const boardVersion = connection.boardVersion;
         if (!boardVersion) {
