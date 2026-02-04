@@ -300,7 +300,7 @@ class MicrobitWebBluetoothConnectionImpl
     progress(ProgressStage.Initializing);
     throwIfUnavailable(await this.checkAvailability());
 
-    if (!this.connection) {
+    if (!this.device || !this.connection) {
       progress(ProgressStage.FindingDevice);
       const device = await this.requestDevice(options?.signal);
       this.connection = new BluetoothDeviceWrapper(
@@ -311,12 +311,7 @@ class MicrobitWebBluetoothConnectionImpl
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
           onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
-          onDisconnect: (clearConnection: boolean) => {
-            this.setStatus(ConnectionStatus.DISCONNECTED);
-            if (clearConnection) {
-              this.connection = undefined;
-            }
-          },
+          onDisconnect: () => this.setStatus(ConnectionStatus.DISCONNECTED),
         },
       );
     }
