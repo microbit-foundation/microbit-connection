@@ -330,7 +330,6 @@ class MicrobitWebBluetoothConnectionImpl
         message: "error-disconnecting",
       });
     } finally {
-      this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.event({
         type: "Bluetooth-info",
