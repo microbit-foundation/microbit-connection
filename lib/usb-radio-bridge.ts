@@ -24,7 +24,7 @@ import {
 import * as protocol from "./usb-serial-protocol.js";
 import { MicrobitWebUSBConnection } from "./usb.js";
 
-const connectTimeoutDuration: number = 3_000;
+const connectTimeoutDuration: number = 10_000;
 
 class BridgeError extends Error {}
 class RemoteError extends Error {}
@@ -355,7 +355,7 @@ class RadioBridgeSerialSession {
         setTimeout(() => {
           this.onPeriodicMessageReceived = undefined;
           reject(new Error("Failed to receive data from remote micro:bit"));
-        }, 500);
+        }, connectTimeoutDuration);
       });
 
       const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
@@ -426,16 +426,6 @@ class RadioBridgeSerialSession {
         if (
           this.lastReceivedMessageTimestamp &&
           Date.now() - this.lastReceivedMessageTimestamp > 1_000
-        ) {
-          this.logging.event({
-            type: "Serial",
-            message: "Serial connection lost...attempt to reconnect",
-          });
-        }
-        if (
-          this.lastReceivedMessageTimestamp &&
-          Date.now() - this.lastReceivedMessageTimestamp >
-            connectTimeoutDuration
         ) {
           this.logging.event({
             type: "Serial",
