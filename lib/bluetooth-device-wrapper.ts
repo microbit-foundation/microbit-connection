@@ -172,7 +172,7 @@ export class BluetoothDeviceWrapper implements Logging {
         type: "Connect",
         message: "Bluetooth connect failed",
       });
-      await this.disconnectInternal();
+      await this.disconnectInternal(false);
       this.callbacks.onDisconnect();
 
       if (e instanceof DeviceError) {
@@ -210,11 +210,13 @@ export class BluetoothDeviceWrapper implements Logging {
   }
 
   async disconnect(): Promise<void> {
-    return this.disconnectInternal();
+    return this.disconnectInternal(true);
   }
 
-  private async disconnectInternal(): Promise<void> {
-    this.logging.log("Bluetooth disconnect");
+  private async disconnectInternal(userTriggered: boolean): Promise<void> {
+    this.logging.log(
+      `Bluetooth disconnect ${userTriggered ? "(user triggered)" : "(programmatic)"}`,
+    );
     try {
       if (this.connected) {
         await BleClient.disconnect(this.device.deviceId);
