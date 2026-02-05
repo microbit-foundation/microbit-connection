@@ -74,12 +74,8 @@ class MicrobitRadioBridgeConnectionImpl
   private remoteDeviceId: number | undefined;
   private disconnectPromise: Promise<void> | undefined;
   private serialSessionOpen = false;
-  private ignoreDelegateStatus = false;
 
   private delegateStatusListener = (e: ConnectionStatusEvent) => {
-    if (this.ignoreDelegateStatus) {
-      return;
-    }
     const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
@@ -160,7 +156,6 @@ class MicrobitRadioBridgeConnectionImpl
       type: "Connect",
       message: "Serial connect start",
     });
-    this.ignoreDelegateStatus = false;
     await this.delegate.connect();
 
     try {
@@ -175,7 +170,6 @@ class MicrobitRadioBridgeConnectionImpl
             this.serialSessionOpen = true;
           },
           onFailPreDispose: () => {
-            this.ignoreDelegateStatus = false;
             this.serialSessionOpen = false;
           },
           onFailPostDispose: () => {
@@ -187,7 +181,6 @@ class MicrobitRadioBridgeConnectionImpl
             if (this.status !== ConnectionStatus.CONNECTED) {
               this.setStatus(ConnectionStatus.CONNECTED);
             }
-            this.ignoreDelegateStatus = false;
             this.serialSessionOpen = true;
           },
         },
