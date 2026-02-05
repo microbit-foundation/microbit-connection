@@ -35,8 +35,8 @@ export interface MicrobitRadioBridgeConnectionOptions {
 
 interface ConnectCallbacks {
   onConnecting: () => void;
-  onBeforeConnectionLostDispose: () => void;
-  onFail: () => void;
+  onFailPreDispose: () => void;
+  onFailPostDispose: () => void;
   onSuccess: () => void;
 }
 
@@ -171,11 +171,11 @@ class MicrobitRadioBridgeConnectionImpl
         this.dispatchTypedEvent.bind(this),
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onBeforeConnectionLostDispose: () => {
+          onFailPreDispose: () => {
             this.ignoreDelegateStatus = false;
             this.serialSessionOpen = false;
           },
-          onFail: () => {
+          onFailPostDispose: () => {
             if (this.status !== ConnectionStatus.DISCONNECTED) {
               this.setStatus(ConnectionStatus.DISCONNECTED);
             }
@@ -371,8 +371,9 @@ class RadioBridgeSerialSession {
       await this.startConnectionCheck();
       this.callbacks.onSuccess();
     } catch (e) {
-      this.callbacks.onFail();
+      this.callbacks.onFailPreDispose();
       await this.dispose();
+      this.callbacks.onFailPostDispose()
     }
   }
 
@@ -431,9 +432,9 @@ class RadioBridgeSerialSession {
             type: "Serial",
             message: "Serial connection lost",
           });
-          this.callbacks.onBeforeConnectionLostDispose();
+          this.callbacks.onFailPreDispose();
           await this.dispose(true);
-          this.callbacks.onFail();
+          this.callbacks.onFailPostDispose();
         }
       }, 1000);
     }
