@@ -26,6 +26,7 @@ export const findMakeCodeRegionInMemoryMap = (
           end = Math.max(end, Math.min(blockEnd, deviceCodeRegion.end));
         }
       }
+
       // Round up to next 64-byte boundary
       end = Math.ceil(end / 64) * 64;
 
