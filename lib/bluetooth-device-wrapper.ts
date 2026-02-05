@@ -232,7 +232,6 @@ export class BluetoothDeviceWrapper implements Logging {
     this.waitingForDisconnectEventCallbacks.length = 0;
 
     this.connected = false;
-    this.logging.log("Bluetooth disconnect");
     this.callbacks.onDisconnect();
   };
 
