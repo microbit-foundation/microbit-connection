@@ -170,7 +170,10 @@ class MicrobitRadioBridgeConnectionImpl
         this.delegate,
         this.dispatchTypedEvent.bind(this),
         {
-          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
+          onConnecting: () => {
+            this.setStatus(ConnectionStatus.CONNECTING);
+            this.serialSessionOpen = true;
+          },
           onFailPreDispose: () => {
             this.ignoreDelegateStatus = false;
             this.serialSessionOpen = false;
@@ -373,7 +376,7 @@ class RadioBridgeSerialSession {
     } catch (e) {
       this.callbacks.onFailPreDispose();
       await this.dispose();
-      this.callbacks.onFailPostDispose()
+      this.callbacks.onFailPostDispose();
     }
   }
 
