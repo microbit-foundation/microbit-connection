@@ -300,7 +300,7 @@ class MicrobitWebBluetoothConnectionImpl
     progress(ProgressStage.Initializing);
     throwIfUnavailable(await this.checkAvailability());
 
-    if (!this.connection) {
+    if (!this.device || !this.connection) {
       progress(ProgressStage.FindingDevice);
       const device = await this.requestDevice(options?.signal);
       this.connection = new BluetoothDeviceWrapper(
@@ -310,12 +310,8 @@ class MicrobitWebBluetoothConnectionImpl
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onReconnecting: () => this.setStatus(ConnectionStatus.RECONNECTING),
           onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
-          onFail: () => {
-            this.setStatus(ConnectionStatus.DISCONNECTED);
-            this.connection = undefined;
-          },
+          onDisconnect: () => this.setStatus(ConnectionStatus.DISCONNECTED),
         },
       );
     }
@@ -334,7 +330,6 @@ class MicrobitWebBluetoothConnectionImpl
         message: "error-disconnecting",
       });
     } finally {
-      this.connection = undefined;
       this.setStatus(ConnectionStatus.DISCONNECTED);
       this.logging.event({
         type: "Bluetooth-info",
