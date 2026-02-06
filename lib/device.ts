@@ -219,6 +219,11 @@ export interface ConnectOptions {
    * aborted programmatically.
    */
   signal?: AbortSignal;
+  /**
+   * Optional boolean to indicate whether device is already bonded for iOS.
+   * When set to true, post bonding related processes will be skipped for iOS.
+   */
+  isIosBonded?: boolean;
 }
 
 export interface FlashOptions {

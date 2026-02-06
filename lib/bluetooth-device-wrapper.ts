@@ -145,7 +145,7 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        await this.connectHandlingBond(progress);
+        await this.connectHandlingBond(progress, options?.isIosBonded ?? false);
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.device.deviceId);
       } else {
@@ -432,10 +432,14 @@ export class BluetoothDeviceWrapper implements Logging {
    * Bonds with device and handles the post-bond device state only returning
    * when we can reattempt a connection with the device.
    */
-  private async connectHandlingBond(progress: ProgressCallback): Promise<void> {
+  private async connectHandlingBond(
+    progress: ProgressCallback,
+    isAlreadyIosBonded: boolean,
+  ): Promise<void> {
     progress(ProgressStage.CheckingBond);
     const startTime = Date.now();
-    const maybeJustBonded = await this.bondConnectDeviceInternal();
+    const maybeJustBonded =
+      await this.bondConnectDeviceInternal(isAlreadyIosBonded);
     if (maybeJustBonded) {
       // If we did just bond then the device disconnects after 2_000 and then
       // resets after a further 13_000 In future we'd like a firmware change
@@ -471,11 +475,13 @@ export class BluetoothDeviceWrapper implements Logging {
 
       progress(ProgressStage.Connecting);
       await this.connectInternal();
-      this.log(`Connection ready; took ${Date.now() - startTime}`);
     }
+    this.log(`Connection ready; took ${Date.now() - startTime}`);
   }
 
-  private async bondConnectDeviceInternal(): Promise<boolean> {
+  private async bondConnectDeviceInternal(
+    isAlreadyIosBonded: boolean,
+  ): Promise<boolean> {
     const { deviceId } = this.device;
     if (isAndroid()) {
       let justBonded = false;
@@ -494,11 +500,13 @@ export class BluetoothDeviceWrapper implements Logging {
       // need to call startNotifications again. We need to be connected to
       // startNotifications.
       await this.connectInternal();
-      const pf = new PartialFlashingService(this);
-      await pf.startNotifications({ timeout: bondingTimeoutInMs });
-      // We just did it now to trigger pairing at a well defined point.
-      await pf.stopNotifications();
-      return true;
+      if (!isAlreadyIosBonded) {
+        const pf = new PartialFlashingService(this);
+        await pf.startNotifications({ timeout: bondingTimeoutInMs });
+        // We just did it now to trigger pairing at a well defined point.
+        await pf.stopNotifications();
+      }
+      return !isAlreadyIosBonded;
     }
   }
 }
