@@ -6,7 +6,7 @@ import {
   RegionId,
 } from "../partial-flashing-service.js";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { delay, DisconnectError } from "../async-util.js";
+import { DisconnectError } from "../async-util.js";
 import {
   BoardVersion,
   DeviceError,
