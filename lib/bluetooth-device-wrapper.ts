@@ -194,16 +194,6 @@ export class BluetoothDeviceWrapper implements Logging {
           message: e.message,
         });
       }
-      if (
-        // Error thrown in iOS only.
-        e instanceof Error &&
-        e.message === "Encryption is insufficient."
-      ) {
-        throw new DeviceError({
-          code: "pairing-not-permitted",
-          message: e.message,
-        });
-      }
       throw new DeviceError({
         code: "bluetooth-connection-failed",
         message: e instanceof Error ? e.message : String(e),
