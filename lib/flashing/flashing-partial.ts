@@ -21,11 +21,23 @@ const partialFlash = async (
 ): Promise<PartialFlashResult> => {
   const pf = new PartialFlashingService(connection);
   await pf.startNotifications();
+  let result;
 
-  const result = await connection.raceDisconnectAndTimeout(
-    partialFlashInternal(connection, pf, memoryMap, progress),
-    { timeout: 30_000, actionName: "partial flash" },
-  );
+  try {
+    result = await connection.raceDisconnectAndTimeout(
+      partialFlashInternal(connection, pf, memoryMap, progress),
+      { timeout: 30_000, actionName: "partial flash" },
+    );
+  } catch (e) {
+    connection.error("Partial flash failed", e);
+    if (e instanceof DeviceError) {
+      throw e;
+    }
+    throw new DeviceError({
+      code: "flash-partial-failed",
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   try {
     await pf.stopNotifications();
@@ -47,97 +59,86 @@ const partialFlashInternal = async (
 ): Promise<PartialFlashResult> => {
   connection.log("Partial flash");
   progress(ProgressStage.PartialFlashing);
-  try {
-    const deviceCodeRegion = await pf.getRegionInfo(RegionId.MakeCode);
-    if (deviceCodeRegion === null) {
-      connection.log("Could not read code region");
-      return PartialFlashResult.AttemptFullFlash;
-    }
+  const deviceCodeRegion = await pf.getRegionInfo(RegionId.MakeCode);
+  if (deviceCodeRegion === null) {
+    connection.log("Could not read code region");
+    return PartialFlashResult.AttemptFullFlash;
+  }
 
-    const deviceDalRegion = await pf.getRegionInfo(RegionId.Dal);
-    if (deviceDalRegion === null) {
-      connection.log("Could not read DAL region");
-      return PartialFlashResult.AttemptFullFlash;
-    }
+  const deviceDalRegion = await pf.getRegionInfo(RegionId.Dal);
+  if (deviceDalRegion === null) {
+    connection.log("Could not read DAL region");
+    return PartialFlashResult.AttemptFullFlash;
+  }
 
-    progress(ProgressStage.PartialFlashing);
+  progress(ProgressStage.PartialFlashing);
 
-    const fileCodeRegion = findMakeCodeRegionInMemoryMap(
-      memoryMap,
-      deviceCodeRegion,
+  const fileCodeRegion = findMakeCodeRegionInMemoryMap(
+    memoryMap,
+    deviceCodeRegion,
+  );
+  if (fileCodeRegion === null) {
+    connection.log("No partial flash data");
+    return PartialFlashResult.AttemptFullFlash;
+  }
+
+  if (fileCodeRegion.hash !== deviceDalRegion.hash) {
+    connection.log(
+      `DAL hash comparison failed. Hex: ${fileCodeRegion.hash} vs device: ${deviceDalRegion.hash}`,
     );
-    if (fileCodeRegion === null) {
-      connection.log("No partial flash data");
-      return PartialFlashResult.AttemptFullFlash;
-    }
+    return PartialFlashResult.AttemptFullFlash;
+  }
+  if (deviceCodeRegion.start !== fileCodeRegion.start) {
+    connection.log("Code start address doesn't match");
+    return PartialFlashResult.AttemptFullFlash;
+  }
 
-    if (fileCodeRegion.hash !== deviceDalRegion.hash) {
-      connection.log(
-        `DAL hash comparison failed. Hex: ${fileCodeRegion.hash} vs device: ${deviceDalRegion.hash}`,
-      );
-      return PartialFlashResult.AttemptFullFlash;
-    }
-    if (deviceCodeRegion.start !== fileCodeRegion.start) {
-      connection.log("Code start address doesn't match");
-      return PartialFlashResult.AttemptFullFlash;
-    }
+  let nextPacketNumber = 0;
+  outer: for (
+    let offset = fileCodeRegion.start;
+    offset < fileCodeRegion.end;
 
-    let nextPacketNumber = 0;
-    outer: for (
-      let offset = fileCodeRegion.start;
-      offset < fileCodeRegion.end;
+  ) {
+    const batchStartAddress = offset;
 
-    ) {
-      const batchStartAddress = offset;
+    for (let packetInBatch = 0; packetInBatch < 4; ++packetInBatch) {
+      const packetNumber = nextPacketNumber++;
+      const packetDataOffset = offset + packetInBatch * 16;
 
-      for (let packetInBatch = 0; packetInBatch < 4; ++packetInBatch) {
-        const packetNumber = nextPacketNumber++;
-        const packetDataOffset = offset + packetInBatch * 16;
-
-        if (packetInBatch < 3) {
-          await pf.writeFlash(
-            memoryMap,
-            batchStartAddress,
-            packetDataOffset,
-            packetNumber,
-            packetInBatch,
-          );
+      if (packetInBatch < 3) {
+        await pf.writeFlash(
+          memoryMap,
+          batchStartAddress,
+          packetDataOffset,
+          packetNumber,
+          packetInBatch,
+        );
+      } else {
+        const result = await pf.writeFlashForNotification(
+          memoryMap,
+          batchStartAddress,
+          packetDataOffset,
+          packetNumber,
+          packetInBatch,
+        );
+        if (result === PacketState.Retransmit) {
+          // Retry the whole 64 bytes.
+          connection.log(`Retransmit requested at offset ${offset}`);
+          continue outer;
         } else {
-          const result = await pf.writeFlashForNotification(
-            memoryMap,
-            batchStartAddress,
-            packetDataOffset,
-            packetNumber,
-            packetInBatch,
+          progress(
+            ProgressStage.PartialFlashing,
+            (offset - fileCodeRegion.start) /
+              (fileCodeRegion.end - fileCodeRegion.start),
           );
-          if (result === PacketState.Retransmit) {
-            // Retry the whole 64 bytes.
-            connection.log(`Retransmit requested at offset ${offset}`);
-            continue outer;
-          } else {
-            progress(
-              ProgressStage.PartialFlashing,
-              (offset - fileCodeRegion.start) /
-                (fileCodeRegion.end - fileCodeRegion.start),
-            );
-          }
         }
       }
-      offset += 64;
     }
-    await pf.writeEndOfFlashPacket();
-    progress(ProgressStage.PartialFlashing, 1);
-    return PartialFlashResult.Success;
-  } catch (e) {
-    connection.error("Partial flash failed", e);
-    if (e instanceof DeviceError) {
-      throw e;
-    }
-    throw new DeviceError({
-      code: "flash-partial-failed",
-      message: e instanceof Error ? e.message : String(e),
-    });
+    offset += 64;
   }
+  await pf.writeEndOfFlashPacket();
+  progress(ProgressStage.PartialFlashing, 1);
+  return PartialFlashResult.Success;
 };
 
 export default partialFlash;
