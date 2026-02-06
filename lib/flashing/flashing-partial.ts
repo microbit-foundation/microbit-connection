@@ -6,8 +6,18 @@ import {
   RegionId,
 } from "../partial-flashing-service.js";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { DisconnectError } from "../async-util.js";
-import { DeviceError, ProgressCallback, ProgressStage } from "../device.js";
+import { delay, DisconnectError } from "../async-util.js";
+import {
+  BoardVersion,
+  DeviceError,
+  ProgressCallback,
+  ProgressStage,
+} from "../device.js";
+
+const FLASH_PAGE_SIZE: Record<BoardVersion, number> = {
+  V1: 0x400,
+  V2: 0x1000,
+};
 
 export enum PartialFlashResult {
   Success = "Success",
@@ -16,6 +26,7 @@ export enum PartialFlashResult {
 
 const partialFlash = async (
   connection: BluetoothDeviceWrapper,
+  boardVersion: BoardVersion,
   memoryMap: MemoryMap,
   progress: ProgressCallback,
 ): Promise<PartialFlashResult> => {
@@ -29,7 +40,7 @@ const partialFlash = async (
     await pf.startNotifications();
 
     result = await connection.raceDisconnectAndTimeout(
-      partialFlashInternal(connection, pf, memoryMap, progress),
+      partialFlashInternal(connection, pf, boardVersion, memoryMap, progress),
       { timeout: 30_000, actionName: "partial flash" },
     );
   } catch (e) {
@@ -68,6 +79,7 @@ const partialFlash = async (
 const partialFlashInternal = async (
   connection: BluetoothDeviceWrapper,
   pf: PartialFlashingService,
+  boardVersion: BoardVersion,
   memoryMap: MemoryMap,
   progress: ProgressCallback,
 ): Promise<PartialFlashResult> => {
@@ -107,12 +119,34 @@ const partialFlashInternal = async (
     return PartialFlashResult.AttemptFullFlash;
   }
 
+  // The device-side partial flash service erases each flash page when it
+  // receives a write at a page-aligned address. After erase, every byte
+  // in the page is 0xFF, so writing 0xFF within an already-erased page
+  // is redundant. We skip interior 0xFF blocks but always send at page
+  // boundaries to trigger the erase.
+  //
+  // See the page-erase logic:
+  //   V1: https://github.com/lancaster-university/microbit-dal/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
+  //   V2: https://github.com/lancaster-university/codal-microbit-v2/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
+  const flashPageSize = FLASH_PAGE_SIZE[boardVersion];
+
   let nextPacketNumber = 0;
   outer: for (
     let offset = fileCodeRegion.start;
     offset < fileCodeRegion.end;
 
   ) {
+    // Skip 64-byte blocks that are entirely 0xFF, unless at a page boundary.
+    // At page boundaries we must always send data so the device erases the
+    // page (setting all bytes to 0xFF). Interior 0xFF blocks can be skipped
+    // because the page has already been erased by the boundary write.
+    if (offset % flashPageSize !== 0) {
+      if (memoryMap.slicePad(offset, 64).every((b) => b === 0xff)) {
+        offset += 64;
+        continue;
+      }
+    }
+
     const batchStartAddress = offset;
 
     for (let packetInBatch = 0; packetInBatch < 4; ++packetInBatch) {

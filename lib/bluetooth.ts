@@ -44,6 +44,7 @@ import {
 } from "./service-events.js";
 
 import { throwIfUnavailable } from "./availability.js";
+import { truncateHexAfterEof } from "./hex-flash-data-source.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -510,6 +511,7 @@ class MicrobitWebBluetoothConnectionImpl
 
         const partialFlashResult = await partialFlash(
           connection,
+          boardVersion,
           memoryMap,
           progress,
         );
@@ -663,5 +665,5 @@ const convertDataToMemoryMap = (
   if (data instanceof Uint8Array) {
     return MemoryMap.fromPaddedUint8Array(data);
   }
-  return MemoryMap.fromHex(data);
+  return MemoryMap.fromHex(truncateHexAfterEof(data));
 };
