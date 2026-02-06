@@ -12,7 +12,6 @@ import {
 import { Capacitor } from "@capacitor/core";
 import { AccelerometerService } from "./accelerometer-service.js";
 import {
-  delay,
   DisconnectError,
   disconnectErrorCallback,
   TimeoutError,
@@ -467,8 +466,6 @@ export class BluetoothDeviceWrapper implements Logging {
       }
 
       await this.connectInternal();
-      // TODO: check this is needed, potentially inline into connect if always needed
-      await delay(500);
 
       progress(ProgressStage.ResettingDevice);
       this.log("Resetting to pairing mode");
