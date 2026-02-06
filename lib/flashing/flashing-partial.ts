@@ -50,6 +50,7 @@ const partialFlash = async (
       e instanceof Error &&
       e.message === "Encryption is insufficient."
     ) {
+      connection.setBonded(false);
       throw new DeviceError({
         code: "pairing-not-permitted",
         message: e.message,

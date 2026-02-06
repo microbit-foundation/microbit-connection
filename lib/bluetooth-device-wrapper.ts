@@ -110,6 +110,8 @@ export class BluetoothDeviceWrapper implements Logging {
   constructor(
     public readonly device: BleDevice,
     private logging: Logging = new ConsoleLogging(),
+    private isDeviceBonded: (id: string) => boolean,
+    private setDeviceBonded: (id: string, isBonded: boolean) => void,
     dispatchTypedEvent: TypedServiceEventDispatcher,
     private currentEvents: () => Array<keyof ServiceConnectionEventMap>,
     private callbacks: ConnectCallbacks,
@@ -135,6 +137,10 @@ export class BluetoothDeviceWrapper implements Logging {
     ];
   }
 
+  setBonded(isBonded: boolean) {
+    this.setDeviceBonded(this.device.deviceId, isBonded)
+  }
+
   async connect(options?: ConnectOptions): Promise<void> {
     const progress = options?.progress ?? (() => {});
     this.logging.event({
@@ -145,7 +151,9 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        await this.connectHandlingBond(progress, options?.isIosBonded ?? false);
+        const isBonded = this.isDeviceBonded(this.device.deviceId);
+        await this.connectHandlingBond(progress, isBonded ?? false);
+        this.setBonded(true);
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.device.deviceId);
       } else {
@@ -183,6 +191,7 @@ export class BluetoothDeviceWrapper implements Logging {
           message: e instanceof Error ? e.message : String(e),
         });
       }
+      this.setBonded(false);
       if (
         // Error thrown in iOS only.
         e instanceof Error &&

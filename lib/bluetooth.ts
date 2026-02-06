@@ -52,6 +52,8 @@ let bleClientInitialized = false;
 
 export interface MicrobitWebBluetoothConnectionOptions {
   logging?: Logging;
+  setDeviceBonded?: (id: string, isBonded: boolean) => void;
+  isDeviceBonded?: (id: string) => boolean;
 }
 
 export interface MicrobitWebBluetoothConnection
@@ -194,6 +196,8 @@ class MicrobitWebBluetoothConnectionImpl
   private device: BleDevice | undefined;
 
   private logging: Logging;
+  private setDeviceBonded: (id: string, isBonded: boolean) => void;
+  private isDeviceBonded: (id: string) => boolean;
   private connection: BluetoothDeviceWrapper | undefined;
 
   private nameFilter: string | undefined;
@@ -202,6 +206,8 @@ class MicrobitWebBluetoothConnectionImpl
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
+    this.setDeviceBonded = options.setDeviceBonded || (() => {});
+    this.isDeviceBonded = options.isDeviceBonded || (() => false);
   }
 
   protected eventActivated(type: string): void {
@@ -307,6 +313,8 @@ class MicrobitWebBluetoothConnectionImpl
       this.connection = new BluetoothDeviceWrapper(
         device,
         this.logging,
+        this.isDeviceBonded,
+        this.setDeviceBonded,
         this.dispatchTypedEvent.bind(this),
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
