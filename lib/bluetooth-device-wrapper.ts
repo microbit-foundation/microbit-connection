@@ -508,10 +508,6 @@ export class BluetoothDeviceWrapper implements Logging {
         await pf.startNotifications({ timeout: bondingTimeoutInMs });
         // We just did it now to trigger pairing at a well defined point.
         await pf.stopNotifications();
-        // To check that user has actually selected "pair". If not, starting
-        // notifications again should throw error.
-        await pf.startNotifications();
-        await pf.stopNotifications();
       }
       return !isAlreadyIosBonded;
     }
