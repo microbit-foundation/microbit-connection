@@ -20,16 +20,30 @@ const partialFlash = async (
   progress: ProgressCallback,
 ): Promise<PartialFlashResult> => {
   const pf = new PartialFlashingService(connection);
-  await pf.startNotifications();
   let result;
 
   try {
+    // For iOS, starting notifications can throw error if user does not choose
+    // "Pair" in the pairing dialog. We cannot rely on connect to catch this
+    // because user can forget micro:bit before cancelling the pairing dialog.
+    await pf.startNotifications();
+
     result = await connection.raceDisconnectAndTimeout(
       partialFlashInternal(connection, pf, memoryMap, progress),
       { timeout: 30_000, actionName: "partial flash" },
     );
   } catch (e) {
     connection.error("Partial flash failed", e);
+    if (
+      // Error thrown in iOS only.
+      e instanceof Error &&
+      e.message === "Encryption is insufficient."
+    ) {
+      throw new DeviceError({
+        code: "pairing-not-permitted",
+        message: e.message,
+      });
+    }
     if (e instanceof DeviceError) {
       throw e;
     }

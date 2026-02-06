@@ -193,6 +193,16 @@ export class BluetoothDeviceWrapper implements Logging {
           message: e.message,
         });
       }
+      if (
+        // Error thrown in iOS only.
+        e instanceof Error &&
+        e.message === "Encryption is insufficient."
+      ) {
+        throw new DeviceError({
+          code: "pairing-not-permitted",
+          message: e.message,
+        });
+      }
       throw new DeviceError({
         code: "bluetooth-connection-failed",
         message: e instanceof Error ? e.message : String(e),
@@ -504,6 +514,10 @@ export class BluetoothDeviceWrapper implements Logging {
         const pf = new PartialFlashingService(this);
         await pf.startNotifications({ timeout: bondingTimeoutInMs });
         // We just did it now to trigger pairing at a well defined point.
+        await pf.stopNotifications();
+        // To check that user has actually selected "pair". If not, starting
+        // notifications again should throw error.
+        await pf.startNotifications();
         await pf.stopNotifications();
       }
       return !isAlreadyIosBonded;
