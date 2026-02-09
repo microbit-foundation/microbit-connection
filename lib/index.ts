@@ -6,6 +6,7 @@ import {
 } from "./bluetooth.js";
 import { BoardId } from "./board-id.js";
 import { ButtonEvent, ButtonEventType, ButtonState } from "./buttons.js";
+import { DeviceBondState } from "./device-bond-state.js";
 import {
   AfterRequestDevice,
   BackgroundErrorEvent,
@@ -86,6 +87,7 @@ export type {
   ButtonEventType,
   ButtonState,
   ConnectOptions,
+  DeviceBondState,
   DeviceConnection,
   DeviceErrorCode,
   FlashDataSource,
