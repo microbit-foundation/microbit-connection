@@ -67,10 +67,6 @@ export type DeviceErrorCode =
    */
   | "pairing-information-lost"
   /**
-   * Pairing not permitted. User cancelled pairing dialog in iOS.
-   */
-  | "pairing-not-permitted"
-  /**
    * Partial flash operation failed.
    */
   | "flash-partial-failed"

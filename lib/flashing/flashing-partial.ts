@@ -46,15 +46,11 @@ const partialFlash = async (
   } catch (e) {
     connection.error("Partial flash failed", e);
     if (
-      // Error thrown in iOS only.
+      // Error thrown in iOS only for when user cancels the pairing dialog.
       e instanceof Error &&
       e.message === "Encryption is insufficient."
     ) {
       connection.setBonded(false);
-      throw new DeviceError({
-        code: "pairing-not-permitted",
-        message: e.message,
-      });
     }
     if (e instanceof DeviceError) {
       throw e;
