@@ -6,7 +6,7 @@ import {
   RegionId,
 } from "../partial-flashing-service.js";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { delay, DisconnectError } from "../async-util.js";
+import { DisconnectError } from "../async-util.js";
 import {
   BoardVersion,
   DeviceError,
@@ -31,12 +31,35 @@ const partialFlash = async (
   progress: ProgressCallback,
 ): Promise<PartialFlashResult> => {
   const pf = new PartialFlashingService(connection);
-  await pf.startNotifications();
+  let result;
 
-  const result = await connection.raceDisconnectAndTimeout(
-    partialFlashInternal(connection, pf, boardVersion, memoryMap, progress),
-    { timeout: 30_000, actionName: "partial flash" },
-  );
+  try {
+    // For iOS, starting notifications can throw error if user does not choose
+    // "Pair" in the pairing dialog. We cannot rely on connect to catch this
+    // because user can forget micro:bit before cancelling the pairing dialog.
+    await pf.startNotifications();
+
+    result = await connection.raceDisconnectAndTimeout(
+      partialFlashInternal(connection, pf, boardVersion, memoryMap, progress),
+      { timeout: 30_000, actionName: "partial flash" },
+    );
+  } catch (e) {
+    connection.error("Partial flash failed", e);
+    if (
+      // Error thrown in iOS only for when user cancels the pairing dialog.
+      e instanceof Error &&
+      e.message === "Encryption is insufficient."
+    ) {
+      connection.setBonded(false);
+    }
+    if (e instanceof DeviceError) {
+      throw e;
+    }
+    throw new DeviceError({
+      code: "flash-partial-failed",
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   try {
     await pf.stopNotifications();
@@ -59,123 +82,108 @@ const partialFlashInternal = async (
 ): Promise<PartialFlashResult> => {
   connection.log("Partial flash");
   progress(ProgressStage.PartialFlashing);
-  try {
-    const deviceCodeRegion = await pf.getRegionInfo(RegionId.MakeCode);
-    if (deviceCodeRegion === null) {
-      connection.log("Could not read code region");
-      return PartialFlashResult.AttemptFullFlash;
-    }
-
-    const deviceDalRegion = await pf.getRegionInfo(RegionId.Dal);
-    if (deviceDalRegion === null) {
-      connection.log("Could not read DAL region");
-      return PartialFlashResult.AttemptFullFlash;
-    }
-
-    progress(ProgressStage.PartialFlashing);
-
-    const fileCodeRegion = findMakeCodeRegionInMemoryMap(
-      memoryMap,
-      deviceCodeRegion,
-    );
-    if (fileCodeRegion === null) {
-      connection.log("No partial flash data");
-      return PartialFlashResult.AttemptFullFlash;
-    }
-
-    if (fileCodeRegion.hash !== deviceDalRegion.hash) {
-      connection.log(
-        `DAL hash comparison failed. Hex: ${fileCodeRegion.hash} vs device: ${deviceDalRegion.hash}`,
-      );
-      return PartialFlashResult.AttemptFullFlash;
-    }
-    if (deviceCodeRegion.start !== fileCodeRegion.start) {
-      connection.log("Code start address doesn't match");
-      return PartialFlashResult.AttemptFullFlash;
-    }
-
-    // The device-side partial flash service erases each flash page when it
-    // receives a write at a page-aligned address. After erase, every byte
-    // in the page is 0xFF, so writing 0xFF within an already-erased page
-    // is redundant. We skip interior 0xFF blocks but always send at page
-    // boundaries to trigger the erase.
-    //
-    // See the page-erase logic:
-    //   V1: https://github.com/lancaster-university/microbit-dal/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
-    //   V2: https://github.com/lancaster-university/codal-microbit-v2/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
-    const flashPageSize = FLASH_PAGE_SIZE[boardVersion];
-
-    let nextPacketNumber = 0;
-    outer: for (
-      let offset = fileCodeRegion.start;
-      offset < fileCodeRegion.end;
-
-    ) {
-      // Skip 64-byte blocks that are entirely 0xFF, unless at a page boundary.
-      // At page boundaries we must always send data so the device erases the
-      // page (setting all bytes to 0xFF). Interior 0xFF blocks can be skipped
-      // because the page has already been erased by the boundary write.
-      if (offset % flashPageSize !== 0) {
-        if (memoryMap.slicePad(offset, 64).every((b) => b === 0xff)) {
-          offset += 64;
-          continue;
-        }
-      }
-
-      const batchStartAddress = offset;
-
-      for (let packetInBatch = 0; packetInBatch < 4; ++packetInBatch) {
-        const packetNumber = nextPacketNumber++;
-        const packetDataOffset = offset + packetInBatch * 16;
-
-        if (packetInBatch < 3) {
-          await pf.writeFlash(
-            memoryMap,
-            batchStartAddress,
-            packetDataOffset,
-            packetNumber,
-            packetInBatch,
-          );
-        } else {
-          const result = await pf.writeFlashForNotification(
-            memoryMap,
-            batchStartAddress,
-            packetDataOffset,
-            packetNumber,
-            packetInBatch,
-          );
-          if (result === PacketState.Retransmit) {
-            // Retry the whole 64 bytes.
-            connection.log(`Retransmit requested at offset ${offset}`);
-            continue outer;
-          } else {
-            progress(
-              ProgressStage.PartialFlashing,
-              (offset - fileCodeRegion.start) /
-                (fileCodeRegion.end - fileCodeRegion.start),
-            );
-          }
-        }
-      }
-      offset += 64;
-    }
-
-    await delay(100); // allow time for write to complete
-    await pf.writeEndOfFlashPacket();
-    await delay(100); // allow time for write to complete
-    progress(ProgressStage.PartialFlashing, 1);
-
-    return PartialFlashResult.Success;
-  } catch (e) {
-    connection.error("Partial flash failed", e);
-    if (e instanceof DeviceError) {
-      throw e;
-    }
-    throw new DeviceError({
-      code: "flash-partial-failed",
-      message: e instanceof Error ? e.message : String(e),
-    });
+  const deviceCodeRegion = await pf.getRegionInfo(RegionId.MakeCode);
+  if (deviceCodeRegion === null) {
+    connection.log("Could not read code region");
+    return PartialFlashResult.AttemptFullFlash;
   }
+
+  const deviceDalRegion = await pf.getRegionInfo(RegionId.Dal);
+  if (deviceDalRegion === null) {
+    connection.log("Could not read DAL region");
+    return PartialFlashResult.AttemptFullFlash;
+  }
+
+  progress(ProgressStage.PartialFlashing);
+
+  const fileCodeRegion = findMakeCodeRegionInMemoryMap(
+    memoryMap,
+    deviceCodeRegion,
+  );
+  if (fileCodeRegion === null) {
+    connection.log("No partial flash data");
+    return PartialFlashResult.AttemptFullFlash;
+  }
+
+  if (fileCodeRegion.hash !== deviceDalRegion.hash) {
+    connection.log(
+      `DAL hash comparison failed. Hex: ${fileCodeRegion.hash} vs device: ${deviceDalRegion.hash}`,
+    );
+    return PartialFlashResult.AttemptFullFlash;
+  }
+  if (deviceCodeRegion.start !== fileCodeRegion.start) {
+    connection.log("Code start address doesn't match");
+    return PartialFlashResult.AttemptFullFlash;
+  }
+
+  // The device-side partial flash service erases each flash page when it
+  // receives a write at a page-aligned address. After erase, every byte
+  // in the page is 0xFF, so writing 0xFF within an already-erased page
+  // is redundant. We skip interior 0xFF blocks but always send at page
+  // boundaries to trigger the erase.
+  //
+  // See the page-erase logic:
+  //   V1: https://github.com/lancaster-university/microbit-dal/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
+  //   V2: https://github.com/lancaster-university/codal-microbit-v2/blob/master/source/bluetooth/MicroBitPartialFlashingService.cpp
+  const flashPageSize = FLASH_PAGE_SIZE[boardVersion];
+
+  let nextPacketNumber = 0;
+  outer: for (
+    let offset = fileCodeRegion.start;
+    offset < fileCodeRegion.end;
+
+  ) {
+    // Skip 64-byte blocks that are entirely 0xFF, unless at a page boundary.
+    // At page boundaries we must always send data so the device erases the
+    // page (setting all bytes to 0xFF). Interior 0xFF blocks can be skipped
+    // because the page has already been erased by the boundary write.
+    if (offset % flashPageSize !== 0) {
+      if (memoryMap.slicePad(offset, 64).every((b) => b === 0xff)) {
+        offset += 64;
+        continue;
+      }
+    }
+
+    const batchStartAddress = offset;
+
+    for (let packetInBatch = 0; packetInBatch < 4; ++packetInBatch) {
+      const packetNumber = nextPacketNumber++;
+      const packetDataOffset = offset + packetInBatch * 16;
+
+      if (packetInBatch < 3) {
+        await pf.writeFlash(
+          memoryMap,
+          batchStartAddress,
+          packetDataOffset,
+          packetNumber,
+          packetInBatch,
+        );
+      } else {
+        const result = await pf.writeFlashForNotification(
+          memoryMap,
+          batchStartAddress,
+          packetDataOffset,
+          packetNumber,
+          packetInBatch,
+        );
+        if (result === PacketState.Retransmit) {
+          // Retry the whole 64 bytes.
+          connection.log(`Retransmit requested at offset ${offset}`);
+          continue outer;
+        } else {
+          progress(
+            ProgressStage.PartialFlashing,
+            (offset - fileCodeRegion.start) /
+              (fileCodeRegion.end - fileCodeRegion.start),
+          );
+        }
+      }
+    }
+    offset += 64;
+  }
+  await pf.writeEndOfFlashPacket();
+  progress(ProgressStage.PartialFlashing, 1);
+  return PartialFlashResult.Success;
 };
 
 export default partialFlash;

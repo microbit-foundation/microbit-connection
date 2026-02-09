@@ -12,7 +12,6 @@ import {
 import { Capacitor } from "@capacitor/core";
 import { AccelerometerService } from "./accelerometer-service.js";
 import {
-  delay,
   DisconnectError,
   disconnectErrorCallback,
   TimeoutError,
@@ -40,6 +39,10 @@ import {
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 import { UARTService } from "./uart-service.js";
+import {
+  DefaultDeviceBondState,
+  DeviceBondState,
+} from "./device-bond-state.js";
 
 export const bondingTimeoutInMs = 40_000;
 export const connectTimeoutInMs = 10_000;
@@ -111,6 +114,7 @@ export class BluetoothDeviceWrapper implements Logging {
   constructor(
     public readonly device: BleDevice,
     private logging: Logging = new ConsoleLogging(),
+    private deviceBondState: DeviceBondState = new DefaultDeviceBondState(),
     dispatchTypedEvent: TypedServiceEventDispatcher,
     private currentEvents: () => Array<keyof ServiceConnectionEventMap>,
     private callbacks: ConnectCallbacks,
@@ -136,6 +140,10 @@ export class BluetoothDeviceWrapper implements Logging {
     ];
   }
 
+  setBonded(isBonded: boolean) {
+    this.deviceBondState.setBonded(this.device.deviceId, isBonded);
+  }
+
   async connect(options?: ConnectOptions): Promise<void> {
     const progress = options?.progress ?? (() => {});
     this.logging.event({
@@ -146,7 +154,9 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        await this.connectHandlingBond(progress);
+        const isBonded = this.deviceBondState.isBonded(this.device.deviceId);
+        await this.connectHandlingBond(progress, isBonded ?? false);
+        this.setBonded(true);
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.device.deviceId);
       } else {
@@ -184,6 +194,7 @@ export class BluetoothDeviceWrapper implements Logging {
           message: e instanceof Error ? e.message : String(e),
         });
       }
+      this.setBonded(false);
       if (
         // Error thrown in iOS only.
         e instanceof Error &&
@@ -433,10 +444,14 @@ export class BluetoothDeviceWrapper implements Logging {
    * Bonds with device and handles the post-bond device state only returning
    * when we can reattempt a connection with the device.
    */
-  private async connectHandlingBond(progress: ProgressCallback): Promise<void> {
+  private async connectHandlingBond(
+    progress: ProgressCallback,
+    isAlreadyIosBonded: boolean,
+  ): Promise<void> {
     progress(ProgressStage.CheckingBond);
     const startTime = Date.now();
-    const maybeJustBonded = await this.bondConnectDeviceInternal();
+    const maybeJustBonded =
+      await this.bondConnectDeviceInternal(isAlreadyIosBonded);
     if (maybeJustBonded) {
       // If we did just bond then the device disconnects after 2_000 and then
       // resets after a further 13_000 In future we'd like a firmware change
@@ -463,8 +478,6 @@ export class BluetoothDeviceWrapper implements Logging {
       }
 
       await this.connectInternal();
-      // TODO: check this is needed, potentially inline into connect if always needed
-      await delay(500);
 
       progress(ProgressStage.ResettingDevice);
       this.log("Resetting to pairing mode");
@@ -474,11 +487,13 @@ export class BluetoothDeviceWrapper implements Logging {
 
       progress(ProgressStage.Connecting);
       await this.connectInternal();
-      this.log(`Connection ready; took ${Date.now() - startTime}`);
     }
+    this.log(`Connection ready; took ${Date.now() - startTime}`);
   }
 
-  private async bondConnectDeviceInternal(): Promise<boolean> {
+  private async bondConnectDeviceInternal(
+    isAlreadyIosBonded: boolean,
+  ): Promise<boolean> {
     const { deviceId } = this.device;
     if (isAndroid()) {
       let justBonded = false;
@@ -497,11 +512,13 @@ export class BluetoothDeviceWrapper implements Logging {
       // need to call startNotifications again. We need to be connected to
       // startNotifications.
       await this.connectInternal();
-      const pf = new PartialFlashingService(this);
-      await pf.startNotifications({ timeout: bondingTimeoutInMs });
-      // We just did it now to trigger pairing at a well defined point.
-      await pf.stopNotifications();
-      return true;
+      if (!isAlreadyIosBonded) {
+        const pf = new PartialFlashingService(this);
+        await pf.startNotifications({ timeout: bondingTimeoutInMs });
+        // We just did it now to trigger pairing at a well defined point.
+        await pf.stopNotifications();
+      }
+      return !isAlreadyIosBonded;
     }
   }
 }
