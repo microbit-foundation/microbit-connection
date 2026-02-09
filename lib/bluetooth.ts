@@ -69,13 +69,6 @@ export interface MicrobitWebBluetoothConnection
   setNameFilter(name: string): void;
 
   /**
-   * Sets device bond state management for storing device bond information.
-   *
-   * @param state Interface for setting and checking device bond information.
-   */
-  setDeviceBondState(state: DeviceBondState): void;
-
-  /**
    * Gets micro:bit accelerometer data.
    *
    * @returns accelerometer data or undefined if there is no connection.
@@ -382,10 +375,6 @@ class MicrobitWebBluetoothConnectionImpl
 
   setNameFilter(name: string) {
     this.nameFilter = name;
-  }
-
-  setDeviceBondState(state: DeviceBondState) {
-    this.deviceBondState = state;
   }
 
   private async requestDevice(signal?: AbortSignal): Promise<BleDevice> {
