@@ -45,6 +45,10 @@ import {
 
 import { throwIfUnavailable } from "./availability.js";
 import { truncateHexAfterEof } from "./hex-flash-data-source.js";
+import {
+  DefaultDeviceBondState,
+  DeviceBondState,
+} from "./device-bond-state.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -52,8 +56,7 @@ let bleClientInitialized = false;
 
 export interface MicrobitWebBluetoothConnectionOptions {
   logging?: Logging;
-  setDeviceBonded?: (id: string, isBonded: boolean) => void;
-  isDeviceBonded?: (id: string) => boolean;
+  deviceBondState?: DeviceBondState;
 }
 
 export interface MicrobitWebBluetoothConnection
@@ -196,8 +199,7 @@ class MicrobitWebBluetoothConnectionImpl
   private device: BleDevice | undefined;
 
   private logging: Logging;
-  private setDeviceBonded: (id: string, isBonded: boolean) => void;
-  private isDeviceBonded: (id: string) => boolean;
+  private deviceBondState: DeviceBondState;
   private connection: BluetoothDeviceWrapper | undefined;
 
   private nameFilter: string | undefined;
@@ -206,8 +208,8 @@ class MicrobitWebBluetoothConnectionImpl
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
-    this.setDeviceBonded = options.setDeviceBonded || (() => {});
-    this.isDeviceBonded = options.isDeviceBonded || (() => false);
+    this.deviceBondState =
+      options.deviceBondState || new DefaultDeviceBondState();
   }
 
   protected eventActivated(type: string): void {
@@ -313,8 +315,7 @@ class MicrobitWebBluetoothConnectionImpl
       this.connection = new BluetoothDeviceWrapper(
         device,
         this.logging,
-        this.isDeviceBonded,
-        this.setDeviceBonded,
+        this.deviceBondState,
         this.dispatchTypedEvent.bind(this),
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {

@@ -39,6 +39,10 @@ import {
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 import { UARTService } from "./uart-service.js";
+import {
+  DefaultDeviceBondState,
+  DeviceBondState,
+} from "./device-bond-state.js";
 
 export const bondingTimeoutInMs = 40_000;
 export const connectTimeoutInMs = 10_000;
@@ -110,8 +114,7 @@ export class BluetoothDeviceWrapper implements Logging {
   constructor(
     public readonly device: BleDevice,
     private logging: Logging = new ConsoleLogging(),
-    private isDeviceBonded: (id: string) => boolean,
-    private setDeviceBonded: (id: string, isBonded: boolean) => void,
+    private deviceBondState: DeviceBondState = new DefaultDeviceBondState(),
     dispatchTypedEvent: TypedServiceEventDispatcher,
     private currentEvents: () => Array<keyof ServiceConnectionEventMap>,
     private callbacks: ConnectCallbacks,
@@ -138,7 +141,7 @@ export class BluetoothDeviceWrapper implements Logging {
   }
 
   setBonded(isBonded: boolean) {
-    this.setDeviceBonded(this.device.deviceId, isBonded)
+    this.deviceBondState.setBonded(this.device.deviceId, isBonded);
   }
 
   async connect(options?: ConnectOptions): Promise<void> {
@@ -151,7 +154,7 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        const isBonded = this.isDeviceBonded(this.device.deviceId);
+        const isBonded = this.deviceBondState.isBonded(this.device.deviceId);
         await this.connectHandlingBond(progress, isBonded ?? false);
         this.setBonded(true);
         // We need this on Android for reconnecting after DFU.
