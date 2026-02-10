@@ -7,6 +7,7 @@
 import {
   BleClient,
   BleDevice,
+  numbersToDataView,
   TimeoutOptions,
 } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
@@ -496,13 +497,22 @@ export class BluetoothDeviceWrapper implements Logging {
   ): Promise<boolean> {
     const { deviceId } = this.device;
     if (isAndroid()) {
-      let justBonded = false;
-      // This gets us a nicer pairing dialog than just going straight for the characteristic.
-      if (!(await BleClient.isBonded(deviceId))) {
-        await BleClient.createBond(deviceId, { timeout: bondingTimeoutInMs });
-        justBonded = true;
-      }
+      let justBonded = true;
+      this.log("Attempt to bond by setting to bootloader!");
       await this.connectInternal();
+      await BleClient.discoverServices(deviceId);
+      try {
+        await BleClient.write(
+          deviceId,
+          "0000fe59-0000-1000-8000-00805f9b34fb",
+          "8ec90004-f315-4f60-9fb8-838830daea50",
+          numbersToDataView([0x01]),
+          { timeout: 10_000 },
+        );
+      } catch (e) {
+        console.log("error", e);
+        console.log("ignore write timeout");
+      }
 
       return justBonded;
     } else {
@@ -512,12 +522,20 @@ export class BluetoothDeviceWrapper implements Logging {
       // need to call startNotifications again. We need to be connected to
       // startNotifications.
       await this.connectInternal();
-      if (!isAlreadyIosBonded) {
-        const pf = new PartialFlashingService(this);
-        await pf.startNotifications({ timeout: bondingTimeoutInMs });
-        // We just did it now to trigger pairing at a well defined point.
-        await pf.stopNotifications();
-      }
+      this.log("Attempt to bond by setting to bootloader!");
+
+      await BleClient.discoverServices(deviceId);
+      await BleClient.write(
+        deviceId,
+        "0000fe59-0000-1000-8000-00805f9b34fb",
+        "8ec90004-f315-4f60-9fb8-838830daea50",
+        numbersToDataView([0x01]),
+        { timeout: 10_000 },
+      );
+      // const pf = new PartialFlashingService(this);
+      // await pf.startNotifications({ timeout: bondingTimeoutInMs });
+      // // We just did it now to trigger pairing at a well defined point.
+      // await pf.stopNotifications();
       return !isAlreadyIosBonded;
     }
   }
