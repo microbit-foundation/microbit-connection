@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     exclude: [...configDefaults.exclude, "**/e2e/**", "build"],
     environment: "jsdom",
-    setupFiles: "./lib/setupTests.ts",
+    setupFiles: "./src/setupTests.ts",
     mockReset: true,
   },
 });

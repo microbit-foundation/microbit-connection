@@ -23,7 +23,7 @@
     "build:lib": "npm run build:esm && npm run build:cjs",
     "build": "npm run build:lib",
     "docs": "typedoc",
-    "ci": "npm run build:lib && npm run test && npx prettier --check lib",
+    "ci": "npm run build:lib && npm run test && npx prettier --check src",
     "test": "vitest"
   },
   "devDependencies": {

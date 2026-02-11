@@ -6,5 +6,5 @@
     "outDir": "build/esm",
     "declaration": true
   },
-  "include": ["lib"]
+  "include": ["src"]
 }

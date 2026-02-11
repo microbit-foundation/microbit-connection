@@ -4,7 +4,7 @@
     "micro:bit tech site": "https://tech.microbit.org",
     "GitHub": "https://github.com/microbit-foundation/microbit-connection"
   },
-  "entryPoints": ["./lib/index.ts"],
+  "entryPoints": ["./src/index.ts"],
   "out": "./docs/build",
   "readme": "../../README.md",
   "headings": {

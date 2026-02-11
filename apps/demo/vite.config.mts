@@ -6,7 +6,7 @@ export default defineConfig({
     alias: {
       "@microbit/microbit-connection": resolve(
         __dirname,
-        "../../packages/microbit-connection/lib/index.ts",
+        "../../packages/microbit-connection/src/index.ts",
       ),
     },
   },
