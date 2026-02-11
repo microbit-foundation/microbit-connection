@@ -24,7 +24,7 @@ jobs:
       - run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: npm run ci -w @microbit/microbit-connection
+      - run: npm run ci
       - run: npm publish -w @microbit/microbit-connection --tag apps
         if: github.event_name == 'release' && github.event.action == 'created'
         env:
