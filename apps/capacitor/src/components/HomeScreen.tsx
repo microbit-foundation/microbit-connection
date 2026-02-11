@@ -37,6 +37,11 @@ const cannedHexFiles: CannedHexFile[] = [
     label: "Data Collection (new, no pairing)",
   },
   {
+    name: "createai-project.hex",
+    path: "/hex-files/createai-project.hex",
+    label: "CreateAI project",
+  },
+  {
     name: "meet-the-microbit.hex",
     path: "/hex-files/meet-the-microbit.hex",
     label: "Meet the micro:bit",
