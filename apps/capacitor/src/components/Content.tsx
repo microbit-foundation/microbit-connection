@@ -296,6 +296,88 @@ const Content = ({
             <h1 style={{ fontSize: 20 }}>Completed</h1>
             <div>
               <p>Successfully downloaded</p>
+              {step.timings.length > 0 && (
+                <table
+                  style={{
+                    borderCollapse: "collapse",
+                    fontSize: 14,
+                    marginTop: "3rem",
+                    marginInline: "auto",
+                    textAlign: "left",
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: "2px solid #ddd",
+                      }}
+                    >
+                      <th style={{ padding: "6px 12px" }}>Stage</th>
+                      <th style={{ textAlign: "right", padding: "6px 12px" }}>
+                        Start
+                      </th>
+                      <th style={{ textAlign: "right", padding: "6px 12px" }}>
+                        Duration
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {step.timings.map((t, i) => (
+                      <tr
+                        key={i}
+                        style={{
+                          borderBottom: "1px solid #eee",
+                          background: i % 2 === 0 ? "#f9f9f9" : "white",
+                        }}
+                      >
+                        <td style={{ padding: "6px 12px" }}>{t.stage}</td>
+                        <td
+                          style={{
+                            textAlign: "right",
+                            padding: "6px 12px",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {(t.startMs / 1000).toFixed(1)}s
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "right",
+                            padding: "6px 12px",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {(t.durationMs / 1000).toFixed(1)}s
+                        </td>
+                      </tr>
+                    ))}
+                    <tr
+                      style={{
+                        fontWeight: "bold",
+                        borderTop: "2px solid #ddd",
+                      }}
+                    >
+                      <td style={{ padding: "6px 12px" }}>Total</td>
+                      <td />
+                      <td
+                        style={{
+                          textAlign: "right",
+                          padding: "6px 12px",
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {(
+                          step.timings.reduce(
+                            (sum, t) => sum + t.durationMs,
+                            0,
+                          ) / 1000
+                        ).toFixed(1)}
+                        s
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
             </div>
             <div
               style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
