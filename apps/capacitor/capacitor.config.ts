@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 import { networkInterfaces } from "os";
 
 const config: CapacitorConfig = {
-  appId: "org.microbit.connection-demo",
+  appId: "org.microbit.connection.capacitor",
   appName: "connection-demo",
   webDir: "dist",
   plugins: {
