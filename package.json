@@ -1,51 +1,16 @@
 {
-  "name": "@microbit/microbit-connection",
-  "version": "0.0.0",
-  "main": "./build/cjs/index.js",
-  "module": "./build/esm/index.js",
-  "types": "./build/esm/index.d.ts",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./build/esm/index.d.ts",
-        "default": "./build/esm/index.js"
-      },
-      "require": {
-        "types": "./build/cjs/index.d.ts",
-        "default": "./build/cjs/index.js"
-      }
-    }
-  },
+  "name": "microbit-connection-monorepo",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "dev": "vite",
-    "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
-    "build:lib": "npm run build:esm && npm run build:cjs",
-    "build:demo": "vite build --mode=demo",
-    "build": "npm run build:lib && npm run build:demo",
-    "docs": "typedoc",
-    "ci": "npm run build:lib && npm run test && npx prettier --check lib src",
-    "test": "vitest",
-    "preview": "vite preview"
+    "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo",
+    "build:lib": "npm run build -w @microbit/microbit-connection",
+    "dev": "npm run dev -w @microbit/microbit-connection-demo",
+    "test": "npm run test -w @microbit/microbit-connection",
+    "ci": "npm run ci -w @microbit/microbit-connection && prettier --check packages/microbit-connection/src apps/demo/src",
+    "docs": "npm run docs -w @microbit/microbit-connection"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
-    "jsdom": "^24.1.0",
-    "prettier": "3.3.2",
-    "typedoc": "^0.27.6",
-    "typescript": "^5.2.2",
-    "vite": "^6.3.5",
-    "vitest": "^3.2.4"
-  },
-  "dependencies": {
-    "@capacitor-community/bluetooth-le": "^7.3.0",
-    "@capacitor/core": "^7.4.4",
-    "@capacitor/filesystem": "^7.1.6",
-    "@microbit/capacitor-community-nordic-dfu": "^7.0.0-microbit.3",
-    "@microbit/microbit-universal-hex": "^0.2.2",
-    "@types/web-bluetooth": "^0.0.20",
-    "crelt": "^1.0.6",
-    "dapjs": "^2.3.0",
-    "nrf-intel-hex": "^1.4.0"
+    "prettier": "3.3.2"
   }
 }
