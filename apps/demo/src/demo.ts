@@ -4,30 +4,24 @@
  * SPDX-License-Identifier: MIT
  */
 import crelt from "crelt";
-import { AccelerometerDataEvent } from "../lib/accelerometer";
 import {
-  createWebBluetoothConnection,
-  MicrobitWebBluetoothConnection,
-} from "../lib/bluetooth";
-import { ButtonEvent } from "../lib/buttons";
-import {
+  AccelerometerDataEvent,
   BackgroundErrorEvent,
+  ButtonEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
-} from "../lib/device";
-import { createUniversalHexFlashDataSource } from "../lib/hex-flash-data-source";
-import { MagnetometerDataEvent } from "../lib/magnetometer";
-import { SerialDataEvent } from "../lib/serial-events";
-import { UARTDataEvent } from "../lib/uart";
-import {
+  createRadioBridgeConnection,
+  createUniversalHexFlashDataSource,
+  createWebBluetoothConnection,
   createWebUSBConnection,
   DeviceSelectionMode,
-  MicrobitWebUSBConnection,
-} from "../lib/usb";
-import {
-  createRadioBridgeConnection,
+  MagnetometerDataEvent,
   MicrobitRadioBridgeConnection,
-} from "../lib/usb-radio-bridge";
+  MicrobitWebBluetoothConnection,
+  MicrobitWebUSBConnection,
+  SerialDataEvent,
+  UARTDataEvent,
+} from "@microbit/microbit-connection";
 import "./demo.css";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
