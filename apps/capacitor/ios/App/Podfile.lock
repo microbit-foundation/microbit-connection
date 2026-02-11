@@ -1,0 +1,67 @@
+PODS:
+  - Capacitor (7.4.5):
+    - CapacitorCordova
+  - CapacitorCommunityBluetoothLe (7.3.2):
+    - Capacitor
+  - CapacitorCordova (7.4.5)
+  - CapacitorFilesystem (7.1.6):
+    - Capacitor
+    - IONFilesystemLib (~> 1.0.1)
+  - CapacitorPreferences (7.0.3):
+    - Capacitor
+  - CapacitorStatusBar (7.0.4):
+    - Capacitor
+  - IONFilesystemLib (1.0.1)
+  - MicrobitCapacitorCommunityNordicDfu (7.0.0-microbit.3):
+    - Capacitor
+    - NordicDFU (~> 4.16.0)
+  - NordicDFU (4.16.0):
+    - ZIPFoundation (= 0.9.19)
+  - ZIPFoundation (0.9.19)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../../../node_modules/@capacitor/ios`)"
+  - "CapacitorCommunityBluetoothLe (from `../../../../node_modules/@capacitor-community/bluetooth-le`)"
+  - "CapacitorCordova (from `../../../../node_modules/@capacitor/ios`)"
+  - "CapacitorFilesystem (from `../../../../node_modules/@capacitor/filesystem`)"
+  - "CapacitorPreferences (from `../../../../node_modules/@capacitor/preferences`)"
+  - "CapacitorStatusBar (from `../../../../node_modules/@capacitor/status-bar`)"
+  - "MicrobitCapacitorCommunityNordicDfu (from `../../../../node_modules/@microbit/capacitor-community-nordic-dfu`)"
+
+SPEC REPOS:
+  trunk:
+    - IONFilesystemLib
+    - NordicDFU
+    - ZIPFoundation
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../../../node_modules/@capacitor/ios"
+  CapacitorCommunityBluetoothLe:
+    :path: "../../../../node_modules/@capacitor-community/bluetooth-le"
+  CapacitorCordova:
+    :path: "../../../../node_modules/@capacitor/ios"
+  CapacitorFilesystem:
+    :path: "../../../../node_modules/@capacitor/filesystem"
+  CapacitorPreferences:
+    :path: "../../../../node_modules/@capacitor/preferences"
+  CapacitorStatusBar:
+    :path: "../../../../node_modules/@capacitor/status-bar"
+  MicrobitCapacitorCommunityNordicDfu:
+    :path: "../../../../node_modules/@microbit/capacitor-community-nordic-dfu"
+
+SPEC CHECKSUMS:
+  Capacitor: 12914e6f1b7835e161a74ebd19cb361efa37a7dd
+  CapacitorCommunityBluetoothLe: 9aa29c1555fbe797e6b595db824c2acd39a5bdf5
+  CapacitorCordova: 31bbe4466000c6b86d9b7f1181ee286cff0205aa
+  CapacitorFilesystem: 66f05ee0d8b1ccdc00d509091273a9b3b57c4a0b
+  CapacitorPreferences: 913eef88272c13eb6445b21e51fe8ef6635412cc
+  CapacitorStatusBar: d0e0151c89c001a9c7125bac59ddedf76b664768
+  IONFilesystemLib: 89258b8e3e85465da93127d25d7ce37f977e8a6f
+  MicrobitCapacitorCommunityNordicDfu: 2fc86a9ebd698d5609023cafd74ece8b5d64a59e
+  NordicDFU: 116a4ec458945889f8e0e71759e03b23c39c3482
+  ZIPFoundation: b8c29ea7ae353b309bc810586181fd073cb3312c
+
+PODFILE CHECKSUM: 1e525de0e662e269e2bb7792e8b948a763acbadd
+
+COCOAPODS: 1.16.2

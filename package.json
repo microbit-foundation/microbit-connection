@@ -1,13 +1,18 @@
 {
   "name": "microbit-connection-monorepo",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo",
+    "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo && npm run build -w @microbit/microbit-connection-capacitor",
     "build:lib": "npm run build -w @microbit/microbit-connection",
     "dev": "npm run dev -w @microbit/microbit-connection-demo",
     "test": "npm run test -w @microbit/microbit-connection",
-    "ci": "npm run ci -w @microbit/microbit-connection && prettier --check packages/microbit-connection/src apps/demo/src",
+    "ci": "npm run build && npm run test && npm run format:check",
+    "format": "prettier --write packages/*/src",
+    "format:check": "prettier --check packages/*/src",
     "docs": "npm run docs -w @microbit/microbit-connection"
   },
   "devDependencies": {
