@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useFlashing } from "../hooks/use-flashing";
 import Content from "./Content";
 import { Capacitor } from "@capacitor/core";
+import { useConnection } from "../hooks/use-connection";
 
 interface CannedHexFile {
   name: string;
@@ -95,8 +96,21 @@ interface HexData {
   path?: string;
 }
 
+const primaryButtonStyle = {
+  backgroundColor: "black",
+  color: "white",
+  padding: "10px 20px",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer",
+  fontSize: "16px",
+};
+
+const headingStyle = { marginTop: "30px", marginBottom: "10px" };
+
 const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
+  const { connection, status, accelerometerData } = useConnection();
   const {
     step,
     setStep,
@@ -192,29 +206,22 @@ const HomeScreen: React.FC = () => {
         }}
       >
         <h1>micro:bit test app</h1>
-        <h2 style={{ marginTop: "30px", marginBottom: "10px" }}>Open apps</h2>
+        <h2 style={headingStyle}>Open apps</h2>
         <button
           onClick={() => navigate("/makecode")}
           style={{
-            backgroundColor: "black",
-            color: "white",
-            padding: "10px 20px",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-            fontSize: "16px",
+            ...primaryButtonStyle,
             width: "300px",
           }}
         >
           MakeCode
         </button>
-        <h2 style={{ marginTop: "30px", marginBottom: "10px" }}>Flash a hex</h2>
+        <h2 style={headingStyle}>Flash a hex</h2>
         <div style={{ display: "flex", gap: "10px" }}>
           <select
             onChange={handleHexSelectionChange}
             value={selectedHex?.path || browseForFileSelectOption}
             style={{
-              padding: "10px 20px",
               border: "1px solid #ccc",
               borderRadius: "5px",
               fontSize: "16px",
@@ -231,18 +238,7 @@ const HomeScreen: React.FC = () => {
               </option>
             ))}
           </select>
-          <button
-            onClick={handleFlashButtonClick}
-            style={{
-              backgroundColor: "black",
-              color: "white",
-              padding: "10px 20px",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-              fontSize: "16px",
-            }}
-          >
+          <button onClick={handleFlashButtonClick} style={primaryButtonStyle}>
             Flash .hex file
           </button>
         </div>
@@ -253,6 +249,31 @@ const HomeScreen: React.FC = () => {
           accept=".hex"
           onChange={handleFileSelected}
         />
+        <h2 style={headingStyle}>Connect / Disconnect</h2>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={() => connection.connect()}
+            style={primaryButtonStyle}
+          >
+            Connect
+          </button>
+          <button
+            onClick={() => connection.disconnect()}
+            style={primaryButtonStyle}
+          >
+            Disconnect
+          </button>
+        </div>
+        <p style={{ textAlign: "left" }}>
+          Connection status: {status}
+          {accelerometerData && (
+            <>
+              <br />
+              Accelerometer data: {accelerometerData.x}, {accelerometerData.y},
+              {accelerometerData.z}
+            </>
+          )}
+        </p>
       </div>
       {open && (
         <Content

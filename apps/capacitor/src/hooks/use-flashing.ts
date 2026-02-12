@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { flash } from "../flashing";
 import { ProgressCallback, ProgressStage } from "@microbit/microbit-connection";
 import { useDeviceName } from "./use-device-name";
+import { useConnection } from "./use-connection";
 
 export interface StageTiming {
   stage: string;
@@ -43,6 +44,7 @@ export const useFlashing = () => {
   const [step, setStep] = useState<Step>({ name: "initial" });
   const [hex, setHex] = useState<null | { name: string; hex: string }>(null);
   const timingsRef = useRef<{ stage: string; timestamp: number }[]>([]);
+  const { connection } = useConnection();
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -96,12 +98,12 @@ export const useFlashing = () => {
 
     timingsRef.current = [];
     try {
-      await flash(deviceName, hex.hex, updateStep);
+      await flash(connection, deviceName, hex.hex, updateStep);
       setStep({ name: "success", timings: buildTimings() });
     } catch (error) {
       setStep({ name: "flash-error", children: (error as Error).message });
     }
-  }, [deviceName, hex, updateStep, buildTimings]);
+  }, [hex, deviceName, connection, updateStep, buildTimings]);
 
   const startFlashing = useCallback(
     (download: { name: string; hex: string }) => {
