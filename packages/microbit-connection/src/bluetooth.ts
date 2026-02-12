@@ -49,6 +49,7 @@ import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
+import { TimeoutError } from "./async-util.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -312,10 +313,8 @@ class MicrobitWebBluetoothConnectionImpl
 
     // After partial flashing, we will need to wait for connection to fully
     // disconnect before attempting to connect.
-    if (this.waitForPostFlashDisconnectPromise && this.connection?.connected) {
-      this.log("Wait for post partial flash disconnect...");
-      await this.waitForPostFlashDisconnectPromise;
-    }
+    this.waitForPostFlashDisconnectPromise &&
+      (await this.waitForPostFlashDisconnectPromise);
 
     if (!this.device || !this.connection) {
       progress(ProgressStage.FindingDevice);
@@ -536,11 +535,22 @@ class MicrobitWebBluetoothConnectionImpl
         if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
           await fullFlash(connection, boardVersion, memoryMap, progress);
         } else if (partialFlashResult === PartialFlashResult.Success) {
-          this.waitForPostFlashDisconnectPromise = connection
-            .waitForDisconnect(10_000)
-            .finally(() => {
+          this.waitForPostFlashDisconnectPromise = (async () => {
+            try {
+              if (connection.connected) {
+                this.log("Wait for post partial flash disconnect...");
+                await connection.waitForDisconnect(10_000);
+              }
+            } catch (e) {
+              if (e instanceof TimeoutError) {
+                this.log("Wait for post partial flash disconnect timed out.");
+                return;
+              }
+              throw e;
+            } finally {
               this.waitForPostFlashDisconnectPromise = undefined;
-            });
+            }
+          })();
           this.setStatus(ConnectionStatus.DISCONNECTED);
         }
       } catch (e) {
