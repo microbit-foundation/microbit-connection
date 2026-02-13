@@ -49,6 +49,7 @@ import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
+import { TimeoutError } from "./async-util.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -204,6 +205,7 @@ class MicrobitWebBluetoothConnectionImpl
 
   private nameFilter: string | undefined;
   private deferredUpdatesPreviousStatus: ConnectionStatus | undefined;
+  private waitForPostFlashDisconnectPromise: Promise<void> | undefined;
 
   constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
     super();
@@ -308,6 +310,11 @@ class MicrobitWebBluetoothConnectionImpl
     // because on Android/iOS that's the appropriate time to ask for permissions.
     progress(ProgressStage.Initializing);
     throwIfUnavailable(await this.checkAvailability());
+
+    // After partial flashing, we will need to wait for connection to fully
+    // disconnect before attempting to connect.
+    this.waitForPostFlashDisconnectPromise &&
+      (await this.waitForPostFlashDisconnectPromise);
 
     if (!this.device || !this.connection) {
       progress(ProgressStage.FindingDevice);
@@ -528,15 +535,37 @@ class MicrobitWebBluetoothConnectionImpl
         if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
           await fullFlash(connection, boardVersion, memoryMap, progress);
         } else if (partialFlashResult === PartialFlashResult.Success) {
-          if (connection.connected) {
-            await connection.waitForDisconnect(10_000);
-          }
+          this.waitForPostFlashDisconnectPromise = (async () => {
+            try {
+              if (connection.connected) {
+                this.log("Wait for post partial flash disconnect...");
+                await connection.waitForDisconnect(10_000);
+              }
+            } catch (e) {
+              if (e instanceof TimeoutError) {
+                this.log("Wait for post partial flash disconnect timed out.");
+              } else {
+                this.error(
+                  "Error waiting for post partial flash disconnect",
+                  e,
+                );
+              }
+            } finally {
+              this.waitForPostFlashDisconnectPromise = undefined;
+              if (connection.connected) {
+                await this.disconnect();
+              }
+            }
+          })();
+          this.setStatus(ConnectionStatus.DISCONNECTED);
         }
       } catch (e) {
         this.error("Failed to flash", e);
         throw e;
       } finally {
-        await this.disconnect();
+        if (!this.waitForPostFlashDisconnectPromise) {
+          await this.disconnect();
+        }
       }
     } finally {
       const previousStatus = this.deferredUpdatesPreviousStatus!;
