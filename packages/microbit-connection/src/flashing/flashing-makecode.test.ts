@@ -48,7 +48,13 @@ const hexFiles = [
     label: "MakeCode v0",
     universal: false,
     regions: [
-      { boardId: 0, start: 0x30c00, end: 0x3fc40, hash: "AB433FFB2EC06262" },
+      {
+        boardId: 0,
+        start: 0x30c00,
+        end: 0x3fc40,
+        hash: "AB433FFB2EC06262",
+        appHash: "653E46119D3A701B",
+      },
     ],
   },
   {
@@ -56,7 +62,13 @@ const hexFiles = [
     label: "MakeCode v1",
     universal: false,
     regions: [
-      { boardId: 0, start: 0x32c00, end: 0x3fc40, hash: "13FC432659DAE036" },
+      {
+        boardId: 0,
+        start: 0x32c00,
+        end: 0x3fc40,
+        hash: "13FC432659DAE036",
+        appHash: "579ACD9774545DAA",
+      },
     ],
   },
   {
@@ -64,7 +76,13 @@ const hexFiles = [
     label: "MakeCode v2",
     universal: false,
     regions: [
-      { boardId: 0, start: 0x34800, end: 0x3fc40, hash: "02F597B8CE253C03" },
+      {
+        boardId: 0,
+        start: 0x34800,
+        end: 0x3fc40,
+        hash: "02F597B8CE253C03",
+        appHash: "AF81BA51A0E7E921",
+      },
     ],
   },
   {
@@ -77,12 +95,14 @@ const hexFiles = [
         start: 0x35000,
         end: 0x3fc40,
         hash: "4F4FD28A88324C7E",
+        appHash: "C1008100AB00DD00",
       },
       {
         boardId: 0x9903,
         start: 0x45000,
         end: 0x7f340,
         hash: "FFC95E6502F1C747",
+        appHash: "DB0013005900BE00",
       },
     ],
   },
@@ -96,12 +116,14 @@ const hexFiles = [
         start: 0x35000,
         end: 0x3fc40,
         hash: "02E34856C566087A",
+        appHash: "54005A00F1008000",
       },
       {
         boardId: 0x9903,
         start: 0x47000,
         end: 0x7f340,
         hash: "8E4D117FB81B2B19",
+        appHash: "39006F00D900A600",
       },
     ],
   },
@@ -115,12 +137,14 @@ const hexFiles = [
         start: 0x36800,
         end: 0x3fc40,
         hash: "FFDA7A967870CC1B",
+        appHash: "E4006A0031002200",
       },
       {
         boardId: 0x9903,
         start: 0x47000,
         end: 0x7f340,
         hash: "3BD7683DA9B220E8",
+        appHash: "3E003800AF001600",
       },
     ],
   },
@@ -134,12 +158,14 @@ const hexFiles = [
         start: 0x35400,
         end: 0x3fc40,
         hash: "F4B5733CAAC69708",
+        appHash: "78005900AB000900",
       },
       {
         boardId: 0x9903,
         start: 0x47000,
         end: 0x7f340,
         hash: "890F5019E604A158",
+        appHash: "E300B400A6003100",
       },
     ],
   },
@@ -153,12 +179,14 @@ const hexFiles = [
         start: 0x35400,
         end: 0x3fc40,
         hash: "F87DD6F924D49825",
+        appHash: "2B00EF0092003900",
       },
       {
         boardId: 0x9903,
         start: 0x47000,
         end: 0x7f340,
         hash: "42B6FF95F591DA1F",
+        appHash: "9100F3005800E800",
       },
     ],
   },
@@ -172,12 +200,14 @@ const hexFiles = [
         start: 0x35400,
         end: 0x3fc40,
         hash: "8E76592A9CB06B29",
+        appHash: "8300A70050005500",
       },
       {
         boardId: 0x9903,
         start: 0x47000,
         end: 0x7f340,
         hash: "22204AC874977E7F",
+        appHash: "900022002E00BE00",
       },
     ],
   },
@@ -214,6 +244,7 @@ describe("findMakeCodeRegionInMemoryMap", () => {
             start: expected.start,
             end: expected.end,
             hash: expected.hash,
+            appHash: expected.appHash,
           });
         });
       }
