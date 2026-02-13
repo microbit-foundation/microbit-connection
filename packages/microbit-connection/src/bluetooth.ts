@@ -544,11 +544,17 @@ class MicrobitWebBluetoothConnectionImpl
             } catch (e) {
               if (e instanceof TimeoutError) {
                 this.log("Wait for post partial flash disconnect timed out.");
-                return;
+              } else {
+                this.error(
+                  "Error waiting for post partial flash disconnect",
+                  e,
+                );
               }
-              throw e;
             } finally {
               this.waitForPostFlashDisconnectPromise = undefined;
+              if (connection.connected) {
+                await this.disconnect();
+              }
             }
           })();
           this.setStatus(ConnectionStatus.DISCONNECTED);
