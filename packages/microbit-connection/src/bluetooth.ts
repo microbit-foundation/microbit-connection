@@ -44,7 +44,7 @@ import {
 } from "./service-events.js";
 
 import { throwIfUnavailable } from "./availability.js";
-import { truncateHexAfterEof } from "./hex-flash-data-source.js";
+import { truncateHexAfterEof } from "./hex-util.js";
 import {
   DefaultDeviceBondState,
   DeviceBondState,
@@ -55,12 +55,12 @@ type BleClientError = { message: string; errorMessage: string };
 
 let bleClientInitialized = false;
 
-export interface MicrobitWebBluetoothConnectionOptions {
+export interface MicrobitBluetoothConnectionOptions {
   logging?: Logging;
   deviceBondState?: DeviceBondState;
 }
 
-export interface MicrobitWebBluetoothConnection
+export interface MicrobitBluetoothConnection
   extends DeviceConnection<ServiceConnectionEventMap> {
   /**
    * Sets micro:bit name filter for device requesting.
@@ -165,31 +165,22 @@ export interface MicrobitWebBluetoothConnection
    */
   uartWrite(data: Uint8Array): Promise<void>;
 
-  /**
-   * Flash the micro:bit.
-   *
-   * @param dataSource The data to use.
-   * @param options Flash options and progress callback.
-   * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
-   * @throws {FlashDataError} If data preparation fails.
-   */
   flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
 }
 
 /**
  * A Bluetooth connection factory.
  */
-export const createWebBluetoothConnection = (
-  options?: MicrobitWebBluetoothConnectionOptions,
-): MicrobitWebBluetoothConnection =>
-  new MicrobitWebBluetoothConnectionImpl(options);
+export const createBluetoothConnection = (
+  options?: MicrobitBluetoothConnectionOptions,
+): MicrobitBluetoothConnection => new MicrobitBluetoothConnectionImpl(options);
 
 /**
  * A Bluetooth connection to a micro:bit device.
  */
-class MicrobitWebBluetoothConnectionImpl
+class MicrobitBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
-  implements MicrobitWebBluetoothConnection
+  implements MicrobitBluetoothConnection
 {
   status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
 
@@ -207,7 +198,7 @@ class MicrobitWebBluetoothConnectionImpl
   private deferredUpdatesPreviousStatus: ConnectionStatus | undefined;
   private waitForPostFlashDisconnectPromise: Promise<void> | undefined;
 
-  constructor(options: MicrobitWebBluetoothConnectionOptions = {}) {
+  constructor(options: MicrobitBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
     this.deviceBondState =

@@ -351,6 +351,20 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
   serialWrite(data: string): Promise<void>;
 
   /**
+   * Flash the micro:bit.
+   *
+   * Not all connection types support flashing. For example, radio bridge
+   * connections do not support flashing, and Bluetooth connections only
+   * support flashing on native platforms (not Web).
+   *
+   * @param dataSource The data to use.
+   * @param options Flash options and progress callback.
+   * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
+   * @throws {FlashDataError} If data preparation fails.
+   */
+  flash?(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
+
+  /**
    * Clear device to enable chooseDevice.
    */
   clearDevice(): Promise<void> | void;

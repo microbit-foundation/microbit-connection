@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
-import { createWebBluetoothConnection } from "./bluetooth.js";
+import { createBluetoothConnection } from "./bluetooth.js";
 import { expect, vi, describe, it } from "vitest";
 
 // Mock Capacitor
@@ -55,7 +55,7 @@ const setupNavigatorMock = () => {
 describe("Bluetooth connection status events", () => {
   it("emits status events with correct previousStatus", async () => {
     setupNavigatorMock();
-    const connection = createWebBluetoothConnection();
+    const connection = createBluetoothConnection();
     await connection.initialize();
 
     expect(connection.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
@@ -76,7 +76,7 @@ describe("Bluetooth connection status events", () => {
 
   it("defers status updates during flash, emitting single catch-up event", async () => {
     setupNavigatorMock();
-    const connection = createWebBluetoothConnection();
+    const connection = createBluetoothConnection();
     await connection.initialize();
 
     const statusBeforeFlash = connection.status;

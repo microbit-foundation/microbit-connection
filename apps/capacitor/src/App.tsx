@@ -3,9 +3,9 @@ import HomeScreen from "./components/HomeScreen";
 import MakeCodeView from "./components/MakeCodeView";
 import "./App.css";
 import ConnectionProvider from "./components/ConnectionProvider";
-import { createWebBluetoothConnection } from "@microbit/microbit-connection";
+import { createBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 
-const connection = createWebBluetoothConnection();
+const connection = createBluetoothConnection();
 
 function App() {
   return (

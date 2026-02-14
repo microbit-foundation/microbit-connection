@@ -58,7 +58,7 @@ export enum DeviceSelectionMode {
   UseAnyAllowed = "UseAnyAllowed",
 }
 
-export interface MicrobitWebUSBConnectionOptions {
+export interface MicrobitUSBConnectionOptions {
   // We should copy this type when extracting a library, and make it optional.
   // Coupling for now to make it easy to evolve.
 
@@ -73,7 +73,7 @@ export interface MicrobitWebUSBConnectionOptions {
   deviceSelectionMode?: DeviceSelectionMode;
 }
 
-export interface MicrobitWebUSBConnection
+export interface MicrobitUSBConnection
   extends DeviceConnection<SerialConnectionEventMap> {
   /**
    * Gets micro:bit deviceId.
@@ -87,14 +87,6 @@ export interface MicrobitWebUSBConnection
    */
   setRequestDeviceExclusionFilters(exclusionFilters: USBDeviceFilter[]): void;
 
-  /**
-   * Flash the micro:bit.
-   *
-   * @param dataSource The data to use.
-   * @param options Flash options and progress callback.
-   * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
-   * @throws {FlashDataError} If data preparation fails.
-   */
   flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
 
   /**
@@ -113,16 +105,16 @@ export interface MicrobitWebUSBConnection
 /**
  * A WebUSB connection factory.
  */
-export const createWebUSBConnection = (
-  options?: MicrobitWebUSBConnectionOptions,
-): MicrobitWebUSBConnection => new MicrobitWebUSBConnectionImpl(options);
+export const createUSBConnection = (
+  options?: MicrobitUSBConnectionOptions,
+): MicrobitUSBConnection => new MicrobitUSBConnectionImpl(options);
 
 /**
  * A WebUSB connection to a micro:bit device.
  */
-class MicrobitWebUSBConnectionImpl
+class MicrobitUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
-  implements MicrobitWebUSBConnection
+  implements MicrobitUSBConnection
 {
   status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
 
@@ -205,7 +197,7 @@ class MicrobitWebUSBConnectionImpl
     serialdata: 0,
   };
 
-  constructor(options: MicrobitWebUSBConnectionOptions = {}) {
+  constructor(options: MicrobitUSBConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
     this.deviceSelectionMode =
