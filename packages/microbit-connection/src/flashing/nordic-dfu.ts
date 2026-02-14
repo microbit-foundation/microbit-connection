@@ -45,7 +45,7 @@ async function createDfuZipFile(
   const encoder = new TextEncoder();
 
   const zipData = createZip([
-    { name: appDatFilename, data: createInitPacket(appBin) },
+    { name: appDatFilename, data: await createInitPacket(appBin) },
     { name: appBinFilename, data: appBin },
     { name: "manifest.json", data: encoder.encode(manifestData) },
   ]);
@@ -236,7 +236,9 @@ const calculateCRC16 = (data: Uint8Array): number => {
   return crc & 0xffff;
 };
 
-const createInitPacketV2 = (appBin: Uint8Array): Uint8Array => {
+// See microbit_dfu_app_t and fw_hash_ok in the V2 bootloader:
+// https://github.com/microbit-foundation/v2-bootloader/blob/master/nRF5SDK_mods/components/libraries/bootloader/dfu/nrf_dfu_validation.c
+const createInitPacketV2 = async (appBin: Uint8Array): Promise<Uint8Array> => {
   //typedef struct {
   //    uint8_t  magic[12];                 // identify this struct "microbit_app"
   //    uint32_t version;                   // version of this struct == 1
@@ -247,8 +249,9 @@ const createInitPacketV2 = (appBin: Uint8Array): Uint8Array => {
   const appSize = appBin.length;
   const magic = "microbit_app";
   const version = 1;
-  const hashSize = 0;
-  const hash = new Uint8Array(32).fill(0);
+  const hashSize = 32;
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", appBin));
+  hash.reverse(); // Bootloader reverses bytes before comparing (see nrf_dfu_validation_hash_ok)
 
   const buffer = new ArrayBuffer(12 + 4 + 4 + 4 + 32); // total: 56 bytes
   const view = new DataView(buffer);
