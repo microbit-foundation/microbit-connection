@@ -47,6 +47,9 @@ const partialFlash = async (
     );
   } catch (e) {
     connection.error("Partial flash failed", e);
+    if (e instanceof Error && e.message === "Characteristic not found.") {
+      return PartialFlashResult.AttemptFullFlash;
+    }
     if (
       // Error thrown in iOS only for when user cancels the pairing dialog.
       e instanceof Error &&
