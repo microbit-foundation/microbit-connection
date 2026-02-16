@@ -1,6 +1,7 @@
 import MemoryMap from "nrf-intel-hex";
 import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper.js";
 import {
+  MicroBitMode,
   PacketState,
   PartialFlashingService,
   RegionId,
@@ -21,6 +22,7 @@ const FLASH_PAGE_SIZE: Record<BoardVersion, number> = {
 
 export enum PartialFlashResult {
   Success = "Success",
+  AlreadyUpToDate = "AlreadyUpToDate",
   AttemptFullFlash = "AttemptFullFlash",
 }
 
@@ -114,6 +116,12 @@ const partialFlashInternal = async (
   if (deviceCodeRegion.start !== fileCodeRegion.start) {
     connection.log("Code start address doesn't match");
     return PartialFlashResult.AttemptFullFlash;
+  }
+
+  if (fileCodeRegion.appHash === deviceCodeRegion.hash) {
+    connection.log("Application hash matches, already up to date");
+    await pf.resetToMode(MicroBitMode.Application);
+    return PartialFlashResult.AlreadyUpToDate;
   }
 
   // The device-side partial flash service erases each flash page when it

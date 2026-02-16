@@ -2,6 +2,12 @@ import MemoryMap from "nrf-intel-hex";
 import { RegionInfo } from "../partial-flashing-service.js";
 
 const PXT_MAGIC_HEX = "708E3B92C615A841C49866C975EE5197";
+const PXT_MAGIC_BYTES = PXT_MAGIC_HEX.length / 2; // 16
+
+export interface MakeCodeRegionInfo extends RegionInfo {
+  /** SHA-256 (truncated to 8 bytes) of the compiled program binary. */
+  appHash: string;
+}
 
 /**
  * Find the MakeCode code region in a MemoryMap (typically from a hex file).
@@ -9,14 +15,16 @@ const PXT_MAGIC_HEX = "708E3B92C615A841C49866C975EE5197";
 export const findMakeCodeRegionInMemoryMap = (
   memoryMap: MemoryMap,
   deviceCodeRegion: RegionInfo,
-): RegionInfo | null => {
+): MakeCodeRegionInfo | null => {
   for (const [blockAddr, block] of memoryMap) {
     const offset = findByteSequence(block, PXT_MAGIC_HEX);
     if (offset >= 0) {
       const start = blockAddr + offset;
-      const hashOffset = start + PXT_MAGIC_HEX.length / 2;
+      const hashOffset = start + PXT_MAGIC_BYTES;
       const hashBytes = memoryMap.slicePad(hashOffset, 8);
       const hash = bytesToHex(hashBytes);
+      const appHashBytes = memoryMap.slicePad(hashOffset + 8, 8);
+      const appHash = bytesToHex(appHashBytes);
 
       // Find the highest address with data in the memory map within the code region
       let end = start;
@@ -30,7 +38,7 @@ export const findMakeCodeRegionInMemoryMap = (
       // Round up to next 64-byte boundary
       end = Math.ceil(end / 64) * 64;
 
-      return { start, end, hash };
+      return { start, end, hash, appHash };
     }
   }
   return null;
