@@ -479,11 +479,21 @@ export class BluetoothDeviceWrapper implements Logging {
 
       await this.connectInternal();
 
-      progress(ProgressStage.ResettingDevice);
-      this.log("Resetting to pairing mode");
-      const pf = new PartialFlashingService(this);
-      await pf.resetToMode(MicroBitMode.Pairing);
-      await this.waitForDisconnect(10_000);
+      try {
+        progress(ProgressStage.ResettingDevice);
+        this.log("Resetting to pairing mode");
+        const pf = new PartialFlashingService(this);
+        await pf.resetToMode(MicroBitMode.Pairing);
+        await this.waitForDisconnect(10_000);
+      } catch (e) {
+        if (e instanceof Error && e.message === "Characteristic not found.") {
+          this.log(
+            "Partial flashing characteristic not found. Continue trying to connect anyway.",
+          );
+        } else {
+          throw e;
+        }
+      }
 
       progress(ProgressStage.Connecting);
       await this.connectInternal();
