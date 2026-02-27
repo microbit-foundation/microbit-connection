@@ -44,6 +44,13 @@ import {
   DeviceBondState,
 } from "./device-bond-state.js";
 
+/**
+ * The @capacitor-community/bluetooth-le plugin throws this message when
+ * a characteristic UUID is not found in the device's GATT table.
+ */
+export const isCharacteristicNotFoundError = (e: unknown): boolean =>
+  e instanceof Error && e.message === "Characteristic not found.";
+
 export const bondingTimeoutInMs = 40_000;
 export const connectTimeoutInMs = 10_000;
 export const scanningTimeoutInMs = 10_000;
@@ -485,18 +492,18 @@ export class BluetoothDeviceWrapper implements Logging {
         const pf = new PartialFlashingService(this);
         await pf.resetToMode(MicroBitMode.Pairing);
         await this.waitForDisconnect(10_000);
+
+        progress(ProgressStage.Connecting);
+        await this.connectInternal();
       } catch (e) {
-        if (e instanceof Error && e.message === "Characteristic not found.") {
+        if (isCharacteristicNotFoundError(e)) {
           this.log(
-            "Partial flashing characteristic not found. Continue trying to connect anyway.",
+            "Partial flashing characteristic not found, skipping reset.",
           );
         } else {
           throw e;
         }
       }
-
-      progress(ProgressStage.Connecting);
-      await this.connectInternal();
     }
     this.log(`Connection ready; took ${Date.now() - startTime}`);
   }
