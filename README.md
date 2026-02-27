@@ -99,14 +99,19 @@ For more examples of using other methods in the {@link createWebBluetoothConnect
 
 ### Bluetooth
 
-### Open link hex file already on micro:bit
+### Open link security mode hex file already on micro:bit
 
-Open link hex files are not common. The most common source is the web version of micro:bit CreateAI, but that's typically used with a micro:bit V2. There are two known issues:
+Open link hex files are not common. The most common source is the micro:bit CreateAI. Known issues:
 
 - **iOS DFU classroom collision risk with open-link firmware**: When performing DFU on iOS with open-link security firmware (no bonding), the Nordic DFU library scans for the bootloader by DFU service UUID and connects to the first matching device. If multiple micro:bits are in bootloader mode simultaneously, the wrong device could be targeted. This does not affect bonded firmware (where the bootloader uses whitelist-filtered advertising) or Android (which reconnects by MAC address).
 
 - **V1 Android PIN dialog with open-link firmware**: On Android with micro:bit V1, calling `createBond` triggers a passkey entry dialog because the V1 DAL declares `IO_CAPS_DISPLAY_ONLY` even in open-link mode. The micro:bit displays a PIN that the user must enter. This is a bug in the V1 DAL (V2 correctly uses `IO_CAPS_NONE`). There is no BLE-visible indicator of the security mode, so the library cannot detect this situation to avoid it. On V2 you get a harmless (but somewhat pointless) "just works" pairing dialog.
+
   - Furthermore, **on V1 we subsequently fail to request regions from the partial flashing service** (timeout). This is under active investigation. It appears to be because the bond created is persisted on the Android side only (LTK is distributed) only causing a mismatch. V2 doesn't distribute the LTK in the open link case, so there's just a STK for the current connection before the reboot and then open link after the reboot. Plan: call removeBond, retry (or perhaps fall back to DFU).
+
+### No suitable services on the micro:bit to flash
+
+- **Hex with no partial flashing or DFU control service (V1)**: This is currently the case for CreateAI data collection hex files for micro:bit V1. There's nothing that can be done via Bluetooth. When the apps branch of CreateAI is released this will eventually resolve itself (or at least, we'll stop creating more such micro:bits). Workaround: flash via WebUSB or drag and drop from a computer. The equivalent V2 hex does have the Secure DFU service (but not partial flashing) which we support.
 
 ## License
 
