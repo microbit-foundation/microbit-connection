@@ -1,5 +1,8 @@
 import MemoryMap from "nrf-intel-hex";
-import { BluetoothDeviceWrapper } from "../bluetooth-device-wrapper.js";
+import {
+  BluetoothDeviceWrapper,
+  isCharacteristicNotFoundError,
+} from "../bluetooth-device-wrapper.js";
 import {
   MicroBitMode,
   PacketState,
@@ -47,6 +50,9 @@ const partialFlash = async (
     );
   } catch (e) {
     connection.error("Partial flash failed", e);
+    if (isCharacteristicNotFoundError(e)) {
+      return PartialFlashResult.AttemptFullFlash;
+    }
     if (
       // Error thrown in iOS only for when user cancels the pairing dialog.
       e instanceof Error &&
