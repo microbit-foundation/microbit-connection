@@ -132,26 +132,36 @@ export async function flashDfu(
       );
 
       // Note this doesn't await the whole DFU process, just its initialization
+      const isAndroid = Capacitor.getPlatform() === "android";
       const error = await NordicDfu.startDFU({
         deviceName: device.name,
         deviceAddress: device.deviceId,
         filePath,
-        dfuOptions:
-          Capacitor.getPlatform() === "android"
-            ? {
-                ...{
-                  V1: { forceDfu: true },
-                  V2: {
-                    unsafeExperimentalButtonlessServiceInSecureDfuEnabled: true,
-                    disableNotification: true,
-                    restoreBond: true,
-                  },
-                }[boardVersion],
-                startAsForegroundService: false,
-                keepBond: true,
-                packetReceiptNotificationsEnabled: true,
-              }
-            : {},
+        dfuOptions: isAndroid
+          ? {
+              ...{
+                V1: { forceDfu: true },
+                V2: {
+                  disableNotification: true,
+                  restoreBond: true,
+                },
+              }[boardVersion],
+              startAsForegroundService: false,
+              keepBond: true,
+              packetReceiptNotificationsEnabled: true,
+            }
+          : {
+              // The micro:bit bootloader is built with
+              // NRF_DFU_BLE_REQUIRES_BONDS=1, which compiles out the code
+              // path that reads a custom advertising name from settings. The
+              // bootloader always advertises as "DfuTarg" regardless of any
+              // name sent via opcode 0x02. With alternativeAdvertisingNameEnabled
+              // left as true (the default), the DFU library scans for the
+              // wrong name and times out. With it disabled, the library scans
+              // by DFU service UUID instead.
+              // Android is unaffected as it reconnects by MAC address.
+              alternativeAdvertisingNameEnabled: false,
+            },
       });
       if (error) {
         connection.error(`DFU Error: ${error.message}`, error);
