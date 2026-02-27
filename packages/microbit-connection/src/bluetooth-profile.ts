@@ -66,6 +66,12 @@ export const profile = {
       calibration: { id: "e95db358-251d-470a-a062-fa1922dfa9a8" },
     },
   },
+  nordicSecureDfu: {
+    id: "0000fe59-0000-1000-8000-00805f9b34fb",
+    characteristics: {
+      buttonless: { id: "8ec90003-f315-4f60-9fb8-838830daea50" },
+    },
+  },
   partialFlashing: {
     id: "e97dd91d-251d-470a-a062-fa1922dfa9a8",
     characteristics: {

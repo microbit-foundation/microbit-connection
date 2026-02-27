@@ -43,6 +43,7 @@ import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
+import { profile } from "./bluetooth-profile.js";
 
 /**
  * The @capacitor-community/bluetooth-le plugin throws this message when
@@ -530,12 +531,72 @@ export class BluetoothDeviceWrapper implements Logging {
       // startNotifications.
       await this.connectInternal();
       if (!isAlreadyIosBonded) {
-        const pf = new PartialFlashingService(this);
-        await pf.startNotifications({ timeout: bondingTimeoutInMs });
-        // We just did it now to trigger pairing at a well defined point.
-        await pf.stopNotifications();
+        await this.triggerIosPairing({ timeout: bondingTimeoutInMs });
       }
       return !isAlreadyIosBonded;
+    }
+  }
+
+  /**
+   * On iOS, accessing an encrypted characteristic triggers the pairing dialog.
+   * Try each candidate characteristic in turn until one succeeds. The error is
+   * fast (local GATT cache lookup) so there's no meaningful delay from retries.
+   */
+  private async triggerIosPairing(options: TimeoutOptions): Promise<void> {
+    const { deviceId } = this.device;
+
+    // 1. Partial flashing notifications (most common case)
+    try {
+      const pf = new PartialFlashingService(this);
+      await pf.startNotifications(options);
+      await pf.stopNotifications();
+      return;
+    } catch (e) {
+      if (!isCharacteristicNotFoundError(e)) {
+        throw e;
+      }
+      this.log(
+        "PF characteristic not found for pairing trigger, trying Secure DFU",
+      );
+    }
+
+    // 2. Nordic Secure DFU buttonless notifications (V2 without PF)
+    try {
+      await BleClient.startNotifications(
+        deviceId,
+        profile.nordicSecureDfu.id,
+        profile.nordicSecureDfu.characteristics.buttonless.id,
+        () => {},
+        options,
+      );
+      await BleClient.stopNotifications(
+        deviceId,
+        profile.nordicSecureDfu.id,
+        profile.nordicSecureDfu.characteristics.buttonless.id,
+      );
+      return;
+    } catch (e) {
+      if (!isCharacteristicNotFoundError(e)) {
+        throw e;
+      }
+      this.log(
+        "Secure DFU characteristic not found for pairing trigger, trying DFU control",
+      );
+    }
+
+    // 3. micro:bit DFU control read (V1 without PF)
+    try {
+      await BleClient.read(
+        deviceId,
+        profile.dfuControl.id,
+        profile.dfuControl.characteristics.control.id,
+        options,
+      );
+    } catch (e) {
+      if (!isCharacteristicNotFoundError(e)) {
+        throw e;
+      }
+      this.log("No suitable characteristic found to trigger pairing");
     }
   }
 }
