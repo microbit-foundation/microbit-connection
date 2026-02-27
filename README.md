@@ -95,6 +95,19 @@ console.log("Connection status: ", connectionStatus);
 
 For more examples of using other methods in the {@link createWebBluetoothConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
 
+## Known limitations
+
+### Bluetooth
+
+### Open link hex file already on micro:bit
+
+Open link hex files are not common. The most common source is the web version of micro:bit CreateAI, but that's typically used with a micro:bit V2. There are two known issues:
+
+- **iOS DFU classroom collision risk with open-link firmware**: When performing DFU on iOS with open-link security firmware (no bonding), the Nordic DFU library scans for the bootloader by DFU service UUID and connects to the first matching device. If multiple micro:bits are in bootloader mode simultaneously, the wrong device could be targeted. This does not affect bonded firmware (where the bootloader uses whitelist-filtered advertising) or Android (which reconnects by MAC address).
+
+- **V1 Android PIN dialog with open-link firmware**: On Android with micro:bit V1, calling `createBond` triggers a passkey entry dialog because the V1 DAL declares `IO_CAPS_DISPLAY_ONLY` even in open-link mode. The micro:bit displays a PIN that the user must enter. This is a bug in the V1 DAL (V2 correctly uses `IO_CAPS_NONE`). There is no BLE-visible indicator of the security mode, so the library cannot detect this situation to avoid it. On V2 you get a harmless (but somewhat pointless) "just works" pairing dialog.
+  - Furthermore, **on V1 we subsequently fail to request regions from the partial flashing service** (timeout). This is under active investigation. It appears to be because the bond created is persisted on the Android side only (LTK is distributed) only causing a mismatch. V2 doesn't distribute the LTK in the open link case, so there's just a STK for the current connection before the reboot and then open link after the reboot. Plan: call removeBond, retry (or perhaps fall back to DFU).
+
 ## License
 
 This software is under the MIT open source license.
