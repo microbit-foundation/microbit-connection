@@ -102,6 +102,11 @@ const partialFlashInternal = async (
     return PartialFlashResult.AttemptFullFlash;
   }
 
+  if (/^0+$/.test(deviceDalRegion.hash) || /^0+$/.test(deviceCodeRegion.hash)) {
+    connection.log("Device reported zero hash, partial flash not reliable");
+    return PartialFlashResult.AttemptFullFlash;
+  }
+
   progress(ProgressStage.PartialFlashing);
 
   const fileCodeRegion = findMakeCodeRegionInMemoryMap(
