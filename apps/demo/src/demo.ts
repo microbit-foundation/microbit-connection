@@ -48,6 +48,7 @@ const createConnections = (
         type,
         connection: createUSBConnection({
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
+          pauseOnHidden,
         }),
       };
     case "radio":
@@ -56,6 +57,7 @@ const createConnections = (
       const connection = createRadioBridgeConnection(
         createUSBConnection({
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
+          pauseOnHidden,
         }),
       );
       connection.setRemoteDeviceId(0);
@@ -67,6 +69,7 @@ interface Section {
   dom?: Element;
   cleanup?: () => void;
 }
+let pauseOnHidden = true;
 let typedConnection = createConnections("usb");
 let uiCleanup: Array<() => void> = [];
 
@@ -156,6 +159,20 @@ const createConnectSection = (): Section => {
               exclusionFilters = (e.currentTarget as HTMLInputElement).value;
             },
           }),
+        )
+      : undefined,
+    type === "usb" || type === "radio"
+      ? crelt(
+          "label",
+          crelt("input", {
+            type: "checkbox",
+            checked: pauseOnHidden,
+            onchange: (e: Event) => {
+              pauseOnHidden = (e.currentTarget as HTMLInputElement).checked;
+              recreateUi(type);
+            },
+          }),
+          "Pause on hidden",
         )
       : undefined,
     crelt(

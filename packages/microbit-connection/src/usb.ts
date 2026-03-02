@@ -71,6 +71,18 @@ export interface MicrobitUSBConnectionOptions {
    * Determines how a device should be selected.
    */
   deviceSelectionMode?: DeviceSelectionMode;
+
+  /**
+   * Whether to automatically pause the USB connection when the browser tab
+   * becomes hidden and reconnect when it becomes visible again.
+   *
+   * When enabled, the connection transitions to PAUSED instead of staying
+   * connected while the tab is hidden. This frees the USB interface for
+   * other tabs or processes.
+   *
+   * @default true
+   */
+  pauseOnHidden?: boolean;
 }
 
 export interface MicrobitUSBConnection
@@ -146,7 +158,8 @@ class MicrobitUSBConnectionImpl
       if (this.status === ConnectionStatus.PAUSED) {
         if (!this.flashing) {
           this.log("Reconnecting visible tab");
-          this.connect();
+          // withEnrichedErrors already disconnects and logs on failure.
+          this.connect().catch(() => {});
         }
       }
     } else {
@@ -197,11 +210,14 @@ class MicrobitUSBConnectionImpl
     serialdata: 0,
   };
 
+  private pauseOnHidden: boolean;
+
   constructor(options: MicrobitUSBConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
     this.deviceSelectionMode =
       options.deviceSelectionMode || DeviceSelectionMode.AlwaysAsk;
+    this.pauseOnHidden = options.pauseOnHidden ?? true;
   }
 
   private log(v: any) {
@@ -214,7 +230,7 @@ class MicrobitUSBConnectionImpl
     }
     if (typeof window !== "undefined") {
       window.addEventListener("beforeunload", this.beforeUnloadListener);
-      if (window.document) {
+      if (this.pauseOnHidden && window.document) {
         window.document.addEventListener(
           "visibilitychange",
           this.visibilityChangeListener,
@@ -236,7 +252,7 @@ class MicrobitUSBConnectionImpl
     }
     if (typeof window !== "undefined") {
       window.removeEventListener("beforeunload", this.beforeUnloadListener);
-      if (window.document) {
+      if (this.pauseOnHidden && window.document) {
         window.document.removeEventListener(
           "visibilitychange",
           this.visibilityChangeListener,
