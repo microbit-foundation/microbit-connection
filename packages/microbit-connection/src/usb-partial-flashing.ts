@@ -59,7 +59,7 @@ import {
   read32FromUInt8Array,
 } from "./usb-partial-flashing-utils.js";
 import { BoardVersion, ProgressCallback, ProgressStage } from "./device.js";
-import { truncateHexAfterEof } from "./hex-flash-data-source.js";
+import { truncateHexAfterEof } from "./hex-util.js";
 import MemoryMap from "nrf-intel-hex";
 
 // Source code for binaries in can be found at https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/external/sha/source/main.c

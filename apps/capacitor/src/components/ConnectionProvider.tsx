@@ -1,10 +1,10 @@
-import { MicrobitWebBluetoothConnection } from "@microbit/microbit-connection";
+import { type MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 import { ReactNode, useEffect, useState } from "react";
 import { ConnectionContext } from "../hooks/use-connection";
 
 interface ConnectionProviderProps {
   children: ReactNode;
-  connection: MicrobitWebBluetoothConnection;
+  connection: MicrobitBluetoothConnection;
 }
 
 const ConnectionProvider = ({

@@ -10,7 +10,7 @@
  * with a tweak to Buffer.
  */
 import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
-import { applyDeviceFilters, createWebUSBConnection } from "./usb.js";
+import { applyDeviceFilters, createUSBConnection } from "./usb.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
 vi.mock("./usb-device-wrapper.js", () => ({
@@ -26,10 +26,10 @@ const describeDeviceOnly = process.env.TEST_MODE_DEVICE
   ? describe
   : describe.skip;
 
-describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
+describe("MicrobitUSBConnection (WebUSB unsupported)", () => {
   it("checkAvailability returns unsupported when WebUSB isn't available", async () => {
     vi.stubGlobal("navigator", {});
-    const microbit = createWebUSBConnection();
+    const microbit = createUSBConnection();
     expect(await microbit.checkAvailability()).toBe("unsupported");
     vi.unstubAllGlobals();
   });
@@ -41,7 +41,7 @@ describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
         },
       },
     });
-    const microbit = createWebUSBConnection();
+    const microbit = createUSBConnection();
     expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
     const afterRequestDevice = vi.fn();
     microbit.addEventListener("afterrequestdevice", afterRequestDevice);
@@ -53,7 +53,7 @@ describe("MicrobitWebUSBConnection (WebUSB unsupported)", () => {
   });
 });
 
-describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
+describeDeviceOnly("MicrobitUSBConnection (WebUSB supported)", () => {
   beforeAll(() => {
     const usb = {
       addEventListener: vi.fn(),
@@ -70,13 +70,13 @@ describeDeviceOnly("MicrobitWebUSBConnection (WebUSB supported)", () => {
   });
 
   it("shows no device as initial status", () => {
-    const microbit = createWebUSBConnection();
+    const microbit = createUSBConnection();
     expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   });
 
   it("connects and disconnects updating status and events", async () => {
     const events: ConnectionStatus[] = [];
-    const connection = createWebUSBConnection();
+    const connection = createUSBConnection();
     connection.addEventListener("status", (event: ConnectionStatusEvent) => {
       events.push(event.status);
     });
@@ -183,7 +183,7 @@ describe("Tab visibility and PAUSED state", () => {
   });
 
   const waitForStatus = (
-    connection: ReturnType<typeof createWebUSBConnection>,
+    connection: ReturnType<typeof createUSBConnection>,
     status: ConnectionStatus,
   ) =>
     new Promise<void>((resolve) => {
@@ -201,7 +201,7 @@ describe("Tab visibility and PAUSED state", () => {
     });
 
   it("pauses when tab becomes hidden while connected", async () => {
-    const connection = createWebUSBConnection();
+    const connection = createUSBConnection();
     await connection.initialize();
     await connection.connect();
     expect(connection.status).toBe(ConnectionStatus.CONNECTED);
@@ -214,7 +214,7 @@ describe("Tab visibility and PAUSED state", () => {
   });
 
   it("reconnects when tab becomes visible while paused", async () => {
-    const connection = createWebUSBConnection();
+    const connection = createUSBConnection();
     await connection.initialize();
     await connection.connect();
 

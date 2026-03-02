@@ -8,7 +8,7 @@ import {
 } from "@microbit/microbit-universal-hex";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
 import { RegionInfo } from "../partial-flashing-service.js";
-import { truncateHexAfterEof } from "../hex-flash-data-source.js";
+import { truncateHexAfterEof } from "../hex-util.js";
 
 const hexDir = resolve(__dirname, "../../examples");
 

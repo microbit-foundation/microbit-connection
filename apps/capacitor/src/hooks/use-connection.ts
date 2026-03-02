@@ -3,12 +3,12 @@ import {
   AccelerometerDataEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
-  MicrobitWebBluetoothConnection,
 } from "@microbit/microbit-connection";
+import { type MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 import { createContext, useContext, useEffect, useState } from "react";
 
 export const ConnectionContext = createContext<
-  undefined | MicrobitWebBluetoothConnection
+  undefined | MicrobitBluetoothConnection
 >(undefined);
 
 export const useConnection = () => {

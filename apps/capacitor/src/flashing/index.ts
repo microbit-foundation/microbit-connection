@@ -1,11 +1,9 @@
-import {
-  createUniversalHexFlashDataSource,
-  type ProgressCallback,
-  MicrobitWebBluetoothConnection,
-} from "@microbit/microbit-connection";
+import { type ProgressCallback } from "@microbit/microbit-connection";
+import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection/universal-hex";
+import { type MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 
 export async function flash(
-  connection: MicrobitWebBluetoothConnection,
+  connection: MicrobitBluetoothConnection,
   deviceName: string,
   hexStr: string,
   progress: ProgressCallback,

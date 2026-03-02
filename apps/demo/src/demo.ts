@@ -10,37 +10,43 @@ import {
   ButtonEvent,
   ConnectionStatus,
   ConnectionStatusEvent,
-  createRadioBridgeConnection,
-  createUniversalHexFlashDataSource,
-  createWebBluetoothConnection,
-  createWebUSBConnection,
-  DeviceSelectionMode,
   MagnetometerDataEvent,
-  MicrobitRadioBridgeConnection,
-  MicrobitWebBluetoothConnection,
-  MicrobitWebUSBConnection,
   SerialDataEvent,
   UARTDataEvent,
 } from "@microbit/microbit-connection";
+import {
+  createBluetoothConnection,
+  type MicrobitBluetoothConnection,
+} from "@microbit/microbit-connection/bluetooth";
+import {
+  createUSBConnection,
+  DeviceSelectionMode,
+  type MicrobitUSBConnection,
+} from "@microbit/microbit-connection/usb";
+import {
+  createRadioBridgeConnection,
+  type MicrobitRadioBridgeConnection,
+} from "@microbit/microbit-connection/radio-bridge";
+import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection/universal-hex";
 import "./demo.css";
 
 type ConnectionType = "usb" | "bluetooth" | "radio";
 
 type TypedConnection =
   | { type: "radio"; connection: MicrobitRadioBridgeConnection }
-  | { type: "bluetooth"; connection: MicrobitWebBluetoothConnection }
-  | { type: "usb"; connection: MicrobitWebUSBConnection };
+  | { type: "bluetooth"; connection: MicrobitBluetoothConnection }
+  | { type: "usb"; connection: MicrobitUSBConnection };
 
 const createConnections = (
   type: "usb" | "bluetooth" | "radio",
 ): TypedConnection => {
   switch (type) {
     case "bluetooth":
-      return { type, connection: createWebBluetoothConnection() };
+      return { type, connection: createBluetoothConnection() };
     case "usb":
       return {
         type,
-        connection: createWebUSBConnection({
+        connection: createUSBConnection({
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
         }),
       };
@@ -48,7 +54,7 @@ const createConnections = (
       // This only works with the local-sensor hex.
       // To use with a remote micro:bit we need a UI flow that grabs and sets the remote id.
       const connection = createRadioBridgeConnection(
-        createWebUSBConnection({
+        createUSBConnection({
           deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
         }),
       );
