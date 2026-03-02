@@ -103,7 +103,7 @@ const partialFlashInternal = async (
   }
 
   if (/^0+$/.test(deviceDalRegion.hash) || /^0+$/.test(deviceCodeRegion.hash)) {
-    connection.log("Device reported zero hash, partial flash not reliable");
+    connection.log("Device reported zero hash, skipping partial flash");
     return PartialFlashResult.AttemptFullFlash;
   }
 
