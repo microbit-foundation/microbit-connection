@@ -97,6 +97,18 @@ await usb.flash(
 );
 ```
 
+#### Tab visibility and the PAUSED state
+
+By default, a USB connection is automatically paused when the browser tab becomes hidden and reconnected when the tab becomes visible again. This frees the USB interface for other tabs or processes while the user isn't looking at the page. During this time the connection status is `"PAUSED"`.
+
+If reconnection fails when the tab becomes visible again (for example, because another process has claimed the USB interface), the connection transitions to `"DISCONNECTED"`.
+
+To disable this behaviour, pass `pauseOnHidden: false`:
+
+```ts
+const usb = createUSBConnection({ pauseOnHidden: false });
+```
+
 For more examples see the [web demo source](apps/demo/src/demo.ts) and the [Capacitor demo source](apps/capacitor/src/).
 
 ### Connect via Bluetooth
