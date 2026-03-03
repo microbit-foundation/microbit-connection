@@ -16,7 +16,7 @@ import {
   DapVal,
   FICR,
 } from "./constants.js";
-import { DeviceError } from "./device.js";
+import { DeviceError, assertConnected } from "./device.js";
 import { Logging } from "./logging.js";
 import {
   apReg,
@@ -87,9 +87,7 @@ export class DAPWrapper {
   }
 
   get boardSerialInfo(): BoardSerialInfo {
-    if (!this._boardSerialInfo) {
-      throw new Error("boardSerialInfo not available until connected");
-    }
+    assertConnected(this._boardSerialInfo);
     return this._boardSerialInfo;
   }
 

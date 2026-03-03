@@ -25,6 +25,7 @@ import {
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
+  assertConnected,
   FlashDataSource,
   FlashOptions,
   ProgressCallback,
@@ -72,21 +73,24 @@ export interface MicrobitBluetoothConnection
   /**
    * Gets micro:bit accelerometer data.
    *
-   * @returns accelerometer data or undefined if there is no connection.
+   * @returns accelerometer data.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getAccelerometerData(): Promise<AccelerometerData | undefined>;
+  getAccelerometerData(): Promise<AccelerometerData>;
 
   /**
    * Gets micro:bit accelerometer period.
    *
-   * @returns accelerometer period or undefined if there is no connection.
+   * @returns accelerometer period.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getAccelerometerPeriod(): Promise<number | undefined>;
+  getAccelerometerPeriod(): Promise<number>;
 
   /**
    * Sets micro:bit accelerometer period.
    *
    * @param value The accelerometer period.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   setAccelerometerPeriod(value: number): Promise<void>;
 
@@ -94,6 +98,7 @@ export interface MicrobitBluetoothConnection
    * Sets micro:bit LED text.
    *
    * @param text The text displayed on micro:bit LED.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   setLedText(text: string): Promise<void>;
 
@@ -101,13 +106,15 @@ export interface MicrobitBluetoothConnection
    * Gets micro:bit LED scrolling delay.
    *
    * @returns LED scrolling delay in milliseconds.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getLedScrollingDelay(): Promise<number | undefined>;
+  getLedScrollingDelay(): Promise<number>;
 
   /**
    * Sets micro:bit LED scrolling delay.
    *
    * @param delayInMillis LED scrolling delay in milliseconds.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   setLedScrollingDelay(delayInMillis: number): Promise<void>;
 
@@ -115,13 +122,15 @@ export interface MicrobitBluetoothConnection
    * Gets micro:bit LED matrix.
    *
    * @returns a boolean matrix representing the micro:bit LED display.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getLedMatrix(): Promise<LedMatrix | undefined>;
+  getLedMatrix(): Promise<LedMatrix>;
 
   /**
    * Sets micro:bit LED matrix.
    *
    * @param matrix an boolean matrix representing the micro:bit LED display.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   setLedMatrix(matrix: LedMatrix): Promise<void>;
 
@@ -129,32 +138,38 @@ export interface MicrobitBluetoothConnection
    * Gets micro:bit magnetometer data.
    *
    * @returns magnetometer data.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getMagnetometerData(): Promise<MagnetometerData | undefined>;
+  getMagnetometerData(): Promise<MagnetometerData>;
 
   /**
    * Gets micro:bit magnetometer bearing.
    *
    * @returns magnetometer bearing.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getMagnetometerBearing(): Promise<number | undefined>;
+  getMagnetometerBearing(): Promise<number>;
 
   /**
    * Gets micro:bit magnetometer period.
    *
    * @returns magnetometer period.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
-  getMagnetometerPeriod(): Promise<number | undefined>;
+  getMagnetometerPeriod(): Promise<number>;
 
   /**
    * Sets micro:bit magnetometer period.
    *
    * @param value magnetometer period.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   setMagnetometerPeriod(value: number): Promise<void>;
 
   /**
    * Triggers micro:bit magnetometer calibration.
+   *
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   triggerMagnetometerCalibration(): Promise<void>;
 
@@ -162,6 +177,7 @@ export interface MicrobitBluetoothConnection
    * Write UART messages.
    *
    * @param data UART message.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   uartWrite(data: Uint8Array): Promise<void>;
 
@@ -193,6 +209,11 @@ class MicrobitBluetoothConnectionImpl
   private logging: Logging;
   private deviceBondState: DeviceBondState;
   private connection: BluetoothDeviceWrapper | undefined;
+
+  /**
+   * Cached device property that persists across reconnections until clearDevice.
+   */
+  private cachedBoardVersion: BoardVersion | undefined;
 
   private nameFilter: string | undefined;
   private deferredUpdatesPreviousStatus: ConnectionStatus | undefined;
@@ -290,8 +311,9 @@ class MicrobitBluetoothConnectionImpl
     }
   }
 
-  getBoardVersion(): BoardVersion | undefined {
-    return this.connection?.boardVersion;
+  getBoardVersion(): BoardVersion {
+    assertConnected(this.cachedBoardVersion);
+    return this.cachedBoardVersion;
   }
 
   async connect(options?: ConnectOptions): Promise<void> {
@@ -325,6 +347,7 @@ class MicrobitBluetoothConnectionImpl
     }
 
     await this.connection.connect(options);
+    this.cachedBoardVersion = this.connection.boardVersion;
   }
 
   async disconnect(): Promise<void> {
@@ -359,15 +382,15 @@ class MicrobitBluetoothConnectionImpl
   }
 
   serialWrite(data: string): Promise<void> {
-    if (this.connection) {
-      // TODO
-    }
+    assertConnected(this.connection);
+    // TODO
     return Promise.resolve();
   }
 
   async clearDevice(): Promise<void> {
     await this.disconnect();
     this.device = undefined;
+    this.cachedBoardVersion = undefined;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
@@ -413,60 +436,74 @@ class MicrobitBluetoothConnectionImpl
     }
   }
 
-  async getAccelerometerData(): Promise<AccelerometerData | undefined> {
-    return this.connection?.accelerometer.getData();
+  async getAccelerometerData(): Promise<AccelerometerData> {
+    assertConnected(this.connection);
+    return this.connection.accelerometer.getData();
   }
 
-  async getAccelerometerPeriod(): Promise<number | undefined> {
-    return this.connection?.accelerometer.getPeriod();
+  async getAccelerometerPeriod(): Promise<number> {
+    assertConnected(this.connection);
+    return this.connection.accelerometer.getPeriod();
   }
 
   async setAccelerometerPeriod(value: number): Promise<void> {
-    return this.connection?.accelerometer.setPeriod(value);
+    assertConnected(this.connection);
+    return this.connection.accelerometer.setPeriod(value);
   }
 
   async setLedText(text: string): Promise<void> {
-    return this.connection?.led.setText(text);
+    assertConnected(this.connection);
+    return this.connection.led.setText(text);
   }
 
-  async getLedScrollingDelay(): Promise<number | undefined> {
-    return this.connection?.led.getScrollingDelay();
+  async getLedScrollingDelay(): Promise<number> {
+    assertConnected(this.connection);
+    return this.connection.led.getScrollingDelay();
   }
 
   async setLedScrollingDelay(delayInMillis: number): Promise<void> {
-    await this.connection?.led.setScrollingDelay(delayInMillis);
+    assertConnected(this.connection);
+    await this.connection.led.setScrollingDelay(delayInMillis);
   }
 
-  async getLedMatrix(): Promise<LedMatrix | undefined> {
-    return await this.connection?.led.getLedMatrix();
+  async getLedMatrix(): Promise<LedMatrix> {
+    assertConnected(this.connection);
+    return await this.connection.led.getLedMatrix();
   }
 
   async setLedMatrix(matrix: LedMatrix): Promise<void> {
-    await this.connection?.led.setLedMatrix(matrix);
+    assertConnected(this.connection);
+    await this.connection.led.setLedMatrix(matrix);
   }
 
-  async getMagnetometerData(): Promise<MagnetometerData | undefined> {
-    return this.connection?.magnetometer.getData();
+  async getMagnetometerData(): Promise<MagnetometerData> {
+    assertConnected(this.connection);
+    return this.connection.magnetometer.getData();
   }
 
-  async getMagnetometerPeriod(): Promise<number | undefined> {
-    return this.connection?.magnetometer.getPeriod();
+  async getMagnetometerPeriod(): Promise<number> {
+    assertConnected(this.connection);
+    return this.connection.magnetometer.getPeriod();
   }
 
   async setMagnetometerPeriod(value: number): Promise<void> {
-    return this.connection?.magnetometer.setPeriod(value);
+    assertConnected(this.connection);
+    return this.connection.magnetometer.setPeriod(value);
   }
 
-  async getMagnetometerBearing(): Promise<number | undefined> {
-    return this.connection?.magnetometer.getBearing();
+  async getMagnetometerBearing(): Promise<number> {
+    assertConnected(this.connection);
+    return this.connection.magnetometer.getBearing();
   }
 
   async triggerMagnetometerCalibration(): Promise<void> {
-    await this.connection?.magnetometer.triggerCalibration();
+    assertConnected(this.connection);
+    await this.connection.magnetometer.triggerCalibration();
   }
 
   async uartWrite(data: Uint8Array): Promise<void> {
-    await this.connection?.uart.writeData(data);
+    assertConnected(this.connection);
+    await this.connection.uart.writeData(data);
   }
 
   /**

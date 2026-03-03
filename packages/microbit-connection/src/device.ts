@@ -51,6 +51,10 @@ export type DeviceErrorCode =
    */
   | "reconnect-microbit"
   /**
+   * An operation was attempted that requires an active connection.
+   */
+  | "not-connected"
+  /**
    * Error occured during serial or bluetooth communication.
    */
   | "background-comms-error"
@@ -167,6 +171,18 @@ export class DeviceError extends Error {
   constructor({ code, message }: { code: DeviceErrorCode; message?: string }) {
     super(message);
     this.code = code;
+  }
+}
+
+/**
+ * Asserts that a connection is active, throwing a {@link DeviceError}
+ * with code `"not-connected"` if it is not.
+ */
+export function assertConnected<T>(
+  connection: T | undefined,
+): asserts connection is T {
+  if (!connection) {
+    throw new DeviceError({ code: "not-connected", message: "Not connected" });
   }
 }
 
@@ -331,9 +347,13 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
   /**
    * Get the board version.
    *
-   * @returns the board version or undefined if there is no connection.
+   * Cached after the first successful connection until {@link clearDevice}
+   * is called, so remains available after disconnection.
+   *
+   * @returns the board version.
+   * @throws {DeviceError} with code `not-connected` if no device has been connected.
    */
-  getBoardVersion(): BoardVersion | undefined;
+  getBoardVersion(): BoardVersion;
 
   /**
    * Disconnect from the device.
@@ -343,10 +363,9 @@ export interface DeviceConnection<M extends ValueIsEvent<M>>
   /**
    * Write serial data to the device.
    *
-   * Does nothing if there is no connection.
-   *
    * @param data The data to write.
    * @returns A promise that resolves when the write is complete.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   serialWrite(data: string): Promise<void>;
 

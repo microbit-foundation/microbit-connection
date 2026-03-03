@@ -21,6 +21,7 @@ import {
   FlashOptions,
   ProgressCallback,
   ProgressStage,
+  assertConnected,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, ConsoleLogging } from "./logging.js";
@@ -90,9 +91,13 @@ export interface MicrobitUSBConnection
   /**
    * Gets micro:bit deviceId.
    *
-   * @returns the device id or undefined if there is no connection.
+   * Cached after the first successful connection until {@link clearDevice}
+   * is called, so remains available after disconnection.
+   *
+   * @returns the device id.
+   * @throws {DeviceError} with code `not-connected` if no device has been connected.
    */
-  getDeviceId(): number | undefined;
+  getDeviceId(): number;
 
   /**
    * Sets device request exclusion filters.
@@ -140,6 +145,12 @@ class MicrobitUSBConnectionImpl
    * The connection to the device.
    */
   private connection: DAPWrapper | undefined;
+
+  /**
+   * Cached device properties that persist across reconnections until clearDevice.
+   */
+  private cachedBoardVersion: BoardVersion | undefined;
+  private cachedDeviceId: number | undefined;
 
   /**
    * Whether the serial read loop is running.
@@ -274,16 +285,18 @@ class MicrobitUSBConnectionImpl
     });
   }
 
-  getDeviceId(): number | undefined {
-    return this.connection?.deviceId;
+  getDeviceId(): number {
+    assertConnected(this.cachedDeviceId);
+    return this.cachedDeviceId;
   }
 
   getDevice(): USBDevice | undefined {
     return this.device;
   }
 
-  getBoardVersion(): BoardVersion | undefined {
-    return this.connection?.boardSerialInfo?.id.toBoardVersion();
+  getBoardVersion(): BoardVersion {
+    assertConnected(this.cachedBoardVersion);
+    return this.cachedBoardVersion;
   }
 
   async flash(
@@ -479,25 +492,27 @@ class MicrobitUSBConnectionImpl
   }
 
   serialWrite(data: string): Promise<void> {
+    assertConnected(this.connection);
+    const connection = this.connection;
     return this.withEnrichedErrors(async () => {
-      if (this.connection) {
-        // Using WebUSB/DAPJs we're limited to 64 byte packet size with a two byte header.
-        // https://github.com/microbit-foundation/python-editor-v3/issues/215
-        const maxSerialWrite = 62;
-        let start = 0;
-        while (start < data.length) {
-          const end = Math.min(start + maxSerialWrite, data.length);
-          const chunkData = data.slice(start, end);
-          await this.connection.daplink.serialWrite(chunkData);
-          start = end;
-        }
+      // Using WebUSB/DAPJs we're limited to 64 byte packet size with a two byte header.
+      // https://github.com/microbit-foundation/python-editor-v3/issues/215
+      const maxSerialWrite = 62;
+      let start = 0;
+      while (start < data.length) {
+        const end = Math.min(start + maxSerialWrite, data.length);
+        const chunkData = data.slice(start, end);
+        await connection.daplink.serialWrite(chunkData);
+        start = end;
       }
     });
   }
 
   async softwareReset(): Promise<void> {
+    assertConnected(this.connection);
+    const connection = this.connection;
     return this.serialStateChangeQueue.add(
-      async () => await this.connection?.softwareReset(),
+      async () => await connection.softwareReset(),
     );
   }
 
@@ -512,6 +527,8 @@ class MicrobitUSBConnectionImpl
   async clearDevice(): Promise<void> {
     await this.disconnect();
     this.device = undefined;
+    this.cachedBoardVersion = undefined;
+    this.cachedDeviceId = undefined;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
@@ -530,6 +547,15 @@ class MicrobitUSBConnectionImpl
       reportProgress(ProgressStage.Connecting);
       await withTimeout(this.connection.reconnectAsync(), 10_000);
     }
+    // Cache device properties so they survive disconnection.
+    this.cachedDeviceId = this.connection!.deviceId;
+    try {
+      this.cachedBoardVersion =
+        this.connection!.boardSerialInfo.id.toBoardVersion();
+    } catch {
+      // boardSerialInfo may not be available (e.g. in tests).
+    }
+
     if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
     }
