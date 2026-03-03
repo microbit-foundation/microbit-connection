@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
+import { ConnectionStatus, ConnectionStatusChange } from "./device.js";
 import { createBluetoothConnection } from "./bluetooth.js";
 import { expect, vi, describe, it } from "vitest";
 
@@ -60,7 +60,7 @@ describe("Bluetooth connection status events", () => {
 
     expect(connection.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
 
-    const events: ConnectionStatusEvent[] = [];
+    const events: ConnectionStatusChange[] = [];
     connection.addEventListener("status", (e) => {
       events.push(e);
     });
@@ -82,7 +82,7 @@ describe("Bluetooth connection status events", () => {
     const statusBeforeFlash = connection.status;
     expect(statusBeforeFlash).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
 
-    const events: ConnectionStatusEvent[] = [];
+    const events: ConnectionStatusChange[] = [];
     connection.addEventListener("status", (e) => {
       events.push(e);
     });

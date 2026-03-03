@@ -1,8 +1,7 @@
 import {
   AccelerometerData,
-  AccelerometerDataEvent,
   ConnectionStatus,
-  ConnectionStatusEvent,
+  ConnectionStatusChange,
 } from "@microbit/microbit-connection";
 import { type MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -23,7 +22,7 @@ export const useConnection = () => {
 
   // Listen to connection status.
   useEffect(() => {
-    const statusListener = (e: ConnectionStatusEvent) => {
+    const statusListener = (e: ConnectionStatusChange) => {
       setStatus(e.status);
     };
     connection.addEventListener("status", statusListener);
@@ -38,8 +37,8 @@ export const useConnection = () => {
       setAccelerometerData(undefined);
       return;
     }
-    const accelerometerListener = (e: AccelerometerDataEvent) => {
-      setAccelerometerData(e.data);
+    const accelerometerListener = (data: AccelerometerData) => {
+      setAccelerometerData(data);
     };
     connection.addEventListener(
       "accelerometerdatachanged",

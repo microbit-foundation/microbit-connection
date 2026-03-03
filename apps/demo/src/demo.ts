@@ -5,14 +5,14 @@
  */
 import crelt from "crelt";
 import {
-  AccelerometerDataEvent,
-  BackgroundErrorEvent,
-  ButtonEvent,
+  AccelerometerData,
+  BackgroundErrorData,
+  ButtonData,
   ConnectionStatus,
-  ConnectionStatusEvent,
-  MagnetometerDataEvent,
-  SerialDataEvent,
-  UARTDataEvent,
+  ConnectionStatusChange,
+  MagnetometerData,
+  SerialData,
+  UartData,
 } from "@microbit/microbit-connection";
 import {
   createBluetoothConnection,
@@ -212,11 +212,11 @@ const createConnectSection = (): Section => {
   const displayStatus = (status: ConnectionStatus) => {
     statusParagraph.textContent = status.toString();
   };
-  const handleDisplayStatusChange = (event: ConnectionStatusEvent) => {
+  const handleDisplayStatusChange = (event: ConnectionStatusChange) => {
     displayStatus(event.status);
   };
-  const backgroundErrorListener = (event: BackgroundErrorEvent) => {
-    console.error("Handled error:", event.errorMessage);
+  const backgroundErrorListener = (event: BackgroundErrorData) => {
+    console.error("Handled error:", event.message);
   };
   (connection as any).addEventListener("status", handleDisplayStatusChange);
   (connection as any).addEventListener(
@@ -278,7 +278,7 @@ const createSerialSection = (): Section => {
   }
 
   let data = "";
-  const serialDataListener = (event: SerialDataEvent) => {
+  const serialDataListener = (event: SerialData) => {
     for (const char of event.data) {
       if (char === "\n") {
         console.log(data);
@@ -329,7 +329,7 @@ const createUARTSection = (): Section => {
     return {};
   }
 
-  const uartDataListener = (event: UARTDataEvent) => {
+  const uartDataListener = (event: UartData) => {
     const value = new TextDecoder().decode(event.value);
     console.log(value);
   };
@@ -401,8 +401,8 @@ const createAccelerometerSection = (): Section => {
     return {};
   }
   const statusParagraph = crelt("p");
-  const listener = (e: AccelerometerDataEvent) => {
-    statusParagraph.innerText = JSON.stringify(e.data);
+  const listener = (data: AccelerometerData) => {
+    statusParagraph.innerText = JSON.stringify(data);
   };
   let period = "";
   const periodInput = crelt("input", {
@@ -448,10 +448,9 @@ const createAccelerometerSection = (): Section => {
             "button",
             {
               onclick: async () => {
-                period =
-                  (
-                    await accelerometerConnection.getAccelerometerPeriod()
-                  )?.toString() ?? "";
+                period = (
+                  await accelerometerConnection.getAccelerometerPeriod()
+                ).toString();
                 periodInput.value = period;
               },
             },
@@ -488,8 +487,8 @@ const createMagnetometerSection = (): Section => {
     return {};
   }
   const statusParagraph = crelt("p");
-  const listener = (e: MagnetometerDataEvent) => {
-    statusParagraph.innerText = JSON.stringify(e.data);
+  const listener = (data: MagnetometerData) => {
+    statusParagraph.innerText = JSON.stringify(data);
   };
   let period = "";
   const periodInput = crelt("input", {
@@ -536,10 +535,9 @@ const createMagnetometerSection = (): Section => {
             "button",
             {
               onclick: async () => {
-                period =
-                  (
-                    await magnetometerConnection.getMagnetometerPeriod()
-                  )?.toString() ?? "";
+                period = (
+                  await magnetometerConnection.getMagnetometerPeriod()
+                ).toString();
                 periodInput.value = period;
               },
             },
@@ -576,7 +574,7 @@ const createMagnetometerSection = (): Section => {
               onclick: async () => {
                 const bearing =
                   await magnetometerConnection.getMagnetometerBearing();
-                bearingParagraph.textContent = `Bearing: ${bearing ?? 0} degrees`;
+                bearingParagraph.textContent = `Bearing: ${bearing} degrees`;
               },
             },
             "Get bearing",
@@ -604,8 +602,8 @@ const createButtonSection = (
     return {};
   }
   const statusParagraph = crelt("p");
-  const buttonStateListener = (e: ButtonEvent) => {
-    statusParagraph.innerText = e.state.toString();
+  const buttonStateListener = (data: ButtonData) => {
+    statusParagraph.innerText = data.state.toString();
   };
   const dom = crelt(
     "section",

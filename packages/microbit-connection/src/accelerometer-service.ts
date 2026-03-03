@@ -1,12 +1,11 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
-import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
+import { AccelerometerData } from "./accelerometer.js";
 import { Service } from "./bluetooth-device-wrapper.js";
 import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
 import { profile } from "./bluetooth-profile.js";
-import { BackgroundErrorEvent } from "./device.js";
 
 export class AccelerometerService implements Service {
   uuid = profile.accelerometer.id;
@@ -83,17 +82,14 @@ export class AccelerometerService implements Service {
           characteristic,
           (value) => {
             const data = this.dataViewToData(value);
-            this.dispatchTypedEvent(
-              "accelerometerdatachanged",
-              new AccelerometerDataEvent(data),
-            );
+            this.dispatchTypedEvent("accelerometerdatachanged", data);
           },
         );
       } catch (e) {
-        this.dispatchTypedEvent(
-          "backgrounderror",
-          new BackgroundErrorEvent("Failed to start notifications", e),
-        );
+        this.dispatchTypedEvent("backgrounderror", {
+          message: "Failed to start notifications",
+          error: e,
+        });
       }
     }
   }
@@ -109,10 +105,10 @@ export class AccelerometerService implements Service {
           characteristic,
         );
       } catch (e) {
-        this.dispatchTypedEvent(
-          "backgrounderror",
-          new BackgroundErrorEvent("Failed to stop notifications", e),
-        );
+        this.dispatchTypedEvent("backgrounderror", {
+          message: "Failed to stop notifications",
+          error: e,
+        });
       }
     }
   }

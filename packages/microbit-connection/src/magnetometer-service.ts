@@ -1,12 +1,11 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
 import { Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
-import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
+import { MagnetometerData } from "./magnetometer.js";
 import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
-import { BackgroundErrorEvent } from "./device.js";
 
 export class MagnetometerService implements Service {
   uuid = profile.magnetometer.id;
@@ -94,17 +93,14 @@ export class MagnetometerService implements Service {
           profile.magnetometer.characteristics.data.id,
           (value: DataView) => {
             const data = this.dataViewToData(value);
-            this.dispatchTypedEvent(
-              "magnetometerdatachanged",
-              new MagnetometerDataEvent(data),
-            );
+            this.dispatchTypedEvent("magnetometerdatachanged", data);
           },
         );
       } catch (e) {
-        this.dispatchTypedEvent(
-          "backgrounderror",
-          new BackgroundErrorEvent("Failed to start notifications", e),
-        );
+        this.dispatchTypedEvent("backgrounderror", {
+          message: "Failed to start notifications",
+          error: e,
+        });
       }
     }
   }
@@ -118,10 +114,10 @@ export class MagnetometerService implements Service {
           profile.magnetometer.characteristics.data.id,
         );
       } catch (e) {
-        this.dispatchTypedEvent(
-          "backgrounderror",
-          new BackgroundErrorEvent("Failed to stop notifications", e),
-        );
+        this.dispatchTypedEvent("backgrounderror", {
+          message: "Failed to stop notifications",
+          error: e,
+        });
       }
     }
   }

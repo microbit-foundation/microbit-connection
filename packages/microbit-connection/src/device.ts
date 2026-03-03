@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TypedEventTarget, ValueIsEvent } from "./events.js";
+import { TypedEventTarget } from "./events.js";
 
 /**
  * Connection availability status returned by checkAvailability().
@@ -275,44 +275,24 @@ export type FlashDataSource = (
 
 export type BoardVersion = "V1" | "V2";
 
-export class ConnectionStatusEvent extends Event {
-  constructor(
-    public readonly status: ConnectionStatus,
-    public readonly previousStatus: ConnectionStatus,
-  ) {
-    super("status");
-  }
+export interface ConnectionStatusChange {
+  status: ConnectionStatus;
+  previousStatus: ConnectionStatus;
 }
 
-export class BeforeRequestDevice extends Event {
-  constructor() {
-    super("beforerequestdevice");
-  }
+export interface BackgroundErrorData {
+  message: string;
+  error?: unknown;
 }
 
-export class AfterRequestDevice extends Event {
-  constructor() {
-    super("afterrequestdevice");
-  }
+export interface DeviceConnectionEventMap {
+  status: ConnectionStatusChange;
+  backgrounderror: BackgroundErrorData;
+  beforerequestdevice: void;
+  afterrequestdevice: void;
 }
 
-export class BackgroundErrorEvent extends Event {
-  constructor(
-    public readonly errorMessage: string,
-    public readonly error?: unknown,
-  ) {
-    super("backgrounderror");
-  }
-}
-
-export class DeviceConnectionEventMap {
-  "status": ConnectionStatusEvent;
-  "backgrounderror": BackgroundErrorEvent;
-  "beforerequestdevice": Event;
-  "afterrequestdevice": Event;
-}
-
-export interface DeviceConnection<M extends ValueIsEvent<M>>
+export interface DeviceConnection<M>
   extends TypedEventTarget<DeviceConnectionEventMap & M> {
   status: ConnectionStatus;
 

@@ -9,7 +9,7 @@
  * It might be we could create a custom environment that was web but
  * with a tweak to Buffer.
  */
-import { ConnectionStatus, ConnectionStatusEvent } from "./device.js";
+import { ConnectionStatus, ConnectionStatusChange } from "./device.js";
 import { applyDeviceFilters, createUSBConnection } from "./usb.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
@@ -77,7 +77,7 @@ describeDeviceOnly("MicrobitUSBConnection (WebUSB supported)", () => {
   it("connects and disconnects updating status and events", async () => {
     const events: ConnectionStatus[] = [];
     const connection = createUSBConnection();
-    connection.addEventListener("status", (event: ConnectionStatusEvent) => {
+    connection.addEventListener("status", (event: ConnectionStatusChange) => {
       events.push(event.status);
     });
 
@@ -191,7 +191,7 @@ describe("Tab visibility and PAUSED state", () => {
         resolve();
         return;
       }
-      const listener = (event: ConnectionStatusEvent) => {
+      const listener = (event: ConnectionStatusChange) => {
         if (event.status === status) {
           connection.removeEventListener("status", listener);
           resolve();
