@@ -45,8 +45,6 @@ describe("BoardSerialInfo", () => {
       hic: "00097969",
     });
 
-    expect(log.mock.calls).toEqual([
-      ["USB serial number unexpected length: 45"],
-    ]);
+    expect(log.mock.calls).toEqual([["Serial number unexpected length: 45"]]);
   });
 });

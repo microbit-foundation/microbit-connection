@@ -6,28 +6,29 @@
 import * as dapjs from "dapjs";
 // dapjs import faff needed for use from Node such as Vitest https://github.com/ARMmbed/dapjs/issues/118
 import type { CortexM, DAPLink, WebUSB } from "dapjs";
-const {
-  CortexM: CortexMValue,
-  DAPLink: DAPLinkValue,
-  WebUSB: WebUSBValue,
-} = dapjs;
-import { Logging } from "./logging.js";
+import { BoardSerialInfo } from "./board-serial-info.js";
 import {
   ApReg,
   CortexSpecialReg,
   Csw,
   DapCmd,
+  DapLinkVendorCmd,
   DapVal,
   FICR,
 } from "./constants.js";
+import { DeviceError } from "./device.js";
+import { Logging } from "./logging.js";
 import {
   apReg,
   bufferConcat,
   CoreRegister,
   regRequest,
 } from "./usb-partial-flashing-utils.js";
-import { BoardSerialInfo } from "./board-serial-info.js";
-import { DeviceError } from "./device.js";
+const {
+  CortexM: CortexMValue,
+  DAPLink: DAPLinkValue,
+  WebUSB: WebUSBValue,
+} = dapjs;
 
 export class DAPWrapper {
   transport: WebUSB;
@@ -38,6 +39,7 @@ export class DAPWrapper {
   _numPages: number | undefined;
   _deviceId: number | undefined;
 
+  private _boardSerialInfo: BoardSerialInfo | undefined;
   private loggedBoardSerialInfo: BoardSerialInfo | undefined;
 
   private initialConnectionComplete: boolean = false;
@@ -85,10 +87,10 @@ export class DAPWrapper {
   }
 
   get boardSerialInfo(): BoardSerialInfo {
-    return BoardSerialInfo.parse(
-      this.device,
-      this.logging.log.bind(this.logging),
-    );
+    if (!this._boardSerialInfo) {
+      throw new Error("boardSerialInfo not available until connected");
+    }
+    return this._boardSerialInfo;
   }
 
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L119
@@ -104,6 +106,27 @@ export class DAPWrapper {
     }
 
     await this.connectDaplink();
+
+    // Read the serial/unique ID via DAPLink vendor command 0x80.
+    // Chrome may anonymize USBDevice.serialNumber for anti-fingerprinting
+    // (https://github.com/microbit-foundation/microbit-connection/issues/57)
+    // so we read it via the DAP protocol instead.
+    const dapSerial = await this.readDaplinkSerial();
+    if (dapSerial) {
+      this._boardSerialInfo = BoardSerialInfo.fromSerial(
+        dapSerial,
+        this.logging.log.bind(this.logging),
+      );
+    } else {
+      this.logging.log(
+        "Failed to read serial via DAP vendor command, falling back to USB serial number (may be affected by anti-fingerprinting)",
+      );
+      this._boardSerialInfo = BoardSerialInfo.parse(
+        this.device,
+        this.logging.log.bind(this.logging),
+      );
+    }
+
     await this.cortexM.connect();
 
     this.logging.event({
@@ -243,6 +266,36 @@ export class DAPWrapper {
     }
 
     throw lastError || new Error("Connection failed after retries");
+  }
+
+  /**
+   * Read the DAPLink unique ID via vendor command 0x80.
+   * This returns the same 48-char hex string as the USB serial number
+   * but isn't affected by browser anti-fingerprinting.
+   */
+  private async readDaplinkSerial(): Promise<string | undefined> {
+    try {
+      const buf = await this.send([DapLinkVendorCmd.READ_UNIQUE_ID]);
+      if (buf[0] !== DapLinkVendorCmd.READ_UNIQUE_ID) {
+        this.logging.log(
+          `Unexpected response to vendor command: 0x${buf[0].toString(16)}`,
+        );
+        return undefined;
+      }
+      const length = buf[1];
+      if (length === 0) {
+        return undefined;
+      }
+      // The response is [cmd, length, ...ascii_bytes].
+      // DAPLink uses strlen() for the length so no null terminator is included.
+      const bytes = buf.subarray(2, 2 + length);
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      this.logging.log(
+        `Error reading DAPLink serial: ${e instanceof Error ? e.message : e}`,
+      );
+      return undefined;
+    }
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {

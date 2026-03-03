@@ -28,6 +28,13 @@ export const DapCmd = {
   // Many more.
 };
 
+// DAPLink vendor commands
+// https://github.com/ARMmbed/DAPLink/blob/main/source/daplink/cmsis-dap/daplink_vendor_commands.h
+export const DapLinkVendorCmd = {
+  /** Read the DAPLink unique ID (same string as USB serial number). */
+  READ_UNIQUE_ID: 0x80,
+};
+
 export const Csw = {
   CSW_SIZE: 0x00000007,
   CSW_SIZE32: 0x00000002,
