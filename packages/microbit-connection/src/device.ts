@@ -290,6 +290,7 @@ export interface DeviceConnectionEventMap {
   backgrounderror: BackgroundErrorData;
   beforerequestdevice: void;
   afterrequestdevice: void;
+  flash: void;
 }
 
 export interface DeviceConnection<M>

@@ -557,7 +557,11 @@ class MicrobitBluetoothConnectionImpl
 
         if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
           await fullFlash(connection, boardVersion, memoryMap, progress);
-        } else if (
+        }
+
+        this.dispatchEvent("flash");
+
+        if (
           partialFlashResult === PartialFlashResult.AlreadyUpToDate ||
           partialFlashResult === PartialFlashResult.Success
         ) {

@@ -10,5 +10,4 @@ export interface SerialConnectionEventMap {
   serialdata: SerialData;
   serialreset: void;
   serialerror: SerialErrorData;
-  flash: void;
 }
