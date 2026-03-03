@@ -1,12 +1,10 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
 import { Service } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
-import { ButtonEvent, ButtonState } from "./buttons.js";
 import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
-import { BackgroundErrorEvent } from "./device.js";
 
 export class ButtonService implements Service {
   uuid = profile.button.id;
@@ -20,10 +18,6 @@ export class ButtonService implements Service {
     return ["buttonachanged", "buttonbchanged"];
   }
 
-  private dataViewToButtonState(dataView: DataView): ButtonState {
-    return dataView.getUint8(0);
-  }
-
   async startNotifications(type: TypedServiceEvent): Promise<void> {
     switch (type) {
       case "buttonachanged":
@@ -34,15 +28,18 @@ export class ButtonService implements Service {
             profile.button.id,
             this.characteristicForButtonEventType(type).id,
             (value) => {
-              const data = this.dataViewToButtonState(value);
-              this.dispatchTypedEvent(type, new ButtonEvent(type, data));
+              const state = value.getUint8(0);
+              this.dispatchTypedEvent(type, {
+                button: type === "buttonachanged" ? "A" : "B",
+                state,
+              });
             },
           );
         } catch (e) {
-          this.dispatchTypedEvent(
-            "backgrounderror",
-            new BackgroundErrorEvent("Failed to start notifications", e),
-          );
+          this.dispatchTypedEvent("backgrounderror", {
+            message: "Failed to start notifications",
+            error: e,
+          });
         }
       }
     }

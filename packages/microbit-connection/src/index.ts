@@ -1,19 +1,17 @@
 /**
  * @module @microbit/microbit-connection
  */
-import { AccelerometerData, AccelerometerDataEvent } from "./accelerometer.js";
+import { AccelerometerData } from "./accelerometer.js";
 import { BoardId } from "./board-id.js";
-import { ButtonEvent, ButtonEventType, ButtonState } from "./buttons.js";
+import { ButtonData, ButtonEventType, ButtonState } from "./buttons.js";
 import { DeviceBondState } from "./device-bond-state.js";
 import {
-  AfterRequestDevice,
-  BackgroundErrorEvent,
-  BeforeRequestDevice,
+  BackgroundErrorData,
   BoardVersion,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
-  ConnectionStatusEvent,
+  ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
@@ -28,50 +26,37 @@ import {
 import { TypedEventTarget } from "./events.js";
 import { LedMatrix } from "./led.js";
 import { Logging, LoggingEvent } from "./logging.js";
-import { MagnetometerData, MagnetometerDataEvent } from "./magnetometer.js";
+import { MagnetometerData } from "./magnetometer.js";
 import {
-  FlashEvent,
   SerialConnectionEventMap,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
+  SerialData,
+  SerialErrorData,
 } from "./serial-events.js";
-import { ServiceConnectionEventMap } from "./service-events.js";
-import { UARTDataEvent } from "./uart.js";
+import { ServiceConnectionEventMap, UartData } from "./service-events.js";
 
 export {
-  AfterRequestDevice,
-  BackgroundErrorEvent,
-  BeforeRequestDevice,
   BoardId,
   ConnectionStatus,
-  ConnectionStatusEvent,
-  DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
   assertConnected,
-  FlashEvent,
   ProgressStage,
-  SerialConnectionEventMap,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
-  ServiceConnectionEventMap,
   TypedEventTarget,
-  UARTDataEvent,
 };
 
 export type {
   AccelerometerData,
-  AccelerometerDataEvent,
+  BackgroundErrorData,
   BoardVersion,
-  ConnectionAvailabilityStatus,
-  ButtonEvent,
+  ButtonData,
   ButtonEventType,
   ButtonState,
   ConnectOptions,
+  ConnectionAvailabilityStatus,
+  ConnectionStatusChange,
   DeviceBondState,
   DeviceConnection,
+  DeviceConnectionEventMap,
   DeviceErrorCode,
   FlashDataSource,
   FlashOptions,
@@ -79,6 +64,10 @@ export type {
   Logging,
   LoggingEvent,
   MagnetometerData,
-  MagnetometerDataEvent,
   ProgressCallback,
+  SerialConnectionEventMap,
+  SerialData,
+  SerialErrorData,
+  ServiceConnectionEventMap,
+  UartData,
 };

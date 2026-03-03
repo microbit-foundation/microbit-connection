@@ -14,13 +14,10 @@ import {
 } from "./bluetooth-device-wrapper.js";
 import { profile } from "./bluetooth-profile.js";
 import {
-  AfterRequestDevice,
-  BeforeRequestDevice,
   BoardVersion,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
-  ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
@@ -336,7 +333,7 @@ class MicrobitBluetoothConnectionImpl
         device,
         this.logging,
         this.deviceBondState,
-        this.dispatchTypedEvent.bind(this),
+        this.dispatchEvent.bind(this),
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
           onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
@@ -374,10 +371,10 @@ class MicrobitBluetoothConnectionImpl
     this.status = newStatus;
     this.log("Bluetooth connection status " + newStatus);
     if (this.deferredUpdatesPreviousStatus === undefined) {
-      this.dispatchTypedEvent(
-        "status",
-        new ConnectionStatusEvent(newStatus, previousStatus),
-      );
+      this.dispatchEvent("status", {
+        status: newStatus,
+        previousStatus,
+      });
     }
   }
 
@@ -418,7 +415,7 @@ class MicrobitBluetoothConnectionImpl
       await this.clearDevice();
     }
 
-    this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
+    this.dispatchEvent("beforerequestdevice");
     try {
       this.device = Capacitor.isNativePlatform()
         ? await this.requestDeviceNative(namePrefixes, signal)
@@ -432,7 +429,7 @@ class MicrobitBluetoothConnectionImpl
       }
       return this.device;
     } finally {
-      this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
+      this.dispatchEvent("afterrequestdevice");
     }
   }
 
@@ -560,7 +557,11 @@ class MicrobitBluetoothConnectionImpl
 
         if (partialFlashResult === PartialFlashResult.AttemptFullFlash) {
           await fullFlash(connection, boardVersion, memoryMap, progress);
-        } else if (
+        }
+
+        this.dispatchEvent("flash");
+
+        if (
           partialFlashResult === PartialFlashResult.AlreadyUpToDate ||
           partialFlashResult === PartialFlashResult.Success
         ) {
@@ -599,10 +600,10 @@ class MicrobitBluetoothConnectionImpl
     } finally {
       const previousStatus = this.deferredUpdatesPreviousStatus!;
       this.deferredUpdatesPreviousStatus = undefined;
-      this.dispatchTypedEvent(
-        "status",
-        new ConnectionStatusEvent(this.status, previousStatus),
-      );
+      this.dispatchEvent("status", {
+        status: this.status,
+        previousStatus,
+      });
     }
   }
 

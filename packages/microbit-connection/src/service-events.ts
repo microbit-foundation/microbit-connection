@@ -1,26 +1,27 @@
-import { AccelerometerDataEvent } from "./accelerometer.js";
-import { ButtonEvent } from "./buttons.js";
+import { AccelerometerData } from "./accelerometer.js";
+import { ButtonData } from "./buttons.js";
 import { DeviceConnectionEventMap } from "./device.js";
-import { MagnetometerDataEvent } from "./magnetometer.js";
-import { UARTDataEvent } from "./uart.js";
+import { MagnetometerData } from "./magnetometer.js";
 
-export class ServiceConnectionEventMap {
-  "accelerometerdatachanged": AccelerometerDataEvent;
-  "buttonachanged": ButtonEvent;
-  "buttonbchanged": ButtonEvent;
-  "magnetometerdatachanged": MagnetometerDataEvent;
-  "uartdata": UARTDataEvent;
+export interface UartData {
+  value: Uint8Array;
+}
+
+export interface ServiceConnectionEventMap {
+  accelerometerdatachanged: AccelerometerData;
+  buttonachanged: ButtonData;
+  buttonbchanged: ButtonData;
+  magnetometerdatachanged: MagnetometerData;
+  uartdata: UartData;
 }
 
 export type CharacteristicDataTarget = EventTarget & {
   value: DataView;
 };
 
-export type TypedServiceEvent = keyof (ServiceConnectionEventMap &
-  DeviceConnectionEventMap);
-
-export type TypedServiceEventDispatcher = (
-  _type: TypedServiceEvent,
-  event: (ServiceConnectionEventMap &
-    DeviceConnectionEventMap)[TypedServiceEvent],
-) => boolean;
+type AllEventMap = ServiceConnectionEventMap & DeviceConnectionEventMap;
+export type TypedServiceEvent = keyof AllEventMap;
+export type TypedServiceEventDispatcher = <K extends TypedServiceEvent>(
+  type: K,
+  ...[data]: AllEventMap[K] extends void ? [] : [data: AllEventMap[K]]
+) => void;

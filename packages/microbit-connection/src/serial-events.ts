@@ -1,30 +1,13 @@
-export class SerialDataEvent extends Event {
-  constructor(public readonly data: string) {
-    super("serialdata");
-  }
+export interface SerialData {
+  data: string;
 }
 
-export class SerialResetEvent extends Event {
-  constructor() {
-    super("serialreset");
-  }
+export interface SerialErrorData {
+  error: unknown;
 }
 
-export class SerialErrorEvent extends Event {
-  constructor(public readonly error: unknown) {
-    super("serialerror");
-  }
-}
-
-export class FlashEvent extends Event {
-  constructor() {
-    super("flash");
-  }
-}
-
-export class SerialConnectionEventMap {
-  "serialdata": SerialDataEvent;
-  "serialreset": SerialResetEvent;
-  "serialerror": SerialErrorEvent;
-  "flash": FlashEvent;
+export interface SerialConnectionEventMap {
+  serialdata: SerialData;
+  serialreset: void;
+  serialerror: SerialErrorData;
 }

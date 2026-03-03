@@ -6,11 +6,7 @@ export enum ButtonState {
 
 export type ButtonEventType = "buttonachanged" | "buttonbchanged";
 
-export class ButtonEvent extends Event {
-  constructor(
-    type: ButtonEventType,
-    public readonly state: ButtonState,
-  ) {
-    super(type);
-  }
+export interface ButtonData {
+  button: "A" | "B";
+  state: ButtonState;
 }

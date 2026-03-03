@@ -4,23 +4,22 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { AccelerometerDataEvent } from "./accelerometer.js";
-import { ButtonEvent, ButtonState } from "./buttons.js";
+import { ButtonState } from "./buttons.js";
 import {
   BoardVersion,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
-  ConnectionStatusEvent,
+  ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { Logging, ConsoleLogging } from "./logging.js";
-import { SerialDataEvent, SerialErrorEvent } from "./serial-events.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
+import { SerialData, SerialErrorData } from "./serial-events.js";
 import * as protocol from "./usb-serial-protocol.js";
 import { MicrobitUSBConnection } from "./usb.js";
 
@@ -75,7 +74,7 @@ class MicrobitRadioBridgeConnectionImpl
   private disconnectPromise: Promise<void> | undefined;
   private serialSessionOpen = false;
 
-  private delegateStatusListener = (e: ConnectionStatusEvent) => {
+  private delegateStatusListener = (e: ConnectionStatusChange) => {
     const currentStatus = this.status;
     if (e.status !== ConnectionStatus.CONNECTED) {
       this.setStatus(e.status);
@@ -163,7 +162,7 @@ class MicrobitRadioBridgeConnectionImpl
         this.logging,
         this.remoteDeviceId,
         this.delegate,
-        this.dispatchTypedEvent.bind(this),
+        this.dispatchEvent.bind(this),
         {
           onConnecting: () => {
             this.setStatus(ConnectionStatus.CONNECTING);
@@ -222,10 +221,10 @@ class MicrobitRadioBridgeConnectionImpl
     const previousStatus = this.status;
     this.status = newStatus;
     this.log("Radio connection status " + newStatus);
-    this.dispatchTypedEvent(
-      "status",
-      new ConnectionStatusEvent(newStatus, previousStatus),
-    );
+    this.dispatchEvent("status", {
+      status: newStatus,
+      previousStatus,
+    });
   }
 
   private statusFromDelegate(): ConnectionStatus {
@@ -245,12 +244,12 @@ class RadioBridgeSerialSession {
   private lastReceivedMessageTimestamp: number | undefined;
   private connectionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
 
-  private serialErrorListener = (event: SerialErrorEvent) => {
+  private serialErrorListener = (event: SerialErrorData) => {
     this.logging.error("Serial error", event.error);
     void this.dispose();
   };
 
-  private serialDataListener = (event: SerialDataEvent) => {
+  private serialDataListener = (event: SerialData) => {
     const { data } = event;
     const messages = protocol.splitMessages(this.unprocessedData + data);
     this.unprocessedData = messages.remainingInput;
@@ -263,14 +262,11 @@ class RadioBridgeSerialSession {
       if (sensorData) {
         this.onPeriodicMessageReceived?.();
 
-        this.dispatchTypedEvent(
-          "accelerometerdatachanged",
-          new AccelerometerDataEvent({
-            x: sensorData.accelerometerX,
-            y: sensorData.accelerometerY,
-            z: sensorData.accelerometerZ,
-          }),
-        );
+        this.dispatchTypedEvent("accelerometerdatachanged", {
+          x: sensorData.accelerometerX,
+          y: sensorData.accelerometerY,
+          z: sensorData.accelerometerZ,
+        });
         this.processButton("buttonA", "buttonachanged", sensorData);
         this.processButton("buttonB", "buttonbchanged", sensorData);
       } else {
@@ -294,13 +290,12 @@ class RadioBridgeSerialSession {
   ) {
     if (sensorData[button] !== this.previousButtonState[button]) {
       this.previousButtonState[button] = sensorData[button];
-      this.dispatchTypedEvent(
-        type,
-        new ButtonEvent(
-          type,
-          sensorData[button] ? ButtonState.ShortPress : ButtonState.NotPressed,
-        ),
-      );
+      this.dispatchTypedEvent(type, {
+        button: type === "buttonachanged" ? "A" : "B",
+        state: sensorData[button]
+          ? ButtonState.ShortPress
+          : ButtonState.NotPressed,
+      });
     }
   }
 

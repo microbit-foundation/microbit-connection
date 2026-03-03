@@ -3,9 +3,3 @@ export interface MagnetometerData {
   y: number;
   z: number;
 }
-
-export class MagnetometerDataEvent extends Event {
-  constructor(public readonly data: MagnetometerData) {
-    super("magnetometerdatachanged");
-  }
-}

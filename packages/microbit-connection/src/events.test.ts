@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { TrackingEventTarget } from "./events.js";
+import { TypedEventTarget } from "./events.js";
 
-class TestTrackingEventTarget extends TrackingEventTarget {
+interface TestEventMap {
+  foo: { value: number };
+  bar: void;
+}
+
+class TestTypedEventTarget extends TypedEventTarget<TestEventMap> {
   constructor(
     private activate: (type: string) => void,
     private deactivate: (type: string) => void,
@@ -11,6 +16,12 @@ class TestTrackingEventTarget extends TrackingEventTarget {
   public getActiveEvents(): string[] {
     return super.getActiveEvents();
   }
+  public dispatchEvent<K extends keyof TestEventMap & string>(
+    type: K,
+    ...[data]: TestEventMap[K] extends void ? [] : [data: TestEventMap[K]]
+  ): void {
+    super.dispatchEvent(type, ...([data] as any));
+  }
   protected eventActivated(type: string): void {
     this.activate(type);
   }
@@ -19,13 +30,13 @@ class TestTrackingEventTarget extends TrackingEventTarget {
   }
 }
 
-describe("TrackingEventTarget", () => {
-  const listener = () => {};
+describe("TypedEventTarget", () => {
+  const listener = (_data: { value: number }) => {};
 
   it("add remove", () => {
     const activate = vi.fn();
     const deactivate = vi.fn();
-    const target = new TestTrackingEventTarget(activate, deactivate);
+    const target = new TestTypedEventTarget(activate, deactivate);
     expect(target.getActiveEvents()).toEqual([]);
 
     target.addEventListener("foo", listener);
@@ -39,76 +50,83 @@ describe("TrackingEventTarget", () => {
     expect(target.getActiveEvents()).toEqual([]);
   });
 
-  it("callback equality", () => {
-    const listenerAlt = () => {};
+  it("identity-based dedup", () => {
+    const listenerAlt = (_data: { value: number }) => {};
 
     const activate = vi.fn();
     const deactivate = vi.fn();
-    const target = new TestTrackingEventTarget(activate, deactivate);
-    expect(target.getActiveEvents()).toEqual([]);
+    const target = new TestTypedEventTarget(activate, deactivate);
 
     target.addEventListener("foo", listenerAlt);
     target.addEventListener("foo", listener);
-    target.addEventListener("foo", listener);
+    target.addEventListener("foo", listener); // duplicate, ignored
+    expect(activate).toBeCalledTimes(1); // only called once for "foo"
+
     target.removeEventListener("foo", listener);
     expect(target.getActiveEvents()).toEqual(["foo"]);
     target.removeEventListener("foo", listenerAlt);
     expect(target.getActiveEvents()).toEqual([]);
   });
 
-  it("option equality - capture", () => {
-    const fooListener = vi.fn();
+  it("remove during dispatch", () => {
     const activate = vi.fn();
     const deactivate = vi.fn();
-    const target = new TestTrackingEventTarget(activate, deactivate);
-    expect(target.getActiveEvents()).toEqual([]);
+    const target = new TestTypedEventTarget(activate, deactivate);
+    const calls: number[] = [];
 
-    target.addEventListener("foo", fooListener, { capture: true });
-    target.addEventListener("foo", fooListener, false);
-    target.removeEventListener("foo", fooListener, true);
+    const selfRemovingListener = (_data: { value: number }) => {
+      calls.push(1);
+      target.removeEventListener("foo", selfRemovingListener);
+    };
+    const secondListener = (_data: { value: number }) => {
+      calls.push(2);
+    };
+
+    target.addEventListener("foo", selfRemovingListener);
+    target.addEventListener("foo", secondListener);
+    target.dispatchEvent("foo", { value: 42 });
+
+    // Both should have been called (Set iteration guarantees this)
+    expect(calls).toEqual([1, 2]);
+    // selfRemovingListener should be removed now
     expect(target.getActiveEvents()).toEqual(["foo"]);
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(1);
   });
 
-  it("option equality", () => {
-    const fooListener = vi.fn();
-    const activate = vi.fn();
-    const deactivate = vi.fn();
-    const target = new TestTrackingEventTarget(activate, deactivate);
+  it("getActiveEvents", () => {
+    const target = new TestTypedEventTarget(vi.fn(), vi.fn());
+    const fooListener = () => {};
+    const barListener = () => {};
 
-    // Despite MDN docs claiming all options can result in another listener added
-    // it seems only capture counts for both add and remove
-    target.addEventListener("foo", fooListener, { passive: true });
-    target.addEventListener("foo", fooListener, { once: true });
-    target.addEventListener("foo", fooListener, { capture: true });
-    target.addEventListener("foo", fooListener, { capture: false });
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(2);
+    target.addEventListener("foo", fooListener);
+    target.addEventListener("bar", barListener);
+    expect(target.getActiveEvents().sort()).toEqual(["bar", "foo"]);
 
-    target.removeEventListener("foo", fooListener, true);
-    expect(target.getActiveEvents()).toEqual(["foo"]);
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(3);
-
-    target.removeEventListener("foo", fooListener, false);
-    expect(target.getActiveEvents()).toEqual([]);
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(3);
+    target.removeEventListener("foo", fooListener);
+    expect(target.getActiveEvents()).toEqual(["bar"]);
   });
 
-  it("once", () => {
+  it("void events dispatch without argument", () => {
+    const target = new TestTypedEventTarget(vi.fn(), vi.fn());
+    const barListener = vi.fn();
+
+    target.addEventListener("bar", barListener);
+    target.dispatchEvent("bar");
+    expect(barListener).toBeCalledTimes(1);
+  });
+
+  it("dispatches correct data to listeners", () => {
+    const target = new TestTypedEventTarget(vi.fn(), vi.fn());
     const fooListener = vi.fn();
-    const activate = vi.fn();
+
+    target.addEventListener("foo", fooListener);
+    target.dispatchEvent("foo", { value: 99 });
+    expect(fooListener).toBeCalledWith({ value: 99 });
+  });
+
+  it("removing non-existent listener is a no-op", () => {
     const deactivate = vi.fn();
-    const target = new TestTrackingEventTarget(activate, deactivate);
-
-    target.addEventListener("foo", fooListener, { once: true });
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(1);
-    expect(deactivate).toBeCalledTimes(1);
-
-    target.dispatchEvent(new Event("foo"));
-    expect(fooListener).toBeCalledTimes(1);
+    const target = new TestTypedEventTarget(vi.fn(), deactivate);
+    target.removeEventListener("foo", listener);
+    expect(deactivate).not.toBeCalled();
   });
 });

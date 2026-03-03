@@ -5,8 +5,6 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "./service-events.js";
-import { UARTDataEvent } from "./uart.js";
-import { BackgroundErrorEvent } from "./device.js";
 
 export class UARTService implements Service {
   uuid = profile.uart.id;
@@ -28,17 +26,16 @@ export class UARTService implements Service {
           profile.uart.id,
           profile.uart.characteristics.tx.id,
           (value: DataView) => {
-            this.dispatchTypedEvent(
-              "uartdata",
-              new UARTDataEvent(new Uint8Array(value.buffer)),
-            );
+            this.dispatchTypedEvent("uartdata", {
+              value: new Uint8Array(value.buffer),
+            });
           },
         );
       } catch (e) {
-        this.dispatchTypedEvent(
-          "backgrounderror",
-          new BackgroundErrorEvent("Failed to start notifications", e),
-        );
+        this.dispatchTypedEvent("backgrounderror", {
+          message: "Failed to start notifications",
+          error: e,
+        });
       }
     }
   }

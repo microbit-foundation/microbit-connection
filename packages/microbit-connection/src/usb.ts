@@ -6,13 +6,10 @@
 import { TimeoutError, withTimeout } from "./async-util.js";
 import { throwIfUnavailable } from "./availability.js";
 import {
-  AfterRequestDevice,
-  BeforeRequestDevice,
   BoardVersion,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
-  ConnectionStatusEvent,
   DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
@@ -26,13 +23,7 @@ import {
 import { TypedEventTarget } from "./events.js";
 import { Logging, ConsoleLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
-import {
-  FlashEvent,
-  SerialConnectionEventMap,
-  SerialDataEvent,
-  SerialErrorEvent,
-  SerialResetEvent,
-} from "./serial-events.js";
+import { SerialConnectionEventMap } from "./serial-events.js";
 import { DAPWrapper } from "./usb-device-wrapper.js";
 import { PartialFlashing } from "./usb-partial-flashing.js";
 
@@ -163,7 +154,7 @@ class MicrobitUSBConnectionImpl
   private serialStateChangeQueue = new PromiseQueue();
 
   private serialListener = (data: string) => {
-    this.dispatchTypedEvent("serialdata", new SerialDataEvent(data));
+    this.dispatchEvent("serialdata", { data });
   };
 
   private flashing: boolean = false;
@@ -309,7 +300,7 @@ class MicrobitUSBConnectionImpl
       await this.withEnrichedErrors(() =>
         this.flashInternal(dataSource, options),
       );
-      this.dispatchTypedEvent("flash", new FlashEvent());
+      this.dispatchEvent("flash");
 
       const flashTime = new Date().getTime() - startTime;
       this.logging.event({
@@ -396,7 +387,7 @@ class MicrobitUSBConnectionImpl
           this.log("Finished listening for serial data");
         })
         .catch((e) => {
-          this.dispatchTypedEvent("serialerror", new SerialErrorEvent(e));
+          this.dispatchEvent("serialerror", { error: e });
         })
         .finally(() => {
           this.serialState = false;
@@ -410,7 +401,7 @@ class MicrobitUSBConnectionImpl
         return;
       }
       this.connection.stopSerial(this.serialListener);
-      this.dispatchTypedEvent("serialreset", new SerialResetEvent());
+      this.dispatchEvent("serialreset");
     });
   }
 
@@ -448,10 +439,10 @@ class MicrobitUSBConnectionImpl
     const previousStatus = this.status;
     this.status = newStatus;
     this.log("USB connection status " + newStatus);
-    this.dispatchTypedEvent(
-      "status",
-      new ConnectionStatusEvent(newStatus, previousStatus),
-    );
+    this.dispatchEvent("status", {
+      status: newStatus,
+      previousStatus,
+    });
   }
 
   private async withEnrichedErrors<T>(f: () => Promise<T>): Promise<T> {
@@ -616,14 +607,14 @@ class MicrobitUSBConnectionImpl
   }
 
   private async chooseDevice(): Promise<USBDevice> {
-    this.dispatchTypedEvent("beforerequestdevice", new BeforeRequestDevice());
+    this.dispatchEvent("beforerequestdevice");
     try {
       this.device = await navigator.usb.requestDevice({
         exclusionFilters: this.exclusionFilters,
         filters: defaultFilters,
       });
     } finally {
-      this.dispatchTypedEvent("afterrequestdevice", new AfterRequestDevice());
+      this.dispatchEvent("afterrequestdevice");
     }
     return this.device;
   }
