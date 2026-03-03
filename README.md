@@ -97,6 +97,14 @@ await usb.flash(
 );
 ```
 
+#### Post-flash connection state
+
+The connection state after flashing differs between USB and Bluetooth because they connect to different parts of the micro:bit hardware:
+
+- **USB** connects to the **interface chip** (running DAPLink firmware), which is separate from the application processor that runs user code. Flashing does not affect the interface chip, so the USB connection remains in `"CONNECTED"` state and serial communication is automatically reinitialised.
+
+- **Bluetooth** connects directly to the **application processor** (the Nordic nRF51/nRF52 running the user's program and BLE stack). This processor reboots after flashing, so the Bluetooth connection is necessarily lost. The connection is always left in `"DISCONNECTED"` state and callers must call `connect()` again after flashing.
+
 #### Tab visibility and the PAUSED state
 
 By default, a USB connection is automatically paused when the browser tab becomes hidden and reconnected when the tab becomes visible again. This frees the USB interface for other tabs or processes while the user isn't looking at the page. During this time the connection status is `"PAUSED"`.

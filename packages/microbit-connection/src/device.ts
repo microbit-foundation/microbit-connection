@@ -357,6 +357,18 @@ export interface DeviceConnection<M>
    * connections do not support flashing, and Bluetooth connections only
    * support flashing on native platforms (not Web).
    *
+   * Post-flash connection state differs by transport:
+   *
+   * - **USB**: The connection remains in {@link ConnectionStatus.CONNECTED} state.
+   *   USB connects to the micro:bit's interface chip (running DAPLink firmware),
+   *   which is not affected by flashing the application processor, so the
+   *   connection persists and serial communication is automatically reinitialised.
+   *
+   * - **Bluetooth**: The connection is always left in {@link ConnectionStatus.DISCONNECTED}
+   *   state. Bluetooth connects to the application processor directly, which
+   *   reboots after flashing, so the connection is necessarily lost. Callers
+   *   must call {@link connect} again after flashing.
+   *
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
    * @throws {DeviceError} On flash failure. The error.code property indicates the failure type.
