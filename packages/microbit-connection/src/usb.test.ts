@@ -14,10 +14,10 @@ import { applyDeviceFilters, createUSBConnection } from "./usb.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
 vi.mock("./usb-device-wrapper.js", () => ({
-  DAPWrapper: class DapWrapper {
+  USBDeviceWrapper: class USBDeviceWrapper {
     startSerial = vi.fn().mockReturnValue(Promise.resolve());
-    reconnectAsync = vi.fn().mockResolvedValue(undefined);
-    disconnectAsync = vi.fn().mockResolvedValue(undefined);
+    reconnect = vi.fn().mockResolvedValue(undefined);
+    disconnect = vi.fn().mockResolvedValue(undefined);
     stopSerial = vi.fn();
   },
 }));

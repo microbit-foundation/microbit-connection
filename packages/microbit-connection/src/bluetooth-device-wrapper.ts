@@ -120,7 +120,7 @@ export class BluetoothDeviceWrapper implements Logging {
   >();
 
   constructor(
-    public readonly device: BleDevice,
+    public readonly bleDevice: BleDevice,
     private logging: Logging = new ConsoleLogging(),
     private deviceBondState: DeviceBondState = new DefaultDeviceBondState(),
     dispatchTypedEvent: TypedServiceEventDispatcher,
@@ -128,17 +128,17 @@ export class BluetoothDeviceWrapper implements Logging {
     private callbacks: ConnectCallbacks,
   ) {
     this.accelerometer = new AccelerometerService(
-      device.deviceId,
+      bleDevice.deviceId,
       dispatchTypedEvent,
     );
-    this.buttons = new ButtonService(device.deviceId, dispatchTypedEvent);
-    this.deviceInformation = new DeviceInformationService(device.deviceId);
-    this.led = new LedService(device.deviceId);
+    this.buttons = new ButtonService(bleDevice.deviceId, dispatchTypedEvent);
+    this.deviceInformation = new DeviceInformationService(bleDevice.deviceId);
+    this.led = new LedService(bleDevice.deviceId);
     this.magnetometer = new MagnetometerService(
-      device.deviceId,
+      bleDevice.deviceId,
       dispatchTypedEvent,
     );
-    this.uart = new UARTService(device.deviceId, dispatchTypedEvent);
+    this.uart = new UARTService(bleDevice.deviceId, dispatchTypedEvent);
     this.services = [
       this.accelerometer,
       this.buttons,
@@ -149,7 +149,7 @@ export class BluetoothDeviceWrapper implements Logging {
   }
 
   setBonded(isBonded: boolean) {
-    this.deviceBondState.setBonded(this.device.deviceId, isBonded);
+    this.deviceBondState.setBonded(this.bleDevice.deviceId, isBonded);
   }
 
   async connect(options?: ConnectOptions): Promise<void> {
@@ -162,11 +162,11 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        const isBonded = this.deviceBondState.isBonded(this.device.deviceId);
+        const isBonded = this.deviceBondState.isBonded(this.bleDevice.deviceId);
         await this.connectHandlingBond(progress, isBonded ?? false);
         this.setBonded(true);
         // We need this on Android for reconnecting after DFU.
-        await BleClient.discoverServices(this.device.deviceId);
+        await BleClient.discoverServices(this.bleDevice.deviceId);
       } else {
         progress(ProgressStage.Connecting);
         await this.connectInternal();
@@ -174,7 +174,7 @@ export class BluetoothDeviceWrapper implements Logging {
       await this.getBoardVersion();
 
       const events = this.currentEvents();
-      const services = await BleClient.getServices(this.device.deviceId);
+      const services = await BleClient.getServices(this.bleDevice.deviceId);
       this.serviceIds = new Set(services.map((s) => s.uuid));
       this.logging.log(`Starting notifications for current events ${events}`);
       events.forEach((e) => this.startNotifications(e as TypedServiceEvent));
@@ -222,9 +222,13 @@ export class BluetoothDeviceWrapper implements Logging {
 
   private async connectInternal() {
     this.waitingForDisconnectEventCallbacks.length = 0;
-    await BleClient.connect(this.device.deviceId, this.handleDisconnectEvent, {
-      timeout: connectTimeoutInMs,
-    });
+    await BleClient.connect(
+      this.bleDevice.deviceId,
+      this.handleDisconnectEvent,
+      {
+        timeout: connectTimeoutInMs,
+      },
+    );
     this.connected = true;
   }
 
@@ -238,7 +242,7 @@ export class BluetoothDeviceWrapper implements Logging {
     );
     try {
       if (this.connected) {
-        await BleClient.disconnect(this.device.deviceId);
+        await BleClient.disconnect(this.bleDevice.deviceId);
       }
     } catch (e) {
       this.logging.error("Bluetooth GATT disconnect error (ignored)", e);
@@ -286,7 +290,7 @@ export class BluetoothDeviceWrapper implements Logging {
     const key = this.getNotificationKey(serviceId, characteristicId);
     await this.raceDisconnectAndTimeout(
       BleClient.startNotifications(
-        this.device.deviceId,
+        this.bleDevice.deviceId,
         serviceId,
         characteristicId,
         (value: DataView) => {
@@ -328,7 +332,7 @@ export class BluetoothDeviceWrapper implements Logging {
     characteristicId: string,
   ): Promise<void> {
     await BleClient.stopNotifications(
-      this.device.deviceId,
+      this.bleDevice.deviceId,
       serviceId,
       characteristicId,
     );
@@ -361,7 +365,7 @@ export class BluetoothDeviceWrapper implements Logging {
 
     try {
       await BleClient.writeWithoutResponse(
-        this.device.deviceId,
+        this.bleDevice.deviceId,
         serviceId,
         characteristicId,
         value,
@@ -512,7 +516,7 @@ export class BluetoothDeviceWrapper implements Logging {
   private async bondConnectDeviceInternal(
     isAlreadyIosBonded: boolean,
   ): Promise<boolean> {
-    const { deviceId } = this.device;
+    const { deviceId } = this.bleDevice;
     if (isAndroid()) {
       let justBonded = false;
       // This gets us a nicer pairing dialog than just going straight for the characteristic.
@@ -543,7 +547,7 @@ export class BluetoothDeviceWrapper implements Logging {
    * fast (local GATT cache lookup) so there's no meaningful delay from retries.
    */
   private async triggerIosPairing(options: TimeoutOptions): Promise<void> {
-    const { deviceId } = this.device;
+    const { deviceId } = this.bleDevice;
 
     // 1. Partial flashing notifications (most common case)
     try {

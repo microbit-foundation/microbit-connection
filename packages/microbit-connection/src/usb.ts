@@ -24,7 +24,7 @@ import { TypedEventTarget } from "./events.js";
 import { Logging, ConsoleLogging } from "./logging.js";
 import { PromiseQueue } from "./promise-queue.js";
 import { SerialConnectionEventMap } from "./serial-events.js";
-import { DAPWrapper } from "./usb-device-wrapper.js";
+import { USBDeviceWrapper } from "./usb-device-wrapper.js";
 import { PartialFlashing } from "./usb-partial-flashing.js";
 
 // Temporary workaround for ChromeOS 105 bug.
@@ -144,7 +144,7 @@ class MicrobitUSBConnectionImpl
   /**
    * The connection to the device.
    */
-  private connection: DAPWrapper | undefined;
+  private connection: USBDeviceWrapper | undefined;
 
   /**
    * Cached device properties that persist across reconnections until clearDevice.
@@ -374,10 +374,8 @@ class MicrobitUSBConnectionImpl
       } else {
         if (this.hasSerialEventListeners()) {
           this.log("Reinstating serial after flash");
-          if (this.connection.daplink) {
-            await this.connection.daplink.connect();
-            await this.startSerialInternal();
-          }
+          await this.connection.reconnectDaplink();
+          await this.startSerialInternal();
         }
       }
     }
@@ -409,7 +407,7 @@ class MicrobitUSBConnectionImpl
       if (!this.connection || !this.serialState) {
         return;
       }
-      this.connection.stopSerial(this.serialListener);
+      this.connection.stopSerial();
       this.dispatchEvent("serialreset");
     });
   }
@@ -421,7 +419,7 @@ class MicrobitUSBConnectionImpl
     try {
       if (this.connection) {
         await this.stopSerialInternal();
-        await this.connection.disconnectAsync();
+        await this.connection.disconnect();
       }
     } catch (e) {
       if (!quiet) {
@@ -495,14 +493,14 @@ class MicrobitUSBConnectionImpl
     assertConnected(this.connection);
     const connection = this.connection;
     return this.withEnrichedErrors(async () => {
-      // Using WebUSB/DAPJs we're limited to 64 byte packet size with a two byte header.
+      // WebUSB packets are 64 bytes with a two byte header.
       // https://github.com/microbit-foundation/python-editor-v3/issues/215
       const maxSerialWrite = 62;
       let start = 0;
       while (start < data.length) {
         const end = Math.min(start + maxSerialWrite, data.length);
         const chunkData = data.slice(start, end);
-        await connection.daplink.serialWrite(chunkData);
+        await connection.serialWrite(chunkData);
         start = end;
       }
     });
@@ -512,7 +510,7 @@ class MicrobitUSBConnectionImpl
     assertConnected(this.connection);
     const connection = this.connection;
     return this.serialStateChangeQueue.add(
-      async () => await connection.softwareReset(),
+      async () => await connection.cortexM.softwareReset(),
     );
   }
 
@@ -539,13 +537,13 @@ class MicrobitUSBConnectionImpl
 
     if (!this.connection && this.device) {
       reportProgress(ProgressStage.Connecting);
-      this.connection = new DAPWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
+      this.connection = new USBDeviceWrapper(this.device, this.logging);
+      await withTimeout(this.connection.reconnect(), 10_000);
     } else if (!this.connection) {
       await this.connectWithOtherDevice(reportProgress);
     } else {
       reportProgress(ProgressStage.Connecting);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
+      await withTimeout(this.connection.reconnect(), 10_000);
     }
     // Cache device properties so they survive disconnection.
     this.cachedDeviceId = this.connection!.deviceId;
@@ -572,8 +570,8 @@ class MicrobitUSBConnectionImpl
       progress(ProgressStage.FindingDevice);
       this.device = await this.chooseDevice();
       progress(ProgressStage.Connecting);
-      this.connection = new DAPWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
+      this.connection = new USBDeviceWrapper(this.device, this.logging);
+      await withTimeout(this.connection.reconnect(), 10_000);
     }
   }
 
@@ -605,13 +603,13 @@ class MicrobitUSBConnectionImpl
 
   private async attemptDeviceConnection(
     device: USBDevice,
-  ): Promise<DAPWrapper | undefined> {
+  ): Promise<USBDeviceWrapper | undefined> {
     this.log(
       `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
     );
     this.log(`Serial number: ${device.serialNumber}`);
-    const connection = new DAPWrapper(device, this.logging);
-    await withTimeout(connection.reconnectAsync(), 10_000);
+    const connection = new USBDeviceWrapper(device, this.logging);
+    await withTimeout(connection.reconnect(), 10_000);
     return connection;
   }
 
@@ -736,10 +734,8 @@ const enrichedError = (err: any): DeviceError => {
       if (!err.message && err.promise && err.reason) {
         err = err.reason;
       }
-      // This is somewhat fragile but worth it for scenario specific errors.
-      // These messages changed to be prefixed in 2023 so we've relaxed the checks.
+      // Match specific error scenarios for user-friendly error codes.
       if (/No valid interfaces found/.test(err.message)) {
-        // This comes from DAPjs's WebUSB open.
         return new DeviceError({
           code: "update-req",
           message: err.message,

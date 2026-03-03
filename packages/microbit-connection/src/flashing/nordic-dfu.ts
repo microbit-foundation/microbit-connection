@@ -85,7 +85,7 @@ export async function flashDfu(
   appBin: Uint8Array,
   progress: ProgressCallback,
 ): Promise<void> {
-  const { device } = connection;
+  const { bleDevice } = connection;
   const { uri: filePath, filename } = await getFilePath(boardVersion, appBin);
   let listener: PluginListenerHandle | undefined;
   try {
@@ -134,8 +134,8 @@ export async function flashDfu(
       // Note this doesn't await the whole DFU process, just its initialization
       const isAndroid = Capacitor.getPlatform() === "android";
       const error = await NordicDfu.startDFU({
-        deviceName: device.name,
-        deviceAddress: device.deviceId,
+        deviceName: bleDevice.name,
+        deviceAddress: bleDevice.deviceId,
         filePath,
         dfuOptions: isAndroid
           ? {

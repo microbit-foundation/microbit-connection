@@ -78,8 +78,8 @@
   },
   "dependencies": {
     "@microbit/microbit-universal-hex": "^0.2.2",
+    "@types/w3c-web-usb": "^1.0.13",
     "@types/web-bluetooth": "^0.0.20",
-    "dapjs": "^2.3.0",
     "nrf-intel-hex": "^1.4.0"
   },
   "peerDependencies": {

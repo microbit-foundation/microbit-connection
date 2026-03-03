@@ -30,7 +30,7 @@ export async function fullFlash(
 ): Promise<void> {
   connection.log("Full flash");
   progress(ProgressStage.FullFlashing);
-  const { deviceId } = connection.device;
+  const { deviceId } = connection.bleDevice;
 
   try {
     if (boardVersion === "V1") {
