@@ -7,6 +7,10 @@ export interface UartData {
   value: Uint8Array;
 }
 
+/**
+ * Events from BLE GATT service notifications (accelerometer, buttons,
+ * magnetometer, UART). Used by Bluetooth and radio bridge connections.
+ */
 export interface ServiceConnectionEventMap {
   accelerometerdatachanged: AccelerometerData;
   buttonachanged: ButtonData;
@@ -14,10 +18,6 @@ export interface ServiceConnectionEventMap {
   magnetometerdatachanged: MagnetometerData;
   uartdata: UartData;
 }
-
-export type CharacteristicDataTarget = EventTarget & {
-  value: DataView;
-};
 
 type AllEventMap = ServiceConnectionEventMap & DeviceConnectionEventMap;
 export type TypedServiceEvent = keyof AllEventMap;

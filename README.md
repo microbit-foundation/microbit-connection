@@ -35,7 +35,7 @@ The library is split into separate entrypoints for tree-shaking. Import shared t
 | `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                             |
 | `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                         |
 | `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)    |
-| `@microbit/microbit-connection/radio-bridge`  | `createRadioBridgeConnection` for micro:bit radio bridge connections                   |
+| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details. |
 
 ## Usage
 
