@@ -80,6 +80,15 @@ export interface MicrobitUSBConnectionOptions {
 export interface MicrobitUSBConnection
   extends DeviceConnection<SerialConnectionEventMap> {
   /**
+   * Write serial data to the device.
+   *
+   * @param data The data to write.
+   * @returns A promise that resolves when the write is complete.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  serialWrite(data: string): Promise<void>;
+
+  /**
    * Gets micro:bit deviceId.
    *
    * Cached after the first successful connection until {@link clearDevice}
