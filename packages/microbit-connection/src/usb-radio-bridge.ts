@@ -39,6 +39,19 @@ interface ConnectCallbacks {
   onSuccess: () => void;
 }
 
+/**
+ * A connection to a remote micro:bit via a USB-connected micro:bit running
+ * radio bridge firmware. Sensor data is relayed over a serial protocol.
+ *
+ * @experimental This connection type has limited service support compared to
+ * direct Bluetooth connections:
+ *
+ * - `accelerometerdatachanged`, `buttonachanged`, `buttonbchanged` events
+ *   are supported.
+ * - `magnetometerdatachanged` and `uartdata` events are declared on
+ *   {@link ServiceConnectionEventMap} but are not currently emitted.
+ * - `flash` is not supported.
+ */
 export interface MicrobitRadioBridgeConnection
   extends DeviceConnection<ServiceConnectionEventMap> {
   /**
@@ -51,6 +64,8 @@ export interface MicrobitRadioBridgeConnection
 
 /**
  * A radio bridge connection factory.
+ *
+ * @experimental See {@link MicrobitRadioBridgeConnection} for limitations.
  */
 export const createRadioBridgeConnection = (
   delegate: MicrobitUSBConnection,
