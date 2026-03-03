@@ -110,7 +110,7 @@ class MicrobitRadioBridgeConnectionImpl
     this.status = this.statusFromDelegate();
   }
 
-  getBoardVersion(): BoardVersion | undefined {
+  getBoardVersion(): BoardVersion {
     return this.delegate.getBoardVersion();
   }
 
@@ -386,7 +386,11 @@ class RadioBridgeSerialSession {
     if (disconnect) {
       await this.delegate.disconnect();
     }
-    await this.delegate.softwareReset();
+    try {
+      await this.delegate.softwareReset();
+    } catch {
+      // May already be disconnected.
+    }
   }
 
   private async sendCmdWaitResponse(

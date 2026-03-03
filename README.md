@@ -130,6 +130,22 @@ console.log("Connection status: ", connectionStatus);
 
 For more examples see the [web demo source](apps/demo/src/demo.ts) and the [Capacitor demo source](apps/capacitor/src/).
 
+### Error handling
+
+Methods that interact with device features (reading sensors, writing to LEDs, serial communication, etc.) throw a {@link @microbit/microbit-connection!DeviceError | DeviceError} with code `"not-connected"` if called without an active connection:
+
+```ts
+import { DeviceError } from "@microbit/microbit-connection";
+
+try {
+  const data = await bluetooth.getAccelerometerData();
+} catch (e) {
+  if (e instanceof DeviceError && e.code === "not-connected") {
+    console.log("Connect to a micro:bit first");
+  }
+}
+```
+
 ## Known limitations
 
 ### Bluetooth

@@ -23,6 +23,7 @@ import {
   FlashOptions,
   ProgressCallback,
   ProgressStage,
+  assertConnected,
 } from "./device.js";
 import { TypedEventTarget } from "./events.js";
 import { LedMatrix } from "./led.js";
@@ -48,6 +49,7 @@ export {
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
+  assertConnected,
   FlashEvent,
   ProgressStage,
   SerialConnectionEventMap,
