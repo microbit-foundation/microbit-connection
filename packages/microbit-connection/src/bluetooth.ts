@@ -506,7 +506,10 @@ class MicrobitBluetoothConnectionImpl
   /**
    * Flash the micro:bit.
    *
-   * Note that this will always leave the connection disconnected.
+   * Always leaves the connection in {@link ConnectionStatus.DISCONNECTED} state.
+   * Bluetooth connects directly to the application processor, which reboots
+   * after flashing, so the connection is necessarily lost. Call {@link connect}
+   * again after flashing to reconnect.
    *
    * @param dataSource The data to use.
    * @param options Flash options and progress callback.
