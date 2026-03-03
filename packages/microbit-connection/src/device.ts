@@ -47,7 +47,7 @@ export type DeviceErrorCode =
    */
   | "timeout-error"
   /**
-   * This is the fallback error case suggesting that the user reconnects their device.
+   * This is the fallback error case suggesting that the user physically reconnects their device.
    */
   | "reconnect-microbit"
   /**
