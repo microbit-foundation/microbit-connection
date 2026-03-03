@@ -103,7 +103,7 @@ export class DAPWrapper {
       this.initialConnectionComplete = true;
     }
 
-    await this.daplink.connect();
+    await this.connectDaplink();
     await this.cortexM.connect();
 
     this.logging.event({
@@ -159,6 +159,90 @@ export class DAPWrapper {
       }
     }
     throw lastError;
+  }
+
+  /**
+   * Drain any stale responses from the USB buffer.
+   * Sends a known command (DAP_INFO) and keeps reading until we get the
+   * matching response. This recovers from the state where a previous session
+   * was closed mid-serial-read, leaving stale responses in the device's
+   * USB buffer that break subsequent connections.
+   *
+   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
+   */
+  private async drainStaleResponses(): Promise<void> {
+    // DAPLink's DAP_PACKET_COUNT is 5-8 for micro:bit variants.
+    // In practice, only 1-2 stale responses are typical (from interrupted serial read).
+    // Use a value slightly above the max buffer size as a safety margin.
+    const maxAttempts = 10;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // DAP_INFO is a safe, read-only command that always succeeds
+      const packet = [DapCmd.DAP_INFO, 0x01];
+      await this.transport.write(Uint8Array.from(packet).buffer);
+
+      const response = await this.transport.read();
+      const responseBytes = new Uint8Array(response.buffer);
+
+      if (responseBytes[0] === DapCmd.DAP_INFO) {
+        // This is the response to our first DAP_INFO (from attempt 0).
+        // We sent additional DAP_INFO commands in subsequent attempts while
+        // reading stale responses - read out those responses too.
+        for (let i = 0; i < attempt; i++) {
+          await this.transport.read();
+        }
+        this.logging.log(
+          `USB buffer drain: synchronized after ${attempt} stale response(s)`,
+        );
+        return;
+      }
+      this.logging.log(
+        `USB buffer drain: discarded stale response 0x${responseBytes[0].toString(16)}`,
+      );
+    }
+
+    this.logging.log(
+      "USB buffer drain: warning - could not fully synchronize after max attempts",
+    );
+  }
+
+  /**
+   * Connect daplink, handling stale USB responses from a previous session.
+   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
+   */
+  private async connectDaplink(maxRetries = 3): Promise<void> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          this.logging.log(
+            `Connection retry attempt ${attempt + 1}/${maxRetries}`,
+          );
+          await this.drainStaleResponses();
+        }
+
+        await this.daplink.connect();
+        return;
+      } catch (e) {
+        // https://github.com/ARMmbed/dapjs/blob/master/src/proxy/cmsis-dap.ts#L178
+        if (e instanceof Error && /^Bad response for /.test(e.message)) {
+          lastError = e;
+          this.logging.log(`Bad response error during connect: ${e.message}`);
+
+          try {
+            await this.transport.close();
+          } catch {
+            // Ignore close errors
+          }
+          await this.transport.open();
+          continue;
+        }
+        throw e;
+      }
+    }
+
+    throw lastError || new Error("Connection failed after retries");
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {
