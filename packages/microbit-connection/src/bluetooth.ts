@@ -378,12 +378,6 @@ class MicrobitBluetoothConnectionImpl
     }
   }
 
-  serialWrite(data: string): Promise<void> {
-    assertConnected(this.connection);
-    // TODO
-    return Promise.resolve();
-  }
-
   async clearDevice(): Promise<void> {
     await this.disconnect();
     this.device = undefined;

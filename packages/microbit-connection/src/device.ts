@@ -342,15 +342,6 @@ export interface DeviceConnection<M>
   disconnect(): Promise<void>;
 
   /**
-   * Write serial data to the device.
-   *
-   * @param data The data to write.
-   * @returns A promise that resolves when the write is complete.
-   * @throws {DeviceError} with code `not-connected` if there is no connection.
-   */
-  serialWrite(data: string): Promise<void>;
-
-  /**
    * Flash the micro:bit.
    *
    * Not all connection types support flashing. For example, radio bridge
