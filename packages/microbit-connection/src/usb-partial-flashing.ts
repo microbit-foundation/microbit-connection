@@ -46,7 +46,6 @@
  */
 
 import { Logging } from "./logging.js";
-import { withTimeout, TimeoutError } from "./async-util.js";
 import { CoreRegister } from "./cmsis-dap.js";
 import { USBDeviceWrapper } from "./usb-device-wrapper.js";
 import {
@@ -228,11 +227,6 @@ export class PartialFlashing {
       }
     }
 
-    try {
-      await this.device.cortexM.reset();
-    } catch (e) {
-      // Allow errors on resetting, user can always manually reset if necessary.
-    }
     this.log("Flashing complete");
     return partial;
   }
@@ -264,42 +258,19 @@ export class PartialFlashing {
     data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
-    let resetPromise = (async () => {
-      // Reset micro:bit to ensure interface responds correctly.
-      this.log("Begin reset");
-      try {
-        await this.device.cortexM.reset(true);
-      } catch (e) {
-        this.log("Retrying reset");
-        await this.device.reconnect();
-        await this.device.cortexM.reset(true);
-      }
-    })();
-
+    // Reset into halted state so partial flash can execute code from a clean
+    // state.
+    this.log("Begin reset");
     try {
-      try {
-        await withTimeout(resetPromise, 1000);
-
-        this.log("Begin flashing");
-        return await this.partialFlashAsync(data, updateProgress);
-      } catch (e) {
-        if (e instanceof TimeoutError) {
-          this.log("Resetting micro:bit timed out");
-          this.log("Partial flashing failed. Attempting full flash");
-          this.logging.event({
-            type: "WebUSB-info",
-            message: "flash-failed/attempting-full-flash",
-          });
-          await this.fullFlashAsync(data, updateProgress);
-          return false;
-        } else {
-          throw e;
-        }
-      }
-    } finally {
-      // NB cannot return Promises above!
-      await this.device.disconnect();
+      await this.device.cortexM.reset(true);
+    } catch (e) {
+      this.log("Retrying reset");
+      await this.device.reconnect();
+      await this.device.cortexM.reset(true);
     }
+
+    this.log("Begin flashing");
+    return this.partialFlashAsync(data, updateProgress);
   }
 
   private convertDataToHexString(

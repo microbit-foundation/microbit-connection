@@ -1090,7 +1090,7 @@ export class DapLinkSerial {
     try {
       while (this.polling) {
         const data = await this.serialRead();
-        if (data !== undefined) {
+        if (data !== undefined && this.polling) {
           onData(data);
         }
         await new Promise((resolve) => setTimeout(resolve, serialDelay));
@@ -1163,7 +1163,11 @@ export async function dapLinkFlash(
       });
     }
 
+    // Reset the target if DAPLink's auto_rst is disabled. With the default
+    // config this is a no-op (FLASH_CLOSE already resets), but ensures the
+    // target runs the new program regardless of DAPLink settings.
     await dap.send(DapLinkVendorCmd.FLASH_RESET);
+
   } catch (error) {
     // Close the flash stream so DAPLink exits flash mode.
     // Without this, subsequent DAP commands fail because DAPLink

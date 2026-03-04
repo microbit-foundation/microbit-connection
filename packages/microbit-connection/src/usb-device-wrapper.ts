@@ -200,6 +200,7 @@ export class USBDeviceWrapper {
    * Used after flash to reinstate serial communication.
    */
   async reconnectDaplink(): Promise<void> {
+    this.dap.invalidate();
     await this.dap.connect();
   }
 
@@ -243,6 +244,23 @@ export class USBDeviceWrapper {
 
   async serialWrite(data: string): Promise<void> {
     await this.serial.serialWrite(data);
+  }
+
+  /**
+   * Drain any stale data from DAPLink's serial buffer.
+   * Call before/after flash to discard output from the old program.
+   */
+  async drainSerialBuffer(): Promise<void> {
+    let totalDrained = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const data = await this.serial.serialRead();
+      if (!data) break;
+      totalDrained += data.length;
+    }
+    if (totalDrained > 0) {
+      this.logging.log(`Drained ${totalDrained} bytes of stale serial data`);
+    }
   }
 
   async disconnect(): Promise<void> {

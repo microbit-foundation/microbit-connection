@@ -346,6 +346,10 @@ class MicrobitUSBConnectionImpl
       });
     }
 
+    this.log("Halting target and draining stale serial data");
+    await this.connection.cortexM.halt();
+    await this.connection.drainSerialBuffer();
+
     const boardId = this.connection.boardSerialInfo.id;
     const boardVersion = boardId.toBoardVersion();
     const data = await dataSource(boardVersion);
@@ -372,10 +376,24 @@ class MicrobitUSBConnectionImpl
         this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
+        await this.connection.reconnectDaplink();
+        // Start serial before resetting so we capture startup output.
+        // For full flash FLASH_CLOSE already reset the target, so its
+        // early output accumulates in DAPLink's 512-byte serial ring
+        // buffer until the first read here.
         if (this.hasSerialEventListeners()) {
           this.log("Reinstating serial after flash");
-          await this.connection.reconnectDaplink();
           await this.startSerialInternal();
+        }
+        if (wasPartial) {
+          // Partial flash writes pages via SWD without resetting.
+          // Full flash already resets via FLASH_CLOSE.
+          this.log("Resetting micro:bit to run new program");
+          try {
+            await this.connection.cortexM.reset();
+          } catch (e) {
+            // Allow errors on resetting, user can always manually reset if necessary.
+          }
         }
       }
     }
@@ -398,6 +416,7 @@ class MicrobitUSBConnectionImpl
         })
         .finally(() => {
           this.serialState = false;
+          this.dispatchEvent("serialreset");
         });
     });
   }
@@ -408,7 +427,6 @@ class MicrobitUSBConnectionImpl
         return;
       }
       this.connection.stopSerial();
-      this.dispatchEvent("serialreset");
     });
   }
 

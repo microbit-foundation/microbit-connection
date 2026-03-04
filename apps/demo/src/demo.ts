@@ -278,12 +278,16 @@ const createSerialSection = (): Section => {
   }
 
   let data = "";
+  const serialResetListener = () => {
+    data = "";
+  };
+  serialConnection.addEventListener("serialreset", serialResetListener);
   const serialDataListener = (event: SerialData) => {
     for (const char of event.data) {
       if (char === "\n") {
         console.log(data);
         data = "";
-      } else {
+      } else if (char !== "\r") {
         data += char;
       }
     }
@@ -319,6 +323,7 @@ const createSerialSection = (): Section => {
     dom,
     cleanup: () => {
       serialConnection.removeEventListener("serialdata", serialDataListener);
+      serialConnection.removeEventListener("serialreset", serialResetListener);
     },
   };
 };
