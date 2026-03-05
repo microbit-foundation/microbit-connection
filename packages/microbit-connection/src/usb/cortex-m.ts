@@ -15,12 +15,12 @@
  * core over SWD: halting, resuming, reading/writing core registers,
  * executing code from RAM, and performing software resets.
  *
- * It communicates entirely through ArmDebugInterface memory-mapped register
+ * It communicates entirely through ArmDebug memory-mapped register
  * access — the Cortex-M debug registers (DHCSR, DCRSR, DCRDR, etc.) are
  * memory-mapped in the Private Peripheral Bus region starting at 0xE000_0000.
  */
 
-import { ArmDebugInterface, waitFor } from "./arm-debug.js";
+import { type ArmDebug, waitFor } from "./arm-debug.js";
 import { DapError } from "./cmsis-dap.js";
 
 // ---------------------------------------------------------------------------
@@ -28,33 +28,33 @@ import { DapError } from "./cmsis-dap.js";
 // ---------------------------------------------------------------------------
 
 // Debug registers
-const DFSR = 0xe000ed30;
-const DHCSR = 0xe000edf0;
-const DCRSR = 0xe000edf4;
-const DCRDR = 0xe000edf8;
+export const DFSR = 0xe000ed30;
+export const DHCSR = 0xe000edf0;
+export const DCRSR = 0xe000edf4;
+export const DCRDR = 0xe000edf8;
 
 // DHCSR bits
-const C_DEBUGEN = 1 << 0;
-const C_HALT = 1 << 1;
-const S_REGRDY = 1 << 16;
-const S_HALT = 1 << 17;
-const DBGKEY = 0xa05f << 16;
+export const C_DEBUGEN = 1 << 0;
+export const C_HALT = 1 << 1;
+export const S_REGRDY = 1 << 16;
+export const S_HALT = 1 << 17;
+export const DBGKEY = 0xa05f << 16;
 
 // DFSR bits
-const DFSR_HALTED = 1 << 0;
-const DFSR_BKPT = 1 << 1;
-const DFSR_DWTTRAP = 1 << 2;
+export const DFSR_HALTED = 1 << 0;
+export const DFSR_BKPT = 1 << 1;
+export const DFSR_DWTTRAP = 1 << 2;
 
 // DCRSR bits
-const REGWnR = 1 << 16;
+export const REGWnR = 1 << 16;
 
 // Debug registers — Cortex-M system control
-const DEMCR = 0xe000edfc;
-const DEMCR_VC_CORERESET = 1 << 0;
-const NVIC_AIRCR = 0xe000ed0c;
-const NVIC_AIRCR_VECTKEY = 0x5fa << 16;
-const NVIC_AIRCR_SYSRESETREQ = 1 << 2;
-const S_RESET_ST = 1 << 25;
+export const DEMCR = 0xe000edfc;
+export const DEMCR_VC_CORERESET = 1 << 0;
+export const NVIC_AIRCR = 0xe000ed0c;
+export const NVIC_AIRCR_VECTKEY = 0x5fa << 16;
+export const NVIC_AIRCR_SYSRESETREQ = 1 << 2;
+export const S_RESET_ST = 1 << 25;
 
 // ---------------------------------------------------------------------------
 // CortexM
@@ -64,7 +64,7 @@ const S_RESET_ST = 1 << 25;
 export const CoreRegister = { SP: 13, LR: 14, PC: 15, PSR: 16 } as const;
 
 export class CortexM {
-  constructor(private adi: ArmDebugInterface) {}
+  constructor(private adi: ArmDebug) {}
 
   private enableDebug(): Promise<void> {
     return this.adi.writeMem32(DHCSR, DBGKEY | C_DEBUGEN);

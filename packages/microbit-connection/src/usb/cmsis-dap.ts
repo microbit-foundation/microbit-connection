@@ -7,9 +7,9 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * CMSIS-DAP protocol layer. CmsisDap handles the framing and validation of
+ * CMSIS-DAP protocol layer. CmsisDapUsb handles the framing and validation of
  * CMSIS-DAP commands over USB. It sits between UsbTransport (raw packet I/O)
- * and ArmDebugInterface (SWD register access). Its responsibilities are:
+ * and ArmDebugSwd (SWD register access). Its responsibilities are:
  *
  * - Serialising all DAP commands through a single queue so concurrent
  *   callers (serial polling, flash writes, SWD reads) don't interleave.
@@ -27,7 +27,7 @@
 import { DeviceError } from "../device.js";
 import { Logging } from "../logging.js";
 import { PromiseQueue } from "../promise-queue.js";
-import { UsbTransport, PACKET_SIZE } from "./transport.js";
+import { type Transport, PACKET_SIZE } from "./transport.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -140,16 +140,63 @@ export class DapTransferError extends DapError {
 }
 
 // ---------------------------------------------------------------------------
-// CmsisDap
+// CmsisDap interface / CmsisDapUsb implementation
 // ---------------------------------------------------------------------------
 
-export class CmsisDap {
+export interface CmsisDap {
+  readonly isOpen: boolean;
+  readonly blockSize: number;
+
+  /** Send a CMSIS-DAP command and validate the response. */
+  send(command: number, data?: Uint8Array): Promise<DataView>;
+  clearAbort(): Promise<void>;
+  swjSequence(data: Uint8Array): Promise<void>;
+  swjClock(frequency: number): Promise<void>;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  configureTransfer(
+    idleCycles: number,
+    waitRetry: number,
+    matchRetry: number,
+  ): Promise<void>;
+  open(): Promise<void>;
+  close(): Promise<void>;
+
+  /**
+   * Execute a batch of DAP transfer operations (DAP_TRANSFER command).
+   * Returns the values read (one per READ operation in the batch).
+   */
+  transfer(operations: DAPOperation[]): Promise<Uint32Array>;
+
+  /** Read a block of 32-bit values from a single register (DAP_TRANSFER_BLOCK). */
+  transferBlockRead(
+    port: number,
+    register: number,
+    count: number,
+  ): Promise<Uint32Array>;
+
+  /** Write a block of 32-bit values to a single register (DAP_TRANSFER_BLOCK). */
+  transferBlockWrite(
+    port: number,
+    register: number,
+    values: Uint32Array,
+  ): Promise<void>;
+
+  /**
+   * Drain stale responses from the USB buffer.
+   * Sends probe commands and reads until the response matches,
+   * discarding any stale responses from interrupted operations.
+   */
+  drainStaleResponses(): Promise<void>;
+}
+
+export class CmsisDapUsb implements CmsisDap {
   readonly blockSize: number;
 
   private sendQueue = new PromiseQueue();
 
   constructor(
-    private transport: UsbTransport,
+    private transport: Transport,
     private logging: Logging,
   ) {
     this.blockSize = PACKET_SIZE - BLOCK_HEADER_SIZE - 1;
@@ -159,9 +206,6 @@ export class CmsisDap {
     return this.transport.isOpen;
   }
 
-  /**
-   * Send a CMSIS-DAP command and validate the response.
-   */
   async send(command: number, data?: Uint8Array): Promise<DataView> {
     let array: Uint8Array;
     if (data) {
@@ -245,10 +289,6 @@ export class CmsisDap {
     await this.transport.close();
   }
 
-  /**
-   * Execute a batch of DAP transfer operations (DAP_TRANSFER command).
-   * Returns the values read (one per READ operation in the batch).
-   */
   async transfer(operations: DAPOperation[]): Promise<Uint32Array> {
     if (operations.length === 0) {
       return new Uint32Array(0);
@@ -290,9 +330,6 @@ export class CmsisDap {
     }
   }
 
-  /**
-   * Read a block of 32-bit values from a single register (DAP_TRANSFER_BLOCK).
-   */
   async transferBlockRead(
     port: number,
     register: number,
@@ -336,9 +373,6 @@ export class CmsisDap {
     }
   }
 
-  /**
-   * Write a block of 32-bit values to a single register (DAP_TRANSFER_BLOCK).
-   */
   async transferBlockWrite(
     port: number,
     register: number,
@@ -385,13 +419,6 @@ export class CmsisDap {
     }
   }
 
-  /**
-   * Drain stale responses from the USB buffer.
-   * Sends DAP_INFO commands and reads until the response matches,
-   * discarding any stale responses from interrupted operations.
-   *
-   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
-   */
   async drainStaleResponses(): Promise<void> {
     return this.sendQueue.add(async () => {
       const maxAttempts = 10;

@@ -27,8 +27,8 @@
 
 import { DapLinkVendorCmd } from "../constants.js";
 import { Logging } from "../logging.js";
-import { ArmDebugInterface } from "./arm-debug.js";
-import { CmsisDap, DapError, DapTransferError } from "./cmsis-dap.js";
+import { type ArmDebug } from "./arm-debug.js";
+import { type CmsisDap, DapError, DapTransferError } from "./cmsis-dap.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -127,7 +127,7 @@ export class DapLinkSerial {
 // ---------------------------------------------------------------------------
 
 export async function dapLinkFlash(
-  adi: ArmDebugInterface,
+  adi: ArmDebug,
   buffer: Uint8Array,
   onProgress?: (progress: number) => void,
 ): Promise<void> {
@@ -225,7 +225,7 @@ export async function readDaplinkUniqueId(
  * be ready to respond.
  */
 export async function readMem32WithRetry(
-  adi: ArmDebugInterface,
+  adi: ArmDebug,
   address: number,
   logging: Logging,
   maxRetries = 20,

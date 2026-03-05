@@ -13,9 +13,9 @@
  * are a minimal reimplementation covering only the features needed for
  * micro:bit.
  *
- * ArmDebugInterface manages the SWD connection lifecycle and provides
+ * ArmDebugSwd manages the SWD connection lifecycle and provides
  * register-level access to the Debug Port (DP) and Access Port (AP).
- * It sits between CmsisDap (command framing) and higher-level consumers
+ * It sits between CmsisDapUsb (command framing) and higher-level consumers
  * like CortexM (processor control) and DAPLink (flash/serial).
  *
  * Key responsibilities:
@@ -59,7 +59,7 @@ import { Logging } from "../logging.js";
 import {
   AP,
   ABORT_ALL,
-  CmsisDap,
+  type CmsisDap,
   DAPOperation,
   DapResponseMismatchError,
   DP,
@@ -151,10 +151,66 @@ function concatUint32Arrays(arrays: Uint32Array[]): Uint32Array {
 }
 
 // ---------------------------------------------------------------------------
-// ArmDebugInterface
+// ArmDebug interface / ArmDebugSwd implementation
 // ---------------------------------------------------------------------------
 
-export class ArmDebugInterface {
+export interface ArmDebug {
+  readonly dap: CmsisDap;
+  readonly isOpen: boolean;
+
+  /** Read a 32-bit word from a memory-mapped address. */
+  readMem32(address: number): Promise<number>;
+
+  /** Write a 32-bit word to a memory-mapped address. */
+  writeMem32(address: number, value: number): Promise<void>;
+
+  /** Build DAP operations for reading a 32-bit word (for use with transferSequence). */
+  readMem32Ops(address: number): DAPOperation[];
+
+  /** Build DAP operations for writing a 32-bit word (for use with transferSequence). */
+  writeMem32Ops(address: number, value: number): DAPOperation[];
+
+  /**
+   * Read a block of 32-bit words from memory.
+   * Handles TAR auto-increment page boundaries and block size limits.
+   */
+  readBlock(address: number, count: number): Promise<Uint32Array>;
+
+  /**
+   * Write a block of 32-bit words to memory.
+   * Handles TAR auto-increment page boundaries and block size limits.
+   */
+  writeBlock(address: number, values: Uint32Array): Promise<void>;
+
+  /**
+   * Execute a sequence of operation groups as individual transfers.
+   * Each group is sent as a separate DAP_TRANSFER to guarantee that
+   * all operations within a group execute atomically on the wire.
+   */
+  transferSequence(groups: DAPOperation[][]): Promise<Uint32Array>;
+
+  /**
+   * Reset cached protocol state without closing the transport.
+   * Call after operations that reset the target (e.g. DAPLink flash reset).
+   */
+  resetState(): void;
+
+  /**
+   * Connect to the target with automatic drain-and-retry on stale responses.
+   */
+  connect(maxRetries?: number): Promise<void>;
+
+  disconnect(): Promise<void>;
+
+  /**
+   * Reset cached state and reconnect without closing the transport.
+   * Use after operations like DAPLink flash that leave the protocol state
+   * stale but don't require full re-enumeration.
+   */
+  reinit(): Promise<void>;
+}
+
+export class ArmDebugSwd implements ArmDebug {
   private swdConnected = false;
 
   // ADI state (register caching)
@@ -231,13 +287,6 @@ export class ArmDebugInterface {
     this.logging.log("SWD connected");
   }
 
-  /**
-   * Initialize SWD with automatic drain-and-retry on stale USB responses.
-   * After a page reload or interrupted session, stale responses from the
-   * previous session may be sitting in the USB buffer. connectOnce() leaves
-   * the transport open on failure so we can drain and retry.
-   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
-   */
   async connect(maxRetries = 3): Promise<void> {
     let lastError: Error | undefined;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -262,10 +311,6 @@ export class ArmDebugInterface {
     throw lastError || new Error("Connection failed after retries");
   }
 
-  /**
-   * Reset cached SWD protocol state without closing the USB transport.
-   * Call after operations that reset the target (e.g. DAPLink flash reset).
-   */
   resetState(): void {
     this.swdConnected = false;
     this.selectedAddress = undefined;
@@ -289,11 +334,6 @@ export class ArmDebugInterface {
     this.logging.log("SWD disconnected");
   }
 
-  /**
-   * Reset cached state and reconnect SWD without closing the USB transport.
-   * Use after operations like DAPLink flash that leave the protocol state
-   * stale but don't require full re-enumeration.
-   */
   async reinit(): Promise<void> {
     this.logging.log("Reinitialising SWD");
     this.resetState();
@@ -386,11 +426,6 @@ export class ArmDebugInterface {
     }
   }
 
-  /**
-   * Execute a sequence of operation groups as individual transfers.
-   * Each group is sent as a separate DAP_TRANSFER to guarantee that
-   * all operations within a group execute atomically on the wire.
-   */
   async transferSequence(groups: DAPOperation[][]): Promise<Uint32Array> {
     const results: Uint32Array[] = [];
     for (const group of groups) {
@@ -416,10 +451,6 @@ export class ArmDebugInterface {
     await this.transfer(this.writeMem32Ops(address, value));
   }
 
-  /**
-   * Read a block of 32-bit words from memory.
-   * Handles TAR auto-increment page boundaries and block size limits.
-   */
   async readBlock(address: number, count: number): Promise<Uint32Array> {
     const results: Uint32Array[] = [];
     let remaining = count;
@@ -452,10 +483,6 @@ export class ArmDebugInterface {
     return concatUint32Arrays(results);
   }
 
-  /**
-   * Write a block of 32-bit words to memory.
-   * Handles TAR auto-increment page boundaries and block size limits.
-   */
   async writeBlock(address: number, values: Uint32Array): Promise<void> {
     let index = 0;
     let addr = address;

@@ -34,7 +34,15 @@ const IN_REPORT = 0x100;
 
 export const PACKET_SIZE = 64;
 
-export class UsbTransport {
+export interface Transport {
+  readonly isOpen: boolean;
+  open(): Promise<void>;
+  close(): Promise<void>;
+  read(): Promise<DataView>;
+  write(data: Uint8Array): Promise<void>;
+}
+
+export class UsbTransport implements Transport {
   private interfaceNumber?: number;
   private endpointIn?: USBEndpoint;
   private endpointOut?: USBEndpoint;

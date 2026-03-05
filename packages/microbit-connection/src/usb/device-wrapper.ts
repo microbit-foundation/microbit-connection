@@ -6,8 +6,8 @@
 import { BoardSerialInfo } from "../board-serial-info.js";
 import { FICR } from "../constants.js";
 import { Logging } from "../logging.js";
-import { ArmDebugInterface } from "./arm-debug.js";
-import { CmsisDap } from "./cmsis-dap.js";
+import { ArmDebugSwd } from "./arm-debug.js";
+import { CmsisDapUsb } from "./cmsis-dap.js";
 import { CortexM } from "./cortex-m.js";
 import {
   DapLinkSerial,
@@ -24,7 +24,7 @@ export interface BoardConnectionInfo {
 }
 
 export class USBDeviceWrapper {
-  adi: ArmDebugInterface;
+  adi: ArmDebugSwd;
   cortexM: CortexM;
   serial: DapLinkSerial;
 
@@ -34,11 +34,11 @@ export class USBDeviceWrapper {
     public readonly usbDevice: USBDevice,
     private logging: Logging,
   ) {
-    const cmsisDap = new CmsisDap(
+    const cmsisDap = new CmsisDapUsb(
       new UsbTransport(this.usbDevice),
       this.logging,
     );
-    this.adi = new ArmDebugInterface(cmsisDap, this.logging);
+    this.adi = new ArmDebugSwd(cmsisDap, this.logging);
     this.cortexM = new CortexM(this.adi);
     this.serial = new DapLinkSerial(cmsisDap, this.logging);
   }
