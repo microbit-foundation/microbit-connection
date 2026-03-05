@@ -58,6 +58,7 @@ import { DeviceError } from "../device.js";
 import { Logging } from "../logging.js";
 import {
   AP,
+  ABORT_ALL,
   CmsisDap,
   DAPOperation,
   DapResponseMismatchError,
@@ -100,13 +101,6 @@ const CSW_VALUE =
 const APSEL = 0xff000000;
 const APBANKSEL = 0x000000f0;
 
-// Abort register bits
-const ABORT_STKCMPCLR = 1 << 1;
-const ABORT_STKERRCLR = 1 << 2;
-const ABORT_WDERRCLR = 1 << 3;
-const ABORT_ORUNERRCLR = 1 << 4;
-const ABORT_ALL =
-  ABORT_WDERRCLR | ABORT_STKERRCLR | ABORT_STKCMPCLR | ABORT_ORUNERRCLR;
 
 // CTRL/STAT register bits
 const CSYSPWRUPREQ = 1 << 30;
