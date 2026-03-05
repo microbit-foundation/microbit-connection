@@ -45,18 +45,18 @@
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
 
-import { Logging } from "./logging.js";
-import { CoreRegister } from "./cmsis-dap.js";
-import { USBDeviceWrapper } from "./usb-device-wrapper.js";
+import { Logging } from "../logging.js";
+import { BoardVersion, ProgressCallback, ProgressStage } from "../device.js";
+import { truncateHexAfterEof } from "../hex-util.js";
+import MemoryMap from "nrf-intel-hex";
+import { CoreRegister } from "./cortex-m.js";
+import { USBDeviceWrapper } from "./device-wrapper.js";
 import {
   onlyChanged,
   Page,
   pageAlignBlocks,
   read32FromUInt8Array,
-} from "./usb-partial-flashing-utils.js";
-import { BoardVersion, ProgressCallback, ProgressStage } from "./device.js";
-import { truncateHexAfterEof } from "./hex-util.js";
-import MemoryMap from "nrf-intel-hex";
+} from "./partial-flashing-utils.js";
 
 // Source code for binaries in can be found at https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/external/sha/source/main.c
 // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L243
@@ -121,7 +121,7 @@ export class PartialFlashing {
       this.device.pageSize,
       this.device.numPages,
     );
-    return this.device.dap.readBlock(dataAddr, this.device.numPages * 2);
+    return this.device.adi.readBlock(dataAddr, this.device.numPages * 2);
   }
 
   // Runs the code on the micro:bit to copy a single page of data from RAM address addr to the ROM address specified by the page.
@@ -166,14 +166,14 @@ export class PartialFlashing {
       for (let j = 0; j < page.data.length; j += 4) {
         u32data[j >> 2] = read32FromUInt8Array(page.data, j);
       }
-      await this.device.dap.writeBlock(thisAddr, u32data);
+      await this.device.adi.writeBlock(thisAddr, u32data);
     }
 
     await this.runFlash(page, thisAddr);
     // Write next page to micro:bit RAM if it exists.
     if (nextPage) {
       let buf = new Uint32Array(nextPage.data.buffer);
-      await this.device.dap.writeBlock(nextAddr, buf);
+      await this.device.adi.writeBlock(nextAddr, buf);
     }
     return this.device.cortexM.waitForHalt();
   }
@@ -184,7 +184,7 @@ export class PartialFlashing {
     updateProgress: ProgressCallback,
   ) {
     this.log("Partial flash");
-    await this.device.dap.writeBlock(loadAddr, flashPageBIN);
+    await this.device.adi.writeBlock(loadAddr, flashPageBIN);
     for (let i = 0; i < pages.length; ++i) {
       updateProgress(ProgressStage.PartialFlashing, i / pages.length);
       await this.partialFlashPageAsync(pages[i], pages[i + 1], i);
@@ -217,7 +217,7 @@ export class PartialFlashing {
         this.log("Full flash failed, attempting partial flash.");
         // FLASH_CLOSE (called during full flash cleanup) disables SWD,
         // so we must reconnect before partial flash can use it.
-        await this.device.dap.reinitSwd();
+        await this.device.adi.reinit();
         await this.device.cortexM.reset(true);
         await this.partialFlashCoreAsync(aligned, updateProgress);
         partial = true;

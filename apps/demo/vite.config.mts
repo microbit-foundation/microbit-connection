@@ -10,7 +10,7 @@ export default defineConfig({
       ),
       "@microbit/microbit-connection/usb": resolve(
         __dirname,
-        "../../packages/microbit-connection/src/usb-entrypoint.ts",
+        "../../packages/microbit-connection/src/usb/index.ts",
       ),
       "@microbit/microbit-connection/radio-bridge": resolve(
         __dirname,

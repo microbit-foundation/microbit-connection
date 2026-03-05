@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TimeoutError, withTimeout } from "./async-util.js";
-import { throwIfUnavailable } from "./availability.js";
+import { TimeoutError, withTimeout } from "../async-util.js";
+import { throwIfUnavailable } from "../availability.js";
 import {
   BoardVersion,
   ConnectOptions,
@@ -19,13 +19,13 @@ import {
   ProgressCallback,
   ProgressStage,
   assertConnected,
-} from "./device.js";
-import { TypedEventTarget } from "./events.js";
-import { Logging, ConsoleLogging } from "./logging.js";
-import { PromiseQueue } from "./promise-queue.js";
-import { SerialConnectionEventMap } from "./serial-events.js";
-import { USBDeviceWrapper } from "./usb-device-wrapper.js";
-import { PartialFlashing } from "./usb-partial-flashing.js";
+} from "../device.js";
+import { TypedEventTarget } from "../events.js";
+import { Logging, ConsoleLogging } from "../logging.js";
+import { PromiseQueue } from "../promise-queue.js";
+import { SerialConnectionEventMap } from "../serial-events.js";
+import { USBDeviceWrapper } from "./device-wrapper.js";
+import { PartialFlashing } from "./partial-flashing.js";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
@@ -376,7 +376,7 @@ class MicrobitUSBConnectionImpl
         this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
-        await this.connection.dap.reinitSwd();
+        await this.connection.adi.reinit();
         // Start serial before resetting so we capture startup output.
         // For full flash FLASH_CLOSE already reset the target, so its
         // early output accumulates in DAPLink's 512-byte serial ring

@@ -6,4 +6,4 @@ export {
   DeviceSelectionMode,
   type MicrobitUSBConnection,
   type MicrobitUSBConnectionOptions,
-} from "./usb.js";
+} from "./connection.js";

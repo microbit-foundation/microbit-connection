@@ -3,14 +3,23 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { BoardSerialInfo } from "./board-serial-info.js";
-import { CmsisDap, CortexM, DapLinkSerial, dapLinkFlash } from "./cmsis-dap.js";
-import { FICR } from "./constants.js";
-import { DeviceError, assertConnected } from "./device.js";
-import { Logging } from "./logging.js";
+import { BoardSerialInfo } from "../board-serial-info.js";
+import { FICR } from "../constants.js";
+import { DeviceError, assertConnected } from "../device.js";
+import { Logging } from "../logging.js";
+import { ArmDebugInterface } from "./arm-debug.js";
+import { CmsisDap } from "./cmsis-dap.js";
+import { CortexM } from "./cortex-m.js";
+import {
+  DapLinkSerial,
+  dapLinkFlash,
+  readDaplinkUniqueId,
+  readMem32WithRetry,
+} from "./daplink.js";
+import { UsbTransport } from "./transport.js";
 
 export class USBDeviceWrapper {
-  dap: CmsisDap;
+  adi: ArmDebugInterface;
   cortexM: CortexM;
   private serial: DapLinkSerial;
 
@@ -27,9 +36,13 @@ export class USBDeviceWrapper {
     public readonly usbDevice: USBDevice,
     private logging: Logging,
   ) {
-    this.dap = new CmsisDap(this.usbDevice, this.logging);
-    this.cortexM = new CortexM(this.dap);
-    this.serial = new DapLinkSerial(this.dap, this.logging);
+    const cmsisDap = new CmsisDap(
+      new UsbTransport(this.usbDevice),
+      this.logging,
+    );
+    this.adi = new ArmDebugInterface(cmsisDap, this.logging);
+    this.cortexM = new CortexM(this.adi);
+    this.serial = new DapLinkSerial(cmsisDap, this.logging);
   }
 
   /**
@@ -78,13 +91,13 @@ export class USBDeviceWrapper {
       this.initialConnectionComplete = true;
     }
 
-    await this.dap.connectWithRetry();
+    await this.adi.connect();
 
-    // Read the serial/unique ID via DAPLink vendor command 0x80.
+    // Read the unique ID via DAPLink vendor command 0x80.
     // Chrome may anonymize USBDevice.serialNumber for anti-fingerprinting
     // (https://github.com/microbit-foundation/microbit-connection/issues/57)
     // so we read it via the DAP protocol instead.
-    const dapSerial = await this.dap.readDaplinkSerial();
+    const dapSerial = await readDaplinkUniqueId(this.adi.dap, this.logging);
     if (dapSerial) {
       this._boardSerialInfo = BoardSerialInfo.fromSerial(
         dapSerial,
@@ -92,7 +105,7 @@ export class USBDeviceWrapper {
       );
     } else {
       this.logging.log(
-        "Failed to read serial via DAP vendor command, falling back to USB serial number (may be affected by anti-fingerprinting)",
+        "Failed to read unique ID via DAP vendor command, falling back to USB serial number (may be affected by anti-fingerprinting)",
       );
       this._boardSerialInfo = BoardSerialInfo.parse(
         this.usbDevice,
@@ -128,27 +141,39 @@ export class USBDeviceWrapper {
 
     // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
     // We retry on errors as immediately after flash the micro:bit won't be ready to respond
-    this._deviceId = await this.dap.readMem32WithRetry(FICR.DEVICE_ID_1);
+    this._deviceId = await readMem32WithRetry(
+      this.adi,
+      FICR.DEVICE_ID_1,
+      this.logging,
+    );
 
-    this._pageSize = await this.dap.readMem32WithRetry(FICR.CODEPAGESIZE);
-    this._numPages = await this.dap.readMem32WithRetry(FICR.CODESIZE);
+    this._pageSize = await readMem32WithRetry(
+      this.adi,
+      FICR.CODEPAGESIZE,
+      this.logging,
+    );
+    this._numPages = await readMem32WithRetry(
+      this.adi,
+      FICR.CODESIZE,
+      this.logging,
+    );
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {
-    const currentBaud = await this.serial.getSerialBaudrate();
+    const currentBaud = await this.serial.getBaudrate();
     if (currentBaud !== 115200) {
       // Changing the baud rate causes a micro:bit reset, so only do it if necessary
-      await this.serial.setSerialBaudrate(115200);
+      await this.serial.setBaudrate(115200);
     }
-    await this.serial.startSerialRead(listener, 1);
+    await this.serial.startPolling(listener, 1);
   }
 
   stopSerial(): void {
-    this.serial.stopSerialRead();
+    this.serial.stopPolling();
   }
 
   async serialWrite(data: string): Promise<void> {
-    await this.serial.serialWrite(data);
+    await this.serial.write(data);
   }
 
   async drainSerialBuffer(): Promise<void> {
@@ -156,8 +181,8 @@ export class USBDeviceWrapper {
   }
 
   async disconnect(): Promise<void> {
-    if (this.usbDevice.opened && this.dap.isOpen) {
-      return this.dap.disconnect();
+    if (this.usbDevice.opened && this.adi.isOpen) {
+      return this.adi.disconnect();
     }
   }
 
@@ -169,6 +194,6 @@ export class USBDeviceWrapper {
     buffer: Uint8Array,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
-    await dapLinkFlash(this.dap, buffer, onProgress);
+    await dapLinkFlash(this.adi, buffer, onProgress);
   }
 }

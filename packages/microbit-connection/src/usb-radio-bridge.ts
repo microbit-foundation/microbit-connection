@@ -21,7 +21,7 @@ import {
 } from "./service-events.js";
 import { SerialData, SerialErrorData } from "./serial-events.js";
 import * as protocol from "./usb-serial-protocol.js";
-import { MicrobitUSBConnection } from "./usb.js";
+import { MicrobitUSBConnection } from "./usb/connection.js";
 
 const connectTimeoutDuration: number = 10_000;
 

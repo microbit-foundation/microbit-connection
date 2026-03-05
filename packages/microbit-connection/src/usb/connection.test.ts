@@ -9,11 +9,11 @@
  * It might be we could create a custom environment that was web but
  * with a tweak to Buffer.
  */
-import { ConnectionStatus, ConnectionStatusChange } from "./device.js";
-import { applyDeviceFilters, createUSBConnection } from "./usb.js";
+import { ConnectionStatus, ConnectionStatusChange } from "../device.js";
+import { applyDeviceFilters, createUSBConnection } from "./connection.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
-vi.mock("./usb-device-wrapper.js", () => ({
+vi.mock("./device-wrapper.js", () => ({
   USBDeviceWrapper: class USBDeviceWrapper {
     startSerial = vi.fn().mockReturnValue(Promise.resolve());
     reconnect = vi.fn().mockResolvedValue(undefined);

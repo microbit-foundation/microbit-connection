@@ -31,12 +31,12 @@
     },
     "./usb": {
       "import": {
-        "types": "./build/esm/usb-entrypoint.d.ts",
-        "default": "./build/esm/usb-entrypoint.js"
+        "types": "./build/esm/usb/index.d.ts",
+        "default": "./build/esm/usb/index.js"
       },
       "require": {
-        "types": "./build/cjs/usb-entrypoint.d.ts",
-        "default": "./build/cjs/usb-entrypoint.js"
+        "types": "./build/cjs/usb/index.d.ts",
+        "default": "./build/cjs/usb/index.js"
       }
     },
     "./universal-hex": {
