@@ -243,30 +243,54 @@ const createFlashSection = (): Section => {
   if (type !== "usb") {
     return {};
   }
+  let hexText: string | undefined;
+  const faultCheckbox = crelt("input", {
+    type: "checkbox",
+  }) as HTMLInputElement;
+  const flashButton = crelt("button", {
+    disabled: true,
+    onclick: async () => {
+      if (!hexText) return;
+      flashButton.disabled = true;
+      try {
+        let injectFault = faultCheckbox.checked;
+        console.time("flash");
+        await connection.flash(createUniversalHexFlashDataSource(hexText), {
+          partial: true,
+          progress: (stage, percentage) => {
+            console.log(stage, percentage);
+            if (injectFault && percentage !== undefined && percentage > 0.1) {
+              injectFault = false;
+              throw new Error("Injected flash failure");
+            }
+          },
+        });
+        console.timeEnd("flash");
+      } finally {
+        flashButton.disabled = false;
+      }
+    },
+  }, "Flash") as HTMLButtonElement;
   const dom = crelt(
     "section",
     crelt("h2", "Flash"),
     crelt(
       "label",
-      "File to flash",
+      "Hex file ",
       crelt("input", {
         type: "file",
+        accept: ".hex",
         onchange: async (e: Event) => {
           const file = (e.currentTarget as HTMLInputElement).files?.item(0);
-          if (file) {
-            const text = await file.text();
-            console.time("flash");
-            await connection.flash(createUniversalHexFlashDataSource(text), {
-              partial: true,
-              progress: (stage, percentage) => {
-                console.log(stage, percentage);
-              },
-            });
-            console.timeEnd("flash");
-          }
+          hexText = file ? await file.text() : undefined;
+          flashButton.disabled = !hexText;
         },
       }),
     ),
+    " ",
+    crelt("label", faultCheckbox, " Inject failure"),
+    " ",
+    flashButton,
   );
   return { dom };
 };

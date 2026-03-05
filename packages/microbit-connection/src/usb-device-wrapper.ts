@@ -196,10 +196,10 @@ export class USBDeviceWrapper {
   }
 
   /**
-   * Reconnect the CMSIS-DAP protocol layer without full re-initialization.
-   * Used after flash to reinstate serial communication.
+   * Re-establish the CMSIS-DAP/SWD connection to the target without
+   * full USB re-enumeration.
    */
-  async reconnectDaplink(): Promise<void> {
+  async reinitSwd(): Promise<void> {
     this.dap.invalidate();
     await this.dap.connect();
   }

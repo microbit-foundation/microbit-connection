@@ -181,6 +181,7 @@ export class PartialFlashing {
     updateProgress: ProgressCallback,
   ) {
     this.log("Partial flash");
+    await this.device.dap.writeBlock(loadAddr, flashPageBIN);
     for (let i = 0; i < pages.length; ++i) {
       updateProgress(ProgressStage.PartialFlashing, i / pages.length);
       await this.partialFlashPageAsync(pages[i], pages[i + 1], i);
@@ -198,7 +199,6 @@ export class PartialFlashing {
     const flashBytes = this.convertDataToPaddedBytes(data);
 
     const checksums = await this.getFlashChecksumsAsync();
-    await this.device.dap.writeBlock(loadAddr, flashPageBIN);
     let aligned = pageAlignBlocks(flashBytes, 0, this.device.pageSize);
     const totalPages = aligned.length;
     this.log("Total pages: " + totalPages);
@@ -212,6 +212,10 @@ export class PartialFlashing {
       } catch (e) {
         this.log(e);
         this.log("Full flash failed, attempting partial flash.");
+        // FLASH_CLOSE (called during full flash cleanup) disables SWD,
+        // so we must reconnect before partial flash can use it.
+        await this.device.reinitSwd();
+        await this.device.cortexM.reset(true);
         await this.partialFlashCoreAsync(aligned, updateProgress);
         partial = true;
       }
