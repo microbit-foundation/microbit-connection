@@ -24,7 +24,11 @@ import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import { PromiseQueue } from "../promise-queue.js";
 import { SerialConnectionEventMap } from "../serial-events.js";
-import { USBDeviceWrapper } from "./device-wrapper.js";
+import { BoardSerialInfo } from "../board-serial-info.js";
+import {
+  USBDeviceWrapper,
+  type BoardConnectionInfo,
+} from "./device-wrapper.js";
 import { PartialFlashing } from "./partial-flashing.js";
 
 // Temporary workaround for ChromeOS 105 bug.
@@ -137,20 +141,20 @@ class MicrobitUSBConnectionImpl
 
   private exclusionFilters: USBDeviceFilter[] | undefined;
   /**
-   * The USB device we last connected to.
+   * The raw USB device we last connected to.
    * Cleared if it is disconnected.
    */
-  private device: USBDevice | undefined;
+  private usbDevice: USBDevice | undefined;
   /**
-   * The connection to the device.
+   * Device-specific state. Created on connect, cleared on disconnect.
    */
-  private connection: USBDeviceWrapper | undefined;
+  private device: USBDeviceWrapper | undefined;
 
   /**
    * Cached device properties that persist across reconnections until clearDevice.
    */
-  private cachedBoardVersion: BoardVersion | undefined;
-  private cachedDeviceId: number | undefined;
+  private cachedConnectionInfo: BoardConnectionInfo | undefined;
+  private loggedBoardSerialInfo: BoardSerialInfo | undefined;
 
   /**
    * Whether the serial read loop is running.
@@ -286,17 +290,17 @@ class MicrobitUSBConnectionImpl
   }
 
   getDeviceId(): number {
-    assertConnected(this.cachedDeviceId);
-    return this.cachedDeviceId;
+    assertConnected(this.cachedConnectionInfo);
+    return this.cachedConnectionInfo.deviceId;
   }
 
   getDevice(): USBDevice | undefined {
-    return this.device;
+    return this.usbDevice;
   }
 
   getBoardVersion(): BoardVersion {
-    assertConnected(this.cachedBoardVersion);
-    return this.cachedBoardVersion;
+    assertConnected(this.cachedConnectionInfo);
+    return this.cachedConnectionInfo.boardSerialInfo.id.toBoardVersion();
   }
 
   async flash(
@@ -339,7 +343,7 @@ class MicrobitUSBConnectionImpl
 
     this.log("Reconnecting before flash");
     await this.connectInternal(progress);
-    if (!this.connection) {
+    if (!this.device) {
       throw new DeviceError({
         code: "device-disconnected",
         message: "Must be connected now",
@@ -347,16 +351,18 @@ class MicrobitUSBConnectionImpl
     }
 
     this.log("Halting target and draining stale serial data");
-    await this.connection.cortexM.halt();
-    await this.connection.drainSerialBuffer();
+    await this.device.cortexM.halt();
+    await this.device.serial.drain();
 
-    const boardId = this.connection.boardSerialInfo.id;
-    const boardVersion = boardId.toBoardVersion();
+    const { boardSerialInfo, pageSize, numPages } = this.cachedConnectionInfo!;
+    const boardVersion = boardSerialInfo.id.toBoardVersion();
     const data = await dataSource(boardVersion);
     const flashing = new PartialFlashing(
-      this.connection,
+      this.device,
       this.logging,
       boardVersion,
+      pageSize,
+      numPages,
     );
     let wasPartial: boolean = false;
     try {
@@ -376,7 +382,7 @@ class MicrobitUSBConnectionImpl
         this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
-        await this.connection.adi.reinit();
+        await this.device.adi.reinit();
         // Start serial before resetting so we capture startup output.
         // For full flash FLASH_CLOSE already reset the target, so its
         // early output accumulates in DAPLink's 512-byte serial ring
@@ -390,7 +396,7 @@ class MicrobitUSBConnectionImpl
           // Full flash already resets via FLASH_CLOSE.
           this.log("Resetting micro:bit to run new program");
           try {
-            await this.connection.cortexM.reset();
+            await this.device.cortexM.reset();
           } catch (e) {
             // Allow errors on resetting, user can always manually reset if necessary.
           }
@@ -401,13 +407,19 @@ class MicrobitUSBConnectionImpl
 
   private async startSerialInternal() {
     return this.serialStateChangeQueue.add(async () => {
-      if (!this.connection || this.serialState) {
+      if (!this.device || this.serialState) {
         return;
       }
       this.log("Starting serial");
       this.serialState = true;
-      this.connection
-        .startSerial(this.serialListener)
+      const serial = this.device.serial;
+      const currentBaud = await serial.getBaudrate();
+      if (currentBaud !== 115200) {
+        // Changing the baud rate causes a micro:bit reset, so only do it if necessary
+        await serial.setBaudrate(115200);
+      }
+      serial
+        .startPolling(this.serialListener, 1)
         .then(() => {
           this.log("Finished listening for serial data");
         })
@@ -423,10 +435,10 @@ class MicrobitUSBConnectionImpl
 
   private async stopSerialInternal() {
     return this.serialStateChangeQueue.add(async () => {
-      if (!this.connection || !this.serialState) {
+      if (!this.device || !this.serialState) {
         return;
       }
-      this.connection.stopSerial();
+      this.device.serial.stopPolling();
     });
   }
 
@@ -435,9 +447,9 @@ class MicrobitUSBConnectionImpl
     finalStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
   ): Promise<void> {
     try {
-      if (this.connection) {
+      if (this.device) {
         await this.stopSerialInternal();
-        await this.connection.disconnect();
+        await this.device.disconnect();
       }
     } catch (e) {
       if (!quiet) {
@@ -448,7 +460,7 @@ class MicrobitUSBConnectionImpl
         });
       }
     } finally {
-      this.connection = undefined;
+      this.device = undefined;
       this.setStatus(finalStatus);
       if (!quiet) {
         this.logging.log("Disconnection complete");
@@ -468,6 +480,24 @@ class MicrobitUSBConnectionImpl
       status: newStatus,
       previousStatus,
     });
+  }
+
+  private logBoardInfo(info: BoardSerialInfo): void {
+    this.logging.event({
+      type: "WebUSB-info",
+      message: "connected",
+    });
+    if (!this.loggedBoardSerialInfo || !this.loggedBoardSerialInfo.eq(info)) {
+      this.loggedBoardSerialInfo = info;
+      this.logging.event({
+        type: "WebUSB-info",
+        message: "board-id/" + info.id,
+      });
+      this.logging.event({
+        type: "WebUSB-info",
+        message: "board-family-hic/" + info.familyId + info.hic,
+      });
+    }
   }
 
   private async withEnrichedErrors<T>(f: () => Promise<T>): Promise<T> {
@@ -508,8 +538,8 @@ class MicrobitUSBConnectionImpl
   }
 
   serialWrite(data: string): Promise<void> {
-    assertConnected(this.connection);
-    const connection = this.connection;
+    assertConnected(this.device);
+    const device = this.device;
     return this.withEnrichedErrors(async () => {
       // WebUSB packets are 64 bytes with a two byte header.
       // https://github.com/microbit-foundation/python-editor-v3/issues/215
@@ -518,33 +548,32 @@ class MicrobitUSBConnectionImpl
       while (start < data.length) {
         const end = Math.min(start + maxSerialWrite, data.length);
         const chunkData = data.slice(start, end);
-        await connection.serialWrite(chunkData);
+        await device.serial.write(chunkData);
         start = end;
       }
     });
   }
 
   async softwareReset(): Promise<void> {
-    assertConnected(this.connection);
-    const connection = this.connection;
+    assertConnected(this.device);
+    const device = this.device;
     return this.serialStateChangeQueue.add(
-      async () => await connection.cortexM.softwareReset(),
+      async () => await device.cortexM.softwareReset(),
     );
   }
 
   private handleDisconnect = (event: USBConnectionEvent) => {
-    if (event.device === this.device) {
-      this.connection = undefined;
+    if (event.device === this.usbDevice) {
       this.device = undefined;
+      this.usbDevice = undefined;
       this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
     }
   };
 
   async clearDevice(): Promise<void> {
     await this.disconnect();
-    this.device = undefined;
-    this.cachedBoardVersion = undefined;
-    this.cachedDeviceId = undefined;
+    this.usbDevice = undefined;
+    this.cachedConnectionInfo = undefined;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
@@ -553,24 +582,23 @@ class MicrobitUSBConnectionImpl
     reportProgress(ProgressStage.Initializing);
     throwIfUnavailable(await this.checkAvailability());
 
-    if (!this.connection && this.device) {
+    if (!this.device && this.usbDevice) {
       reportProgress(ProgressStage.Connecting);
-      this.connection = new USBDeviceWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnect(), 10_000);
-    } else if (!this.connection) {
+      this.device = new USBDeviceWrapper(this.usbDevice, this.logging);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
+    } else if (!this.device) {
       await this.connectWithOtherDevice(reportProgress);
     } else {
       reportProgress(ProgressStage.Connecting);
-      await withTimeout(this.connection.reconnect(), 10_000);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
     }
-    // Cache device properties so they survive disconnection.
-    this.cachedDeviceId = this.connection!.deviceId;
-    try {
-      this.cachedBoardVersion =
-        this.connection!.boardSerialInfo.id.toBoardVersion();
-    } catch {
-      // boardSerialInfo may not be available (e.g. in tests).
-    }
+    this.logBoardInfo(this.cachedConnectionInfo!.boardSerialInfo);
 
     if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
@@ -584,23 +612,26 @@ class MicrobitUSBConnectionImpl
     if (this.deviceSelectionMode === DeviceSelectionMode.UseAnyAllowed) {
       await this.attemptConnectAllowedDevices();
     }
-    if (!this.connection) {
+    if (!this.device) {
       progress(ProgressStage.FindingDevice);
-      this.device = await this.chooseDevice();
+      this.usbDevice = await this.chooseDevice();
       progress(ProgressStage.Connecting);
-      this.connection = new USBDeviceWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnect(), 10_000);
+      this.device = new USBDeviceWrapper(this.usbDevice, this.logging);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
     }
   }
 
   // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
   private async attemptConnectAllowedDevices(): Promise<void> {
     const pairedDevices = await this.getFilteredAllowedDevices();
-    for (const device of pairedDevices) {
-      const connection = await this.attemptDeviceConnection(device);
-      if (connection) {
+    for (const usbDevice of pairedDevices) {
+      const device = await this.attemptDeviceConnection(usbDevice);
+      if (device) {
+        this.usbDevice = usbDevice;
         this.device = device;
-        this.connection = connection;
         return;
       }
     }
@@ -620,28 +651,28 @@ class MicrobitUSBConnectionImpl
   }
 
   private async attemptDeviceConnection(
-    device: USBDevice,
+    usbDevice: USBDevice,
   ): Promise<USBDeviceWrapper | undefined> {
     this.log(
-      `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
+      `Attempting connection to: ${usbDevice.manufacturerName} ${usbDevice.productName}`,
     );
-    this.log(`Serial number: ${device.serialNumber}`);
-    const connection = new USBDeviceWrapper(device, this.logging);
-    await withTimeout(connection.reconnect(), 10_000);
-    return connection;
+    this.log(`Serial number: ${usbDevice.serialNumber}`);
+    const device = new USBDeviceWrapper(usbDevice, this.logging);
+    this.cachedConnectionInfo = await withTimeout(device.reconnect(), 10_000);
+    return device;
   }
 
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchEvent("beforerequestdevice");
     try {
-      this.device = await navigator.usb.requestDevice({
+      this.usbDevice = await navigator.usb.requestDevice({
         exclusionFilters: this.exclusionFilters,
         filters: defaultFilters,
       });
     } finally {
       this.dispatchEvent("afterrequestdevice");
     }
-    return this.device;
+    return this.usbDevice;
   }
 
   protected eventActivated(type: string): void {

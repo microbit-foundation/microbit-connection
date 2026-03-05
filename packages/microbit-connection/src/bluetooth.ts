@@ -198,14 +198,17 @@ class MicrobitBluetoothConnectionImpl
   status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
 
   /**
-   * The USB device we last connected to.
+   * The BLE device we last connected to.
    * Cleared if it is disconnected.
    */
-  private device: BleDevice | undefined;
+  private bleDevice: BleDevice | undefined;
 
   private logging: Logging;
   private deviceBondState: DeviceBondState;
-  private connection: BluetoothDeviceWrapper | undefined;
+  /**
+   * Device-specific state. Created on connect, cleared on disconnect.
+   */
+  private device: BluetoothDeviceWrapper | undefined;
 
   /**
    * Cached device property that persists across reconnections until clearDevice.
@@ -224,11 +227,11 @@ class MicrobitBluetoothConnectionImpl
   }
 
   protected eventActivated(type: string): void {
-    this.connection?.startNotifications(type as TypedServiceEvent);
+    this.device?.startNotifications(type as TypedServiceEvent);
   }
 
   protected eventDeactivated(type: string): void {
-    this.connection?.stopNotifications(type as TypedServiceEvent);
+    this.device?.stopNotifications(type as TypedServiceEvent);
   }
 
   private log(v: any) {
@@ -326,10 +329,10 @@ class MicrobitBluetoothConnectionImpl
     this.waitForPostFlashDisconnectPromise &&
       (await this.waitForPostFlashDisconnectPromise);
 
-    if (!this.device || !this.connection) {
+    if (!this.bleDevice || !this.device) {
       progress(ProgressStage.FindingDevice);
       const device = await this.requestDevice(options?.signal);
-      this.connection = new BluetoothDeviceWrapper(
+      this.device = new BluetoothDeviceWrapper(
         device,
         this.logging,
         this.deviceBondState,
@@ -343,14 +346,14 @@ class MicrobitBluetoothConnectionImpl
       );
     }
 
-    await this.connection.connect(options);
-    this.cachedBoardVersion = this.connection.boardVersion;
+    await this.device.connect(options);
+    this.cachedBoardVersion = this.device.boardVersion;
   }
 
   async disconnect(): Promise<void> {
     try {
-      if (this.connection) {
-        await this.connection.disconnect();
+      if (this.device) {
+        await this.device.disconnect();
       }
     } catch (e) {
       this.logging.event({
@@ -380,7 +383,7 @@ class MicrobitBluetoothConnectionImpl
 
   async clearDevice(): Promise<void> {
     await this.disconnect();
-    this.device = undefined;
+    this.bleDevice = undefined;
     this.cachedBoardVersion = undefined;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
@@ -399,102 +402,102 @@ class MicrobitBluetoothConnectionImpl
 
     // If we have a cached device, check if it still matches the current filter.
     // If not, clear it so we find a new device.
-    if (this.device) {
-      if (namePrefixes.some((p) => this.device!.name?.startsWith(p))) {
-        return this.device;
+    if (this.bleDevice) {
+      if (namePrefixes.some((p) => this.bleDevice!.name?.startsWith(p))) {
+        return this.bleDevice;
       }
       this.log(
-        `Cached device "${this.device.name}" doesn't match filters "${namePrefixes.join(", ")}", clearing`,
+        `Cached device "${this.bleDevice.name}" doesn't match filters "${namePrefixes.join(", ")}", clearing`,
       );
       await this.clearDevice();
     }
 
     this.dispatchEvent("beforerequestdevice");
     try {
-      this.device = Capacitor.isNativePlatform()
+      this.bleDevice = Capacitor.isNativePlatform()
         ? await this.requestDeviceNative(namePrefixes, signal)
         : await this.requestDeviceWeb(namePrefixes);
-      if (!this.device) {
+      if (!this.bleDevice) {
         this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
         throw new DeviceError({
           code: "no-device-selected",
           message: "No device selected",
         });
       }
-      return this.device;
+      return this.bleDevice;
     } finally {
       this.dispatchEvent("afterrequestdevice");
     }
   }
 
   async getAccelerometerData(): Promise<AccelerometerData> {
-    assertConnected(this.connection);
-    return this.connection.accelerometer.getData();
+    assertConnected(this.device);
+    return this.device.accelerometer.getData();
   }
 
   async getAccelerometerPeriod(): Promise<number> {
-    assertConnected(this.connection);
-    return this.connection.accelerometer.getPeriod();
+    assertConnected(this.device);
+    return this.device.accelerometer.getPeriod();
   }
 
   async setAccelerometerPeriod(value: number): Promise<void> {
-    assertConnected(this.connection);
-    return this.connection.accelerometer.setPeriod(value);
+    assertConnected(this.device);
+    return this.device.accelerometer.setPeriod(value);
   }
 
   async setLedText(text: string): Promise<void> {
-    assertConnected(this.connection);
-    return this.connection.led.setText(text);
+    assertConnected(this.device);
+    return this.device.led.setText(text);
   }
 
   async getLedScrollingDelay(): Promise<number> {
-    assertConnected(this.connection);
-    return this.connection.led.getScrollingDelay();
+    assertConnected(this.device);
+    return this.device.led.getScrollingDelay();
   }
 
   async setLedScrollingDelay(delayInMillis: number): Promise<void> {
-    assertConnected(this.connection);
-    await this.connection.led.setScrollingDelay(delayInMillis);
+    assertConnected(this.device);
+    await this.device.led.setScrollingDelay(delayInMillis);
   }
 
   async getLedMatrix(): Promise<LedMatrix> {
-    assertConnected(this.connection);
-    return await this.connection.led.getLedMatrix();
+    assertConnected(this.device);
+    return await this.device.led.getLedMatrix();
   }
 
   async setLedMatrix(matrix: LedMatrix): Promise<void> {
-    assertConnected(this.connection);
-    await this.connection.led.setLedMatrix(matrix);
+    assertConnected(this.device);
+    await this.device.led.setLedMatrix(matrix);
   }
 
   async getMagnetometerData(): Promise<MagnetometerData> {
-    assertConnected(this.connection);
-    return this.connection.magnetometer.getData();
+    assertConnected(this.device);
+    return this.device.magnetometer.getData();
   }
 
   async getMagnetometerPeriod(): Promise<number> {
-    assertConnected(this.connection);
-    return this.connection.magnetometer.getPeriod();
+    assertConnected(this.device);
+    return this.device.magnetometer.getPeriod();
   }
 
   async setMagnetometerPeriod(value: number): Promise<void> {
-    assertConnected(this.connection);
-    return this.connection.magnetometer.setPeriod(value);
+    assertConnected(this.device);
+    return this.device.magnetometer.setPeriod(value);
   }
 
   async getMagnetometerBearing(): Promise<number> {
-    assertConnected(this.connection);
-    return this.connection.magnetometer.getBearing();
+    assertConnected(this.device);
+    return this.device.magnetometer.getBearing();
   }
 
   async triggerMagnetometerCalibration(): Promise<void> {
-    assertConnected(this.connection);
-    await this.connection.magnetometer.triggerCalibration();
+    assertConnected(this.device);
+    await this.device.magnetometer.triggerCalibration();
   }
 
   async uartWrite(data: Uint8Array): Promise<void> {
-    assertConnected(this.connection);
-    await this.connection.uart.writeData(data);
+    assertConnected(this.device);
+    await this.device.uart.writeData(data);
   }
 
   /**
@@ -521,7 +524,7 @@ class MicrobitBluetoothConnectionImpl
         await this.connect({ progress, signal: options.signal });
       }
 
-      const connection = this.connection!;
+      const connection = this.device!;
       try {
         const boardVersion = connection.boardVersion;
         if (!boardVersion) {
@@ -537,7 +540,7 @@ class MicrobitBluetoothConnectionImpl
           throw new FlashDataError("Could not convert hex to memory map");
         }
 
-        if (!this.device) {
+        if (!this.bleDevice) {
           throw new DeviceError({
             code: "device-disconnected",
             message: "No device",

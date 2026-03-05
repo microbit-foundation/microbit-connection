@@ -101,7 +101,6 @@ const CSW_VALUE =
 const APSEL = 0xff000000;
 const APBANKSEL = 0x000000f0;
 
-
 // CTRL/STAT register bits
 const CSYSPWRUPREQ = 1 << 30;
 const CDBGPWRUPREQ = 1 << 28;

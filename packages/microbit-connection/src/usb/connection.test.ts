@@ -15,10 +15,25 @@ import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
 vi.mock("./device-wrapper.js", () => ({
   USBDeviceWrapper: class USBDeviceWrapper {
-    startSerial = vi.fn().mockReturnValue(Promise.resolve());
-    reconnect = vi.fn().mockResolvedValue(undefined);
+    serial = {
+      getBaudrate: vi.fn().mockResolvedValue(115200),
+      setBaudrate: vi.fn().mockResolvedValue(undefined),
+      startPolling: vi.fn().mockResolvedValue(undefined),
+      stopPolling: vi.fn(),
+      drain: vi.fn().mockResolvedValue(undefined),
+    };
+    reconnect = vi.fn().mockResolvedValue({
+      boardSerialInfo: {
+        id: { toBoardVersion: () => "V2", toString: () => "9900" },
+        familyId: "99",
+        hic: "00",
+        eq: () => true,
+      },
+      deviceId: 1,
+      pageSize: 1024,
+      numPages: 256,
+    });
     disconnect = vi.fn().mockResolvedValue(undefined);
-    stopSerial = vi.fn();
   },
 }));
 

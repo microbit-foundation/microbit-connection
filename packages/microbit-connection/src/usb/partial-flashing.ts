@@ -50,6 +50,7 @@ import { BoardVersion, ProgressCallback, ProgressStage } from "../device.js";
 import { truncateHexAfterEof } from "../hex-util.js";
 import MemoryMap from "nrf-intel-hex";
 import { CoreRegister } from "./cortex-m.js";
+import { dapLinkFlash } from "./daplink.js";
 import { USBDeviceWrapper } from "./device-wrapper.js";
 import {
   onlyChanged,
@@ -101,6 +102,8 @@ export class PartialFlashing {
     private device: USBDeviceWrapper,
     private logging: Logging,
     private boardVersion: BoardVersion,
+    private pageSize: number,
+    private numPages: number,
   ) {}
 
   private log(v: any): void {
@@ -118,10 +121,10 @@ export class PartialFlashing {
       0xffffffff,
       dataAddr,
       0,
-      this.device.pageSize,
-      this.device.numPages,
+      this.pageSize,
+      this.numPages,
     );
-    return this.device.adi.readBlock(dataAddr, this.device.numPages * 2);
+    return this.device.adi.readBlock(dataAddr, this.numPages * 2);
   }
 
   // Runs the code on the micro:bit to copy a single page of data from RAM address addr to the ROM address specified by the page.
@@ -137,7 +140,7 @@ export class PartialFlashing {
     await this.device.cortexM.writeCoreRegister(CoreRegister.SP, stackAddr);
     await this.device.cortexM.writeCoreRegister(0, page.targetAddr);
     await this.device.cortexM.writeCoreRegister(1, addr);
-    await this.device.cortexM.writeCoreRegister(2, this.device.pageSize >> 2);
+    await this.device.cortexM.writeCoreRegister(2, this.pageSize >> 2);
     return this.device.cortexM.resume(false);
   }
 
@@ -156,8 +159,8 @@ export class PartialFlashing {
     // Use two slots in RAM to allow parallelisation of the following two tasks.
     // 1. DAPjs writes a page to one slot.
     // 2. flashPageBIN copies a page to flash from the other slot.
-    let thisAddr = i & 1 ? dataAddr : dataAddr + this.device.pageSize;
-    let nextAddr = i & 1 ? dataAddr + this.device.pageSize : dataAddr;
+    let thisAddr = i & 1 ? dataAddr : dataAddr + this.pageSize;
+    let nextAddr = i & 1 ? dataAddr + this.pageSize : dataAddr;
 
     // Write first page to slot in RAM.
     // All subsequent pages will have already been written to RAM.
@@ -202,10 +205,10 @@ export class PartialFlashing {
     const flashBytes = this.convertDataToPaddedBytes(data);
 
     const checksums = await this.getFlashChecksumsAsync();
-    let aligned = pageAlignBlocks(flashBytes, 0, this.device.pageSize);
+    let aligned = pageAlignBlocks(flashBytes, 0, this.pageSize);
     const totalPages = aligned.length;
     this.log("Total pages: " + totalPages);
-    aligned = onlyChanged(aligned, checksums, this.device.pageSize);
+    aligned = onlyChanged(aligned, checksums, this.pageSize);
     this.log("Changed pages: " + aligned.length);
     let partial: boolean | undefined;
     if (aligned.length > totalPages / 2) {
@@ -249,7 +252,8 @@ export class PartialFlashing {
       updateProgress(ProgressStage.FullFlashing, progress);
     };
     const hexData = this.convertDataToHexString(data);
-    await this.device.flash(
+    await dapLinkFlash(
+      this.device.adi,
       new TextEncoder().encode(hexData),
       fullFlashProgress,
     );
