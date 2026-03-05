@@ -129,7 +129,10 @@ export class PartialFlashing {
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L340
   private async runFlash(page: Page, addr: number): Promise<void> {
     await this.device.cortexM.halt(true);
-    await this.device.cortexM.writeCoreRegister(CoreRegister.PC, loadAddr + 4 + 1);
+    await this.device.cortexM.writeCoreRegister(
+      CoreRegister.PC,
+      loadAddr + 4 + 1,
+    );
     await this.device.cortexM.writeCoreRegister(CoreRegister.LR, loadAddr + 1);
     await this.device.cortexM.writeCoreRegister(CoreRegister.SP, stackAddr);
     await this.device.cortexM.writeCoreRegister(0, page.targetAddr);
@@ -214,7 +217,7 @@ export class PartialFlashing {
         this.log("Full flash failed, attempting partial flash.");
         // FLASH_CLOSE (called during full flash cleanup) disables SWD,
         // so we must reconnect before partial flash can use it.
-        await this.device.reinitSwd();
+        await this.device.dap.reinitSwd();
         await this.device.cortexM.reset(true);
         await this.partialFlashCoreAsync(aligned, updateProgress);
         partial = true;

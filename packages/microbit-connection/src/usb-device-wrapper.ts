@@ -4,14 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 import { BoardSerialInfo } from "./board-serial-info.js";
-import {
-  CmsisDap,
-  CortexM,
-  DapLinkSerial,
-  DapTransferError,
-  dapLinkFlash,
-} from "./cmsis-dap.js";
-import { DapLinkVendorCmd, FICR } from "./constants.js";
+import { CmsisDap, CortexM, DapLinkSerial, dapLinkFlash } from "./cmsis-dap.js";
+import { FICR } from "./constants.js";
 import { DeviceError, assertConnected } from "./device.js";
 import { Logging } from "./logging.js";
 
@@ -33,9 +27,9 @@ export class USBDeviceWrapper {
     public readonly usbDevice: USBDevice,
     private logging: Logging,
   ) {
-    this.dap = new CmsisDap(this.usbDevice);
+    this.dap = new CmsisDap(this.usbDevice, this.logging);
     this.cortexM = new CortexM(this.dap);
-    this.serial = new DapLinkSerial(this.dap);
+    this.serial = new DapLinkSerial(this.dap, this.logging);
   }
 
   /**
@@ -84,13 +78,13 @@ export class USBDeviceWrapper {
       this.initialConnectionComplete = true;
     }
 
-    await this.connectDaplink();
+    await this.dap.connectWithRetry();
 
     // Read the serial/unique ID via DAPLink vendor command 0x80.
     // Chrome may anonymize USBDevice.serialNumber for anti-fingerprinting
     // (https://github.com/microbit-foundation/microbit-connection/issues/57)
     // so we read it via the DAP protocol instead.
-    const dapSerial = await this.readDaplinkSerial();
+    const dapSerial = await this.dap.readDaplinkSerial();
     if (dapSerial) {
       this._boardSerialInfo = BoardSerialInfo.fromSerial(
         dapSerial,
@@ -133,100 +127,11 @@ export class USBDeviceWrapper {
     }
 
     // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
-    // We wait on errors as immediately after flash the micro:bit won't be ready to respond
-    this._deviceId = await this.readMem32WaitOnError(FICR.DEVICE_ID_1);
+    // We retry on errors as immediately after flash the micro:bit won't be ready to respond
+    this._deviceId = await this.dap.readMem32WithRetry(FICR.DEVICE_ID_1);
 
-    this._pageSize = await this.readMem32WaitOnError(FICR.CODEPAGESIZE);
-    this._numPages = await this.readMem32WaitOnError(FICR.CODESIZE);
-  }
-
-  private async readMem32WaitOnError(register: number): Promise<number> {
-    let retries = 0;
-    let lastError: Error | undefined;
-    while (retries < 20) {
-      try {
-        return await this.dap.readMem32(register);
-      } catch (e) {
-        if (e instanceof DapTransferError) {
-          lastError = e;
-          retries++;
-          await new Promise((resolve) => setTimeout(resolve, 20));
-        } else {
-          throw e;
-        }
-      }
-    }
-    throw lastError;
-  }
-
-  /**
-   * Connect daplink, handling stale USB responses from a previous session.
-   * connect() leaves the transport open on failure so we can drain and retry.
-   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
-   */
-  private async connectDaplink(maxRetries = 3): Promise<void> {
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        if (attempt > 0) {
-          this.logging.log(
-            `Connection retry attempt ${attempt + 1}/${maxRetries}`,
-          );
-          await this.dap.drain(this.logging);
-        }
-
-        await this.dap.connect();
-        return;
-      } catch (e) {
-        if (
-          e instanceof DeviceError &&
-          e.code === "reconnect-microbit" &&
-          e.message.startsWith("Bad response for ")
-        ) {
-          lastError = e;
-          this.logging.log(`Bad response error during connect: ${e.message}`);
-          continue;
-        }
-        throw e;
-      }
-    }
-
-    throw lastError || new Error("Connection failed after retries");
-  }
-
-  /**
-   * Re-establish the CMSIS-DAP/SWD connection to the target without
-   * full USB re-enumeration.
-   */
-  async reinitSwd(): Promise<void> {
-    this.dap.invalidate();
-    await this.dap.connect();
-  }
-
-  /**
-   * Read the DAPLink unique ID via vendor command 0x80.
-   * This returns the same 48-char hex string as the USB serial number
-   * but isn't affected by browser anti-fingerprinting.
-   */
-  private async readDaplinkSerial(): Promise<string | undefined> {
-    try {
-      // send() validates that byte 0 matches the command
-      const result = await this.dap.send(DapLinkVendorCmd.READ_UNIQUE_ID);
-      const length = result.getUint8(1);
-      if (length === 0) {
-        return undefined;
-      }
-      // The response is [cmd, length, ...ascii_bytes].
-      // DAPLink uses strlen() for the length so no null terminator is included.
-      const bytes = new Uint8Array(result.buffer, 2, length);
-      return new TextDecoder().decode(bytes);
-    } catch (e) {
-      this.logging.log(
-        `Error reading DAPLink serial: ${e instanceof Error ? e.message : e}`,
-      );
-      return undefined;
-    }
+    this._pageSize = await this.dap.readMem32WithRetry(FICR.CODEPAGESIZE);
+    this._numPages = await this.dap.readMem32WithRetry(FICR.CODESIZE);
   }
 
   async startSerial(listener: (data: string) => void): Promise<void> {
@@ -246,21 +151,8 @@ export class USBDeviceWrapper {
     await this.serial.serialWrite(data);
   }
 
-  /**
-   * Drain any stale data from DAPLink's serial buffer.
-   * Call before/after flash to discard output from the old program.
-   */
   async drainSerialBuffer(): Promise<void> {
-    let totalDrained = 0;
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const data = await this.serial.serialRead();
-      if (!data) break;
-      totalDrained += data.length;
-    }
-    if (totalDrained > 0) {
-      this.logging.log(`Drained ${totalDrained} bytes of stale serial data`);
-    }
+    await this.serial.drain();
   }
 
   async disconnect(): Promise<void> {

@@ -376,7 +376,7 @@ class MicrobitUSBConnectionImpl
         this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
-        await this.connection.reinitSwd();
+        await this.connection.dap.reinitSwd();
         // Start serial before resetting so we capture startup output.
         // For full flash FLASH_CLOSE already reset the target, so its
         // early output accumulates in DAPLink's 512-byte serial ring

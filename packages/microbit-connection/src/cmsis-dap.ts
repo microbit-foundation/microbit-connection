@@ -1,12 +1,42 @@
 /**
- * (c) 2021, Micro:bit Educational Foundation and contributors
+ * (c) 2026, Micro:bit Educational Foundation and contributors
  *
  * SPDX-License-Identifier: MIT
  *
- * CMSIS-DAP protocol implementation for WebUSB.
- * Replaces the dapjs library with a minimal, focused implementation covering
- * only the features needed for micro:bit: SWD transport, DAPLink serial/flash,
- * and Cortex-M processor control.
+ * CMSIS-DAP protocol implementation for WebUSB, derived from dapjs
+ * (https://github.com/ARMmbed/dapjs). This is a minimal implementation
+ * covering only the features needed for micro:bit: SWD transport,
+ * DAPLink serial/flash, and Cortex-M processor control.
+ *
+ * Notable additions:
+ * - drain() to synchronise USB buffer
+ * - Structured DapTransferError with per-operation failure detail
+ * - Single queue serialising all DAP commands (serial, flash, SWD)
+ * - invalidate() to reset cached state without closing USB transport
+ *
+ * The dapjs license is included below.
+ *
+ * DAPjs
+ * Copyright (c) Arm Limited 2018
+ * Copyright (c) Microsoft Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  *
  * Protocol references:
  * - CMSIS-DAP: https://www.keil.com/pack/doc/CMSIS/DAP/html/group__DAP__Commands__gr.html
@@ -187,6 +217,17 @@ export class DapError extends DeviceError {
 }
 
 /**
+ * The response command byte didn't match the request.
+ * This can indicate stale responses in the USB buffer from a previous
+ * interrupted session, or a protocol-level error.
+ */
+export class DapResponseMismatchError extends DapError {
+  constructor(expected: number, actual: number) {
+    super(`Bad response for ${expected} -> ${actual}`);
+  }
+}
+
+/**
  * DAP transfer or block transfer failed with a non-OK response.
  */
 export class DapTransferError extends DapError {
@@ -255,7 +296,10 @@ export class CmsisDap {
   private selectedAddress?: number;
   private cswValue?: number;
 
-  constructor(private device: USBDevice) {
+  constructor(
+    private device: USBDevice,
+    private logging: Logging,
+  ) {
     this.blockSize = PACKET_SIZE - BLOCK_HEADER_SIZE - 1;
   }
 
@@ -317,10 +361,7 @@ export class CmsisDap {
 
   private async read(): Promise<DataView> {
     if (this.interfaceNumber === undefined) {
-      throw new DeviceError({
-        code: "reconnect-microbit",
-        message: "No device opened",
-      });
+      throw new DapError("No device opened");
     }
 
     let result: USBInTransferResult;
@@ -350,10 +391,7 @@ export class CmsisDap {
 
   private async write(data: Uint8Array): Promise<void> {
     if (this.interfaceNumber === undefined) {
-      throw new DeviceError({
-        code: "reconnect-microbit",
-        message: "No device opened",
-      });
+      throw new DapError("No device opened");
     }
 
     // Always pad to PACKET_SIZE (required for HID control transfer fallback)
@@ -398,18 +436,14 @@ export class CmsisDap {
       const response = await this.read();
 
       if (response.getUint8(0) !== command) {
-        throw new DeviceError({
-          code: "reconnect-microbit",
-          message: `Bad response for ${command} -> ${response.getUint8(0)}`,
-        });
+        throw new DapResponseMismatchError(command, response.getUint8(0));
       }
 
       if (STATUS_CHECK_COMMANDS.has(command)) {
         if (response.getUint8(1) !== DAP_OK) {
-          throw new DeviceError({
-            code: "reconnect-microbit",
-            message: `Bad status for ${command} -> ${response.getUint8(1)}`,
-          });
+          throw new DapError(
+            `Bad status for ${command} -> ${response.getUint8(1)}`,
+          );
         }
       }
 
@@ -447,10 +481,7 @@ export class CmsisDap {
       // Connect in default mode
       const connectResult = await this.send(DAP_CONNECT, new Uint8Array([0]));
       if (connectResult.getUint8(1) === DAP_CONNECT_FAILED) {
-        throw new DeviceError({
-          code: "reconnect-microbit",
-          message: "Mode not enabled.",
-        });
+        throw new DapError("Mode not enabled.");
       }
     } catch (error) {
       try {
@@ -504,6 +535,38 @@ export class CmsisDap {
       await this.disconnect();
       throw error;
     }
+    this.logging.log("SWD connected");
+  }
+
+  /**
+   * Connect with automatic drain-and-retry on stale USB responses.
+   * After a page reload or interrupted session, stale responses from the
+   * previous session may be sitting in the USB buffer. connect() leaves the
+   * transport open on failure so we can drain and retry.
+   * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
+   */
+  async connectWithRetry(maxRetries = 3): Promise<void> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          this.logging.log(
+            `Connection retry attempt ${attempt + 1}/${maxRetries}`,
+          );
+          await this.drain();
+        }
+        await this.connect();
+        return;
+      } catch (e) {
+        if (e instanceof DapResponseMismatchError) {
+          lastError = e;
+          this.logging.log(`Stale response during connect: ${e.message}`);
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw lastError || new Error("Connection failed after retries");
   }
 
   /**
@@ -521,6 +584,7 @@ export class CmsisDap {
     try {
       await this.send(DAP_DISCONNECT);
     } catch {
+      this.logging.log("Disconnect failed, clearing abort");
       try {
         await this.clearAbort();
       } catch {
@@ -529,6 +593,72 @@ export class CmsisDap {
     }
     await this.close();
     this.invalidate();
+    this.logging.log("SWD disconnected");
+  }
+
+  /**
+   * Invalidate cached state and reconnect SWD without closing the USB
+   * transport. Use after operations like DAPLink flash that leave the
+   * protocol state stale but don't require full re-enumeration.
+   */
+  async reinitSwd(): Promise<void> {
+    this.logging.log("Reinitialising SWD");
+    this.invalidate();
+    await this.connect();
+  }
+
+  /**
+   * Read a 32-bit word from memory, retrying on transfer errors.
+   * Useful for reads immediately after reset when the target may not
+   * be ready to respond.
+   */
+  async readMem32WithRetry(
+    address: number,
+    maxRetries = 20,
+    delayMs = 20,
+  ): Promise<number> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const value = await this.readMem32(address);
+        if (attempt > 0) {
+          this.logging.log(
+            `readMem32(0x${address.toString(16)}) succeeded after ${attempt + 1} attempts`,
+          );
+        }
+        return value;
+      } catch (e) {
+        if (e instanceof DapTransferError) {
+          lastError = e;
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        } else {
+          throw e;
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Read the DAPLink unique ID via vendor command 0x80.
+   * Returns the same 48-char hex string as the USB serial number
+   * but isn't affected by browser anti-fingerprinting.
+   */
+  async readDaplinkSerial(): Promise<string | undefined> {
+    try {
+      const result = await this.send(DapLinkVendorCmd.READ_UNIQUE_ID);
+      const length = result.getUint8(1);
+      if (length === 0) {
+        return undefined;
+      }
+      const bytes = new Uint8Array(result.buffer, 2, length);
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      this.logging.log(
+        `Error reading DAPLink serial: ${e instanceof Error ? e.message : e}`,
+      );
+      return undefined;
+    }
   }
 
   /**
@@ -540,7 +670,7 @@ export class CmsisDap {
    *
    * See: https://github.com/microbit-foundation/python-editor-v3/issues/89
    */
-  async drain(logging?: Logging): Promise<void> {
+  async drain(): Promise<void> {
     return this.sendQueue.add(async () => {
       const maxAttempts = 10;
 
@@ -555,17 +685,17 @@ export class CmsisDap {
           for (let i = 0; i < attempt; i++) {
             await this.read();
           }
-          logging?.log(
+          this.logging.log(
             `USB buffer drain: synchronized after ${attempt} stale response(s)`,
           );
           return;
         }
-        logging?.log(
+        this.logging.log(
           `USB buffer drain: discarded stale response 0x${responseBytes[0].toString(16)}`,
         );
       }
 
-      logging?.log(
+      this.logging.log(
         "USB buffer drain: warning - could not fully synchronize after max attempts",
       );
     });
@@ -1050,7 +1180,10 @@ export class CortexM {
 export class DapLinkSerial {
   private polling = false;
 
-  constructor(private dap: CmsisDap) {}
+  constructor(
+    private dap: CmsisDap,
+    private logging: Logging,
+  ) {}
 
   async getSerialBaudrate(): Promise<number> {
     const result = await this.dap.send(DapLinkVendorCmd.READ_SETTINGS);
@@ -1103,6 +1236,22 @@ export class DapLinkSerial {
   stopSerialRead(): void {
     this.polling = false;
   }
+
+  /**
+   * Drain any buffered serial data from DAPLink's UART ring buffer.
+   * Reads and discards until empty.
+   */
+  async drain(): Promise<void> {
+    let totalDrained = 0;
+    while (true) {
+      const data = await this.serialRead();
+      if (!data) break;
+      totalDrained += data.length;
+    }
+    if (totalDrained > 0) {
+      this.logging.log(`Drained ${totalDrained} bytes of stale serial data`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1125,10 +1274,7 @@ export async function dapLinkFlash(
     new Uint8Array(new Uint32Array([1]).buffer),
   );
   if (openResult.getUint8(1) !== DAPLINK_ERROR_SUCCESS) {
-    throw new DeviceError({
-      code: "reconnect-microbit",
-      message: `Flash open error (status=${openResult.getUint8(1)})`,
-    });
+    throw new DapError(`Flash open error (status=${openResult.getUint8(1)})`);
   }
 
   try {
@@ -1157,17 +1303,15 @@ export async function dapLinkFlash(
 
     const closeResult = await dap.send(DapLinkVendorCmd.FLASH_CLOSE);
     if (closeResult.getUint8(1) !== DAPLINK_ERROR_SUCCESS) {
-      throw new DeviceError({
-        code: "reconnect-microbit",
-        message: `Flash close error (status=${closeResult.getUint8(1)})`,
-      });
+      throw new DapError(
+        `Flash close error (status=${closeResult.getUint8(1)})`,
+      );
     }
 
     // Reset the target if DAPLink's auto_rst is disabled. With the default
     // config this is a no-op (FLASH_CLOSE already resets), but ensures the
     // target runs the new program regardless of DAPLink settings.
     await dap.send(DapLinkVendorCmd.FLASH_RESET);
-
   } catch (error) {
     // Close the flash stream so DAPLink exits flash mode.
     // Without this, subsequent DAP commands fail because DAPLink
