@@ -759,13 +759,6 @@ const hasMatchingInterface = (device: USBDevice, filter: USBDeviceFilter) => {
   });
 };
 
-const genericErrorSuggestingReconnect = (e: any) =>
-  new DeviceError({
-    code: "reconnect-microbit",
-    message: e.message,
-  });
-
-// tslint:disable-next-line: no-any
 const enrichedError = (err: any): DeviceError => {
   if (err instanceof DeviceError) {
     return err;
@@ -777,45 +770,34 @@ const enrichedError = (err: any): DeviceError => {
     });
   }
 
-  switch (typeof err) {
-    case "object":
-      // We might get Error objects as Promise rejection arguments
-      if (!err.message && err.promise && err.reason) {
-        err = err.reason;
-      }
-      // Match specific error scenarios for user-friendly error codes.
-      if (/No valid interfaces found/.test(err.message)) {
-        return new DeviceError({
-          code: "update-req",
-          message: err.message,
-        });
-      } else if (/No device selected/.test(err.message)) {
-        return new DeviceError({
-          code: "no-device-selected",
-          message: err.message,
-        });
-      } else if (/Unable to claim interface/.test(err.message)) {
-        return new DeviceError({
-          code: "clear-connect",
-          message: err.message,
-        });
-      } else if (err.name === "device-disconnected") {
-        return new DeviceError({
-          code: "device-disconnected",
-          message: err.message,
-        });
-      } else {
-        // Unhandled error. User will need to reconnect their micro:bit
-        return genericErrorSuggestingReconnect(err);
-      }
-    case "string": {
-      // Caught a string. Example case: "Flash error" from DAPjs
-      return genericErrorSuggestingReconnect(err);
+  if (err instanceof Error) {
+    // Match Chromium WebUSB DOMException messages for user-friendly error codes.
+    // These are hardcoded English strings in Chromium (not localized).
+    // https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webusb/usb.cc
+    if (/No device selected/.test(err.message)) {
+      return new DeviceError({
+        code: "no-device-selected",
+        message: err.message,
+      });
     }
-    default: {
-      return genericErrorSuggestingReconnect(err);
+    // https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webusb/usb_device.cc
+    if (/Unable to claim interface/.test(err.message)) {
+      return new DeviceError({
+        code: "clear-connect",
+        message: err.message,
+      });
+    }
+    if (/The device was disconnected/.test(err.message)) {
+      return new DeviceError({
+        code: "device-disconnected",
+        message: err.message,
+      });
     }
   }
+  return new DeviceError({
+    code: "reconnect-microbit",
+    message: err.message,
+  });
 };
 
 const rateLimitProgress = (
