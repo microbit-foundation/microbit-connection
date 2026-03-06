@@ -2,21 +2,21 @@ import MemoryMap from "nrf-intel-hex";
 import {
   BluetoothDeviceWrapper,
   isCharacteristicNotFoundError,
-} from "../bluetooth-device-wrapper.js";
+} from "../device-wrapper.js";
 import {
   MicroBitMode,
   PacketState,
   PartialFlashingService,
   RegionId,
-} from "../partial-flashing-service.js";
+} from "../services/partial-flashing-service.js";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { DisconnectError } from "../async-util.js";
+import { DisconnectError } from "../../async-util.js";
 import {
   BoardVersion,
   DeviceError,
   ProgressCallback,
   ProgressStage,
-} from "../device.js";
+} from "../../device.js";
 
 const FLASH_PAGE_SIZE: Record<BoardVersion, number> = {
   V1: 0x400,

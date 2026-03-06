@@ -6,13 +6,12 @@
 import { BleClient, BleDevice } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
 import MemoryMap from "nrf-intel-hex";
-import { AccelerometerData } from "./accelerometer.js";
 import {
   BluetoothDeviceWrapper,
   isAndroid,
   scanningTimeoutInMs,
-} from "./bluetooth-device-wrapper.js";
-import { profile } from "./bluetooth-profile.js";
+} from "./device-wrapper.js";
+import { profile } from "./profile.js";
 import {
   BoardVersion,
   ConnectOptions,
@@ -27,27 +26,28 @@ import {
   FlashOptions,
   ProgressCallback,
   ProgressStage,
-} from "./device.js";
-import { TypedEventTarget } from "./events.js";
-import { LedMatrix } from "./led.js";
-import { Logging, ConsoleLogging } from "./logging.js";
-import { MagnetometerData } from "./magnetometer.js";
+} from "../device.js";
+import { TypedEventTarget } from "../events.js";
+import { Logging, ConsoleLogging } from "../logging.js";
 import { fullFlash } from "./flashing/flashing-full.js";
 import partialFlash, {
   PartialFlashResult,
 } from "./flashing/flashing-partial.js";
 import {
+  AccelerometerData,
+  LedMatrix,
+  MagnetometerData,
   ServiceConnectionEventMap,
   TypedServiceEvent,
-} from "./service-events.js";
+} from "../service-events.js";
 
-import { throwIfUnavailable } from "./availability.js";
-import { truncateHexAfterEof } from "./hex-util.js";
+import { throwIfUnavailable } from "../availability.js";
+import { truncateHexAfterEof } from "../hex-util.js";
 import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
-import { TimeoutError } from "./async-util.js";
+import { TimeoutError } from "../async-util.js";
 
 type BleClientError = { message: string; errorMessage: string };
 

@@ -11,7 +11,6 @@ import {
   ConnectionStatus,
   ConnectionStatusChange,
   MagnetometerData,
-  SerialData,
   UartData,
 } from "@microbit/microbit-connection";
 import {
@@ -22,6 +21,7 @@ import {
   createUSBConnection,
   DeviceSelectionMode,
   type MicrobitUSBConnection,
+  type SerialData,
 } from "@microbit/microbit-connection/usb";
 import {
   createRadioBridgeConnection,

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { BoardId } from "./board-id.js";
+import { BoardId } from "../board-id.js";
 import { BoardSerialInfo } from "./board-serial-info.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

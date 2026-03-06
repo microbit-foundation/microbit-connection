@@ -5,4 +5,5 @@ export {
   createBluetoothConnection,
   type MicrobitBluetoothConnection,
   type MicrobitBluetoothConnectionOptions,
-} from "./bluetooth.js";
+} from "./connection.js";
+export type { DeviceBondState } from "./device-bond-state.js";

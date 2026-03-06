@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { BoardSerialInfo } from "../board-serial-info.js";
+import { BoardSerialInfo } from "./board-serial-info.js";
 import { Logging } from "../logging.js";
 import { ArmDebugSwd } from "./arm-debug.js";
 import { CmsisDapUsb } from "./cmsis-dap.js";

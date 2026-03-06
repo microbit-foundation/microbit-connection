@@ -22,9 +22,9 @@ import {
 } from "../device.js";
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
-import { PromiseQueue } from "../promise-queue.js";
-import { SerialConnectionEventMap } from "../serial-events.js";
-import { BoardSerialInfo } from "../board-serial-info.js";
+import { PromiseQueue } from "./promise-queue.js";
+import { SerialConnectionEventMap } from "./serial-events.js";
+import { BoardSerialInfo } from "./board-serial-info.js";
 import {
   USBDeviceWrapper,
   type BoardConnectionInfo,

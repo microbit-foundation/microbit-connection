@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { ConnectionStatus, ConnectionStatusChange } from "./device.js";
-import { createBluetoothConnection } from "./bluetooth.js";
+import { ConnectionStatus, ConnectionStatusChange } from "../device.js";
+import { createBluetoothConnection } from "./connection.js";
 import { expect, vi, describe, it } from "vitest";
 
 // Mock Capacitor

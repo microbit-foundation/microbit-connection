@@ -1,12 +1,12 @@
 // This module is deliberately kept separate so that
 // @microbit/microbit-universal-hex can be tree-shaken by bundlers
 // when consumers don't use createUniversalHexFlashDataSource.
-import { BoardId } from "./board-id.js";
+import { BoardId } from "../board-id.js";
 import {
   FlashDataError as FlashDataError,
   BoardVersion,
   FlashDataSource,
-} from "./device.js";
+} from "../device.js";
 import {
   isUniversalHex,
   separateUniversalHex,

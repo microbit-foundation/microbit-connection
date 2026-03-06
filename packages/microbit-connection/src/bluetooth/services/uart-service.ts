@@ -1,10 +1,10 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
-import { Service } from "./bluetooth-device-wrapper.js";
-import { profile } from "./bluetooth-profile.js";
+import { Service } from "../device-wrapper.js";
+import { profile } from "../profile.js";
 import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
-} from "./service-events.js";
+} from "../../service-events.js";
 
 export class UARTService implements Service {
   uuid = profile.uart.id;

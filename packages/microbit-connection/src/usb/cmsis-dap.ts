@@ -26,7 +26,7 @@
 
 import { DeviceError } from "../device.js";
 import { Logging } from "../logging.js";
-import { PromiseQueue } from "../promise-queue.js";
+import { PromiseQueue } from "./promise-queue.js";
 import { type Transport, PACKET_SIZE } from "./transport.js";
 
 // ---------------------------------------------------------------------------

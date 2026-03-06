@@ -1,8 +1,7 @@
 import { BleClient } from "@capacitor-community/bluetooth-le";
-import { Service } from "./bluetooth-device-wrapper.js";
-import { profile } from "./bluetooth-profile.js";
-import { LedMatrix } from "./led.js";
-import { TypedServiceEvent } from "./service-events.js";
+import { Service } from "../device-wrapper.js";
+import { profile } from "../profile.js";
+import { LedMatrix, TypedServiceEvent } from "../../service-events.js";
 
 const createLedMatrix = (): LedMatrix => {
   return [

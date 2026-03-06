@@ -10,40 +10,40 @@ import {
   TimeoutOptions,
 } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
-import { AccelerometerService } from "./accelerometer-service.js";
+import { AccelerometerService } from "./services/accelerometer-service.js";
 import {
   DisconnectError,
   disconnectErrorCallback,
   TimeoutError,
   timeoutErrorAfter,
-} from "./async-util.js";
-import { ButtonService } from "./button-service.js";
-import { DeviceInformationService } from "./device-information-service.js";
+} from "../async-util.js";
+import { ButtonService } from "./services/button-service.js";
+import { DeviceInformationService } from "./services/device-information-service.js";
 import {
   BoardVersion,
   ConnectOptions,
   DeviceError,
   ProgressCallback,
   ProgressStage,
-} from "./device.js";
-import { LedService } from "./led-service.js";
-import { Logging, LoggingEvent, ConsoleLogging } from "./logging.js";
-import { MagnetometerService } from "./magnetometer-service.js";
+} from "../device.js";
+import { LedService } from "./services/led-service.js";
+import { Logging, LoggingEvent, ConsoleLogging } from "../logging.js";
+import { MagnetometerService } from "./services/magnetometer-service.js";
 import {
   MicroBitMode,
   PartialFlashingService,
-} from "./partial-flashing-service.js";
+} from "./services/partial-flashing-service.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
-} from "./service-events.js";
-import { UARTService } from "./uart-service.js";
+} from "../service-events.js";
+import { UARTService } from "./services/uart-service.js";
 import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
-import { profile } from "./bluetooth-profile.js";
+import { profile } from "./profile.js";
 
 /**
  * The @capacitor-community/bluetooth-le plugin throws this message when

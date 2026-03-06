@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { ButtonState } from "./buttons.js";
 import {
   BoardVersion,
   ConnectionAvailabilityStatus,
@@ -12,16 +11,17 @@ import {
   ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
-} from "./device.js";
-import { TypedEventTarget } from "./events.js";
-import { Logging, ConsoleLogging } from "./logging.js";
+} from "../device.js";
+import { TypedEventTarget } from "../events.js";
+import { Logging, ConsoleLogging } from "../logging.js";
 import {
+  ButtonState,
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
-} from "./service-events.js";
-import { SerialData, SerialErrorData } from "./serial-events.js";
-import * as protocol from "./usb-serial-protocol.js";
-import { MicrobitUSBConnection } from "./usb/connection.js";
+} from "../service-events.js";
+import { SerialData, SerialErrorData } from "../usb/serial-events.js";
+import * as protocol from "./serial-protocol.js";
+import { MicrobitUSBConnection } from "../usb/connection.js";
 
 const connectTimeoutDuration: number = 10_000;
 

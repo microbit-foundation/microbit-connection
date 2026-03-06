@@ -1,7 +1,33 @@
-import { AccelerometerData } from "./accelerometer.js";
-import { ButtonData } from "./buttons.js";
 import { DeviceConnectionEventMap } from "./device.js";
-import { MagnetometerData } from "./magnetometer.js";
+
+export interface AccelerometerData {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export enum ButtonState {
+  NotPressed = 0,
+  ShortPress = 1,
+  LongPress = 2,
+}
+
+export type ButtonEventType = "buttonachanged" | "buttonbchanged";
+
+export interface ButtonData {
+  button: "A" | "B";
+  state: ButtonState;
+}
+
+type FixedArray<T, L extends number> = T[] & { length: L };
+type LedRow = FixedArray<boolean, 5>;
+export type LedMatrix = FixedArray<LedRow, 5>;
+
+export interface MagnetometerData {
+  x: number;
+  y: number;
+  z: number;
+}
 
 export interface UartData {
   value: Uint8Array;

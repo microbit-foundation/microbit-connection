@@ -1,5 +1,5 @@
 import MemoryMap from "nrf-intel-hex";
-import { RegionInfo } from "../partial-flashing-service.js";
+import { RegionInfo } from "../services/partial-flashing-service.js";
 
 const PXT_MAGIC_HEX = "708E3B92C615A841C49866C975EE5197";
 const PXT_MAGIC_BYTES = PXT_MAGIC_HEX.length / 2; // 16

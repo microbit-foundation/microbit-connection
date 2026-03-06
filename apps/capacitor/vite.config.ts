@@ -9,7 +9,7 @@ export default defineConfig({
     alias: {
       "@microbit/microbit-connection/bluetooth": resolve(
         __dirname,
-        "../../packages/microbit-connection/src/bluetooth-entrypoint.ts",
+        "../../packages/microbit-connection/src/bluetooth/index.ts",
       ),
       "@microbit/microbit-connection/usb": resolve(
         __dirname,
@@ -17,11 +17,11 @@ export default defineConfig({
       ),
       "@microbit/microbit-connection/radio-bridge": resolve(
         __dirname,
-        "../../packages/microbit-connection/src/radio-bridge-entrypoint.ts",
+        "../../packages/microbit-connection/src/radio-bridge/index.ts",
       ),
       "@microbit/microbit-connection/universal-hex": resolve(
         __dirname,
-        "../../packages/microbit-connection/src/universal-hex-entrypoint.ts",
+        "../../packages/microbit-connection/src/universal-hex/index.ts",
       ),
       "@microbit/microbit-connection": resolve(
         __dirname,

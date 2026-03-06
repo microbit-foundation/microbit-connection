@@ -6,12 +6,12 @@
 import {
   ConnectionStatus,
   type ConnectionStatusChange,
-  type SerialData,
 } from "@microbit/microbit-connection";
 import {
   createUSBConnection,
   DeviceSelectionMode,
   type MicrobitUSBConnection,
+  type SerialData,
 } from "@microbit/microbit-connection/usb";
 
 export type TestStatus = "pending" | "running" | "pass" | "fail" | "skipped";

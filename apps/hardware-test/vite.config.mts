@@ -10,7 +10,7 @@ export default defineConfig({
       ),
       "@microbit/microbit-connection/universal-hex": resolve(
         __dirname,
-        "../../packages/microbit-connection/src/universal-hex-entrypoint.ts",
+        "../../packages/microbit-connection/src/universal-hex/index.ts",
       ),
       "@microbit/microbit-connection": resolve(
         __dirname,

@@ -2,7 +2,7 @@ import {
   BleClient,
   numbersToDataView,
 } from "@capacitor-community/bluetooth-le";
-import { profile } from "./bluetooth-profile.js";
+import { profile } from "../profile.js";
 
 // This is the service that should be available on V1 after the reboot.
 // We don't use it directly (the Nordic DFU library does) but we check it's there.

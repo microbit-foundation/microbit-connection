@@ -7,10 +7,10 @@ import {
   separateUniversalHex,
 } from "@microbit/microbit-universal-hex";
 import { findMakeCodeRegionInMemoryMap } from "./flashing-makecode.js";
-import { RegionInfo } from "../partial-flashing-service.js";
-import { truncateHexAfterEof } from "../hex-util.js";
+import { RegionInfo } from "../services/partial-flashing-service.js";
+import { truncateHexAfterEof } from "../../hex-util.js";
 
-const hexDir = resolve(__dirname, "../../examples");
+const hexDir = resolve(__dirname, "../../../examples");
 
 const loadHex = (name: string) => readFileSync(resolve(hexDir, name), "utf-8");
 
