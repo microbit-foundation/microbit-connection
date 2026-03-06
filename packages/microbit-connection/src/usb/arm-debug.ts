@@ -57,10 +57,10 @@
 import { DeviceError } from "../device.js";
 import { Logging } from "../logging.js";
 import {
-  AP,
   ABORT_ALL,
+  AP,
   type CmsisDap,
-  DAPOperation,
+  DapOperation,
   DapResponseMismatchError,
   DP,
   READ,
@@ -165,10 +165,10 @@ export interface ArmDebug {
   writeMem32(address: number, value: number): Promise<void>;
 
   /** Build DAP operations for reading a 32-bit word (for use with transferSequence). */
-  readMem32Ops(address: number): DAPOperation[];
+  readMem32Ops(address: number): DapOperation[];
 
   /** Build DAP operations for writing a 32-bit word (for use with transferSequence). */
-  writeMem32Ops(address: number, value: number): DAPOperation[];
+  writeMem32Ops(address: number, value: number): DapOperation[];
 
   /**
    * Read a block of 32-bit words from memory.
@@ -187,7 +187,7 @@ export interface ArmDebug {
    * Each group is sent as a separate DAP_TRANSFER to guarantee that
    * all operations within a group execute atomically on the wire.
    */
-  transferSequence(groups: DAPOperation[][]): Promise<Uint32Array>;
+  transferSequence(groups: DapOperation[][]): Promise<Uint32Array>;
 
   /**
    * Reset cached protocol state without closing the transport.
@@ -342,15 +342,15 @@ export class ArmDebugSwd implements ArmDebug {
 
   // ---- DP/AP register helpers ----
 
-  private readDPOps(register: number): DAPOperation[] {
+  private readDPOps(register: number): DapOperation[] {
     return [{ mode: READ, port: DP, register }];
   }
 
-  private writeDPOps(register: number, value: number): DAPOperation[] {
+  private writeDPOps(register: number, value: number): DapOperation[] {
     return [{ mode: WRITE, port: DP, register, value }];
   }
 
-  private readAPOps(register: number): DAPOperation[] {
+  private readAPOps(register: number): DapOperation[] {
     const address = (register & APSEL) | (register & APBANKSEL);
     return [
       ...this.writeDPOps(DP_SELECT, address),
@@ -358,7 +358,7 @@ export class ArmDebugSwd implements ArmDebug {
     ];
   }
 
-  private writeAPOps(register: number, value: number): DAPOperation[] {
+  private writeAPOps(register: number, value: number): DapOperation[] {
     const address = (register & APSEL) | (register & APBANKSEL);
     return [
       ...this.writeDPOps(DP_SELECT, address),
@@ -366,7 +366,7 @@ export class ArmDebugSwd implements ArmDebug {
     ];
   }
 
-  readMem32Ops(address: number): DAPOperation[] {
+  readMem32Ops(address: number): DapOperation[] {
     return [
       ...this.writeAPOps(AP_CSW, CSW_VALUE | CSW_SIZE32),
       ...this.writeAPOps(AP_TAR, address),
@@ -374,7 +374,7 @@ export class ArmDebugSwd implements ArmDebug {
     ];
   }
 
-  writeMem32Ops(address: number, value: number): DAPOperation[] {
+  writeMem32Ops(address: number, value: number): DapOperation[] {
     return [
       ...this.writeAPOps(AP_CSW, CSW_VALUE | CSW_SIZE32),
       ...this.writeAPOps(AP_TAR, address),
@@ -388,7 +388,7 @@ export class ArmDebugSwd implements ArmDebug {
    * Execute a batch of DAP transfer operations, deduplicating writes
    * to DP_SELECT and AP_CSW that match cached state.
    */
-  private async transfer(operations: DAPOperation[]): Promise<Uint32Array> {
+  private async transfer(operations: DapOperation[]): Promise<Uint32Array> {
     const filtered = operations.filter((op) => {
       if (op.mode !== WRITE) return true;
       if (op.port === DP && op.register === DP_SELECT) {
@@ -426,7 +426,7 @@ export class ArmDebugSwd implements ArmDebug {
     }
   }
 
-  async transferSequence(groups: DAPOperation[][]): Promise<Uint32Array> {
+  async transferSequence(groups: DapOperation[][]): Promise<Uint32Array> {
     const results: Uint32Array[] = [];
     for (const group of groups) {
       const result = await this.transfer(group);

@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DeviceError } from "../device.js";
+import { ConsoleLogging } from "../logging.js";
+import { ArmDebugSwd, waitFor } from "./arm-debug.js";
 import {
+  AP,
   type CmsisDap,
-  type DAPOperation,
+  type DapOperation,
   DapResponseMismatchError,
   DP,
-  AP,
   READ,
   WRITE,
 } from "./cmsis-dap.js";
-import { ArmDebugSwd, waitFor } from "./arm-debug.js";
-import { DeviceError } from "../device.js";
-import { ConsoleLogging } from "../logging.js";
 
 // ---------------------------------------------------------------------------
 // Mock DAP
@@ -26,7 +26,7 @@ import { ConsoleLogging } from "../logging.js";
  */
 function createMockDap() {
   // Track all transfer calls for assertions
-  const transferCalls: DAPOperation[][] = [];
+  const transferCalls: DapOperation[][] = [];
 
   // Queue of return values for transfer() — takes priority over registers.
   const transferResults: Uint32Array[] = [];
@@ -40,7 +40,7 @@ function createMockDap() {
   let _isOpen = false;
 
   const mock: CmsisDap & {
-    transferCalls: DAPOperation[][];
+    transferCalls: DapOperation[][];
     registers: Map<string, number>;
     queueTransferResult(...values: number[]): void;
     queueBlockReadResult(...values: number[]): void;
@@ -74,7 +74,7 @@ function createMockDap() {
     configureTransfer: vi.fn(async () => {}),
     drainStaleResponses: vi.fn(async () => {}),
 
-    transfer: vi.fn(async (ops: DAPOperation[]) => {
+    transfer: vi.fn(async (ops: DapOperation[]) => {
       transferCalls.push([...ops]);
       if (transferResults.length > 0) {
         return transferResults.shift()!;

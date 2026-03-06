@@ -1,16 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ArmDebug } from "./arm-debug.js";
-import { type CmsisDap, type DAPOperation } from "./cmsis-dap.js";
-import { DapError } from "./cmsis-dap.js";
+import { DapError, type CmsisDap, type DapOperation } from "./cmsis-dap.js";
 import {
-  CortexM,
   CoreRegister,
-  DHCSR,
+  CortexM,
   DEMCR,
+  DHCSR,
   NVIC_AIRCR,
+  REGWnR,
   S_HALT,
   S_REGRDY,
-  REGWnR,
 } from "./cortex-m.js";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +42,7 @@ function createMockAdi() {
     mem32: Map<number, number>;
     writtenMem32: Array<{ address: number; value: number }>;
     writtenBlocks: Array<{ address: number; values: Uint32Array }>;
-    transferSequenceCalls: DAPOperation[][][];
+    transferSequenceCalls: DapOperation[][][];
   } = {
     dap: mockDap,
     get isOpen() {
@@ -61,10 +60,10 @@ function createMockAdi() {
       writtenMem32.push({ address, value });
       mem32.set(address, value);
     }),
-    readMem32Ops: vi.fn((address: number): DAPOperation[] => [
+    readMem32Ops: vi.fn((address: number): DapOperation[] => [
       { port: 0, mode: 0x02, register: 0, value: address },
     ]),
-    writeMem32Ops: vi.fn((address: number, value: number): DAPOperation[] => [
+    writeMem32Ops: vi.fn((address: number, value: number): DapOperation[] => [
       { port: 0, mode: 0x00, register: 0, value: address },
       { port: 0, mode: 0x00, register: 0, value },
     ]),
@@ -73,7 +72,7 @@ function createMockAdi() {
       mock.writtenBlocks.push({ address, values });
     }),
     transferSequence: vi.fn(
-      async (groups: DAPOperation[][]): Promise<Uint32Array> => {
+      async (groups: DapOperation[][]): Promise<Uint32Array> => {
         mock.transferSequenceCalls.push(groups);
         // Return S_REGRDY for readCoreRegister/writeCoreRegister
         return new Uint32Array([S_REGRDY, 0x42]);

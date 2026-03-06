@@ -91,7 +91,7 @@ const TRANSFER_OPERATION_SIZE = 5;
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DAPOperation {
+export interface DapOperation {
   port: number;
   mode: number;
   register: number;
@@ -166,7 +166,7 @@ export interface CmsisDap {
    * Execute a batch of DAP transfer operations (DAP_TRANSFER command).
    * Returns the values read (one per READ operation in the batch).
    */
-  transfer(operations: DAPOperation[]): Promise<Uint32Array>;
+  transfer(operations: DapOperation[]): Promise<Uint32Array>;
 
   /** Read a block of 32-bit values from a single register (DAP_TRANSFER_BLOCK). */
   transferBlockRead(
@@ -289,7 +289,7 @@ export class CmsisDapUsb implements CmsisDap {
     await this.transport.close();
   }
 
-  async transfer(operations: DAPOperation[]): Promise<Uint32Array> {
+  async transfer(operations: DapOperation[]): Promise<Uint32Array> {
     if (operations.length === 0) {
       return new Uint32Array(0);
     }
