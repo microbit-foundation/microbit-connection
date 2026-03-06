@@ -25,7 +25,6 @@
  *   writes individual pages via SWD.
  */
 
-import { DapLinkVendorCmd } from "../constants.js";
 import { Logging } from "../logging.js";
 import { type ArmDebug } from "./arm-debug.js";
 import { type CmsisDap, DapError, DapTransferError } from "./cmsis-dap.js";
@@ -33,6 +32,19 @@ import { type CmsisDap, DapError, DapTransferError } from "./cmsis-dap.js";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+// DAPLink vendor commands
+// https://github.com/ARMmbed/DAPLink/blob/main/source/daplink/cmsis-dap/daplink_vendor_commands.h
+/** Read the DAPLink unique ID (same string as USB serial number). */
+export const DAPLINK_VENDOR_READ_UNIQUE_ID = 0x80;
+export const DAPLINK_VENDOR_READ_SETTINGS = 0x81;
+export const DAPLINK_VENDOR_WRITE_SETTINGS = 0x82;
+export const DAPLINK_VENDOR_SERIAL_READ = 0x83;
+export const DAPLINK_VENDOR_SERIAL_WRITE = 0x84;
+export const DAPLINK_VENDOR_FLASH_RESET = 0x89;
+export const DAPLINK_VENDOR_FLASH_OPEN = 0x8a;
+export const DAPLINK_VENDOR_FLASH_CLOSE = 0x8b;
+export const DAPLINK_VENDOR_FLASH_WRITE = 0x8c;
 
 // DAPLink stream error codes (error_t in DAPLink's error.h).
 // stream_write returns these to indicate success variants.
@@ -55,19 +67,19 @@ export class DapLinkSerial {
   ) {}
 
   async getBaudrate(): Promise<number> {
-    const result = await this.dap.send(DapLinkVendorCmd.READ_SETTINGS);
+    const result = await this.dap.send(DAPLINK_VENDOR_READ_SETTINGS);
     return result.getUint32(1, true);
   }
 
   async setBaudrate(baudrate: number): Promise<void> {
     await this.dap.send(
-      DapLinkVendorCmd.WRITE_SETTINGS,
+      DAPLINK_VENDOR_WRITE_SETTINGS,
       new Uint8Array(new Uint32Array([baudrate]).buffer),
     );
   }
 
   async read(): Promise<string | undefined> {
-    const result = await this.dap.send(DapLinkVendorCmd.SERIAL_READ);
+    const result = await this.dap.send(DAPLINK_VENDOR_SERIAL_READ);
     const length = result.getUint8(1);
     if (length === 0) return undefined;
 
@@ -80,7 +92,7 @@ export class DapLinkSerial {
     const payload = new Uint8Array(encoded.length + 1);
     payload[0] = encoded.length;
     payload.set(encoded, 1);
-    await this.dap.send(DapLinkVendorCmd.SERIAL_WRITE, payload);
+    await this.dap.send(DAPLINK_VENDOR_SERIAL_WRITE, payload);
   }
 
   async startPolling(
@@ -139,7 +151,7 @@ export async function dapLinkFlash(
   //   0 = ERROR_SUCCESS, 18 = ERROR_SUCCESS_DONE, 19 = ERROR_SUCCESS_DONE_OR_CONTINUE
 
   const openResult = await dap.send(
-    DapLinkVendorCmd.FLASH_OPEN,
+    DAPLINK_VENDOR_FLASH_OPEN,
     new Uint8Array(new Uint32Array([1]).buffer),
   );
   if (openResult.getUint8(1) !== DAPLINK_ERROR_SUCCESS) {
@@ -161,7 +173,7 @@ export async function dapLinkFlash(
       data[0] = page.byteLength;
       data.set(new Uint8Array(page), 1);
 
-      const writeResult = await dap.send(DapLinkVendorCmd.FLASH_WRITE, data);
+      const writeResult = await dap.send(DAPLINK_VENDOR_FLASH_WRITE, data);
       onProgress?.(offset / arrayBuffer.byteLength);
       offset = end;
       // DAPLink signals hex EOF with ERROR_SUCCESS_DONE (18).
@@ -170,17 +182,17 @@ export async function dapLinkFlash(
 
     onProgress?.(1.0);
 
-    const closeResult = await dap.send(DapLinkVendorCmd.FLASH_CLOSE);
+    const closeResult = await dap.send(DAPLINK_VENDOR_FLASH_CLOSE);
     if (closeResult.getUint8(1) !== DAPLINK_ERROR_SUCCESS) {
       throw new DapError(
         `Flash close error (status=${closeResult.getUint8(1)})`,
       );
     }
 
-    await dap.send(DapLinkVendorCmd.FLASH_RESET);
+    await dap.send(DAPLINK_VENDOR_FLASH_RESET);
   } catch (error) {
     try {
-      await dap.send(DapLinkVendorCmd.FLASH_CLOSE);
+      await dap.send(DAPLINK_VENDOR_FLASH_CLOSE);
     } catch {
       /* ignore */
     }
@@ -204,7 +216,7 @@ export async function readDaplinkUniqueId(
   logging: Logging,
 ): Promise<string | undefined> {
   try {
-    const result = await dap.send(DapLinkVendorCmd.READ_UNIQUE_ID);
+    const result = await dap.send(DAPLINK_VENDOR_READ_UNIQUE_ID);
     const length = result.getUint8(1);
     if (length === 0) {
       return undefined;

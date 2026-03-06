@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 import { BoardSerialInfo } from "../board-serial-info.js";
-import { FICR } from "../constants.js";
 import { Logging } from "../logging.js";
 import { ArmDebugSwd } from "./arm-debug.js";
 import { CmsisDapUsb } from "./cmsis-dap.js";
@@ -15,6 +14,12 @@ import {
   readMem32WithRetry,
 } from "./daplink.js";
 import { UsbTransport } from "./transport.js";
+
+// FICR Registers (Nordic nRF SoC Factory Information Configuration)
+// https://docs.nordicsemi.com/bundle/ps_nrf52833/page/ficr.html
+const FICR_CODEPAGESIZE = 0x10000010;
+const FICR_CODESIZE = 0x10000014;
+const FICR_DEVICE_ID_1 = 0x10000064;
 
 export interface BoardConnectionInfo {
   boardSerialInfo: BoardSerialInfo;
@@ -60,17 +65,17 @@ export class USBDeviceWrapper {
     // We retry on errors as immediately after flash the micro:bit won't be ready to respond
     const deviceId = await readMem32WithRetry(
       this.adi,
-      FICR.DEVICE_ID_1,
+      FICR_DEVICE_ID_1,
       this.logging,
     );
     const pageSize = await readMem32WithRetry(
       this.adi,
-      FICR.CODEPAGESIZE,
+      FICR_CODEPAGESIZE,
       this.logging,
     );
     const numPages = await readMem32WithRetry(
       this.adi,
-      FICR.CODESIZE,
+      FICR_CODESIZE,
       this.logging,
     );
 
