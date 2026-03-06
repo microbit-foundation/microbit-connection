@@ -1,7 +1,6 @@
 /**
  * @module @microbit/microbit-connection
  */
-import { BoardId } from "./board-id.js";
 import {
   BackgroundErrorData,
   BoardVersion,
@@ -34,7 +33,6 @@ import {
 } from "./service-events.js";
 
 export {
-  BoardId,
   ButtonState,
   ConnectionStatus,
   DeviceError,

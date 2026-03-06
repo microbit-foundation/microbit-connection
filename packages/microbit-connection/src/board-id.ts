@@ -13,7 +13,7 @@ export class BoardId {
   private static v1Normalized = new BoardId(0x9900);
   private static v2Normalized = new BoardId(0x9903);
 
-  constructor(public id: number) {
+  constructor(public readonly id: number) {
     if (!this.isV1() && !this.isV2()) {
       throw new Error(`Could not recognise the Board ID ${id.toString(16)}`);
     }

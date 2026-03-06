@@ -29,7 +29,7 @@ class BridgeError extends Error {}
 class RemoteError extends Error {}
 
 export interface MicrobitRadioBridgeConnectionOptions {
-  logging: Logging;
+  logging?: Logging;
 }
 
 interface ConnectCallbacks {
