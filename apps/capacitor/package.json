@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:apps": "vite --host",
-    "build": "tsc -b && vite build && ([ -z \"$CI\" ] && npx cap sync || true)",
+    "copy-hex": "mkdir -p public/hex-files && cp ../../hex-files/*.hex public/hex-files/",
+    "dev": "npm run copy-hex && vite",
+    "dev:apps": "npm run copy-hex && vite --host",
+    "build": "npm run copy-hex && tsc -b && vite build && ([ -z \"$CI\" ] && npx cap sync || true)",
     "cap:sync:dev": "CAP_LOCAL_DEV=1 npx cap sync",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -244,25 +244,17 @@ const createFlashSection = (): Section => {
     return {};
   }
   let hexText: string | undefined;
-  const faultCheckbox = crelt("input", {
-    type: "checkbox",
-  }) as HTMLInputElement;
   const flashButton = crelt("button", {
     disabled: true,
     onclick: async () => {
       if (!hexText) return;
       flashButton.disabled = true;
       try {
-        let injectFault = faultCheckbox.checked;
         console.time("flash");
         await connection.flash(createUniversalHexFlashDataSource(hexText), {
           partial: true,
           progress: (stage, percentage) => {
             console.log(stage, percentage);
-            if (injectFault && percentage !== undefined && percentage > 0.1) {
-              injectFault = false;
-              throw new Error("Injected flash failure");
-            }
           },
         });
         console.timeEnd("flash");
@@ -287,8 +279,6 @@ const createFlashSection = (): Section => {
         },
       }),
     ),
-    " ",
-    crelt("label", faultCheckbox, " Inject failure"),
     " ",
     flashButton,
   );
