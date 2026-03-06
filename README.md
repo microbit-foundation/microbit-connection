@@ -82,8 +82,7 @@ const micropythonFs = new MicropythonFsHex([
 // Flash the device
 await usb.flash(
   async (boardVersion) => {
-    const boardId = boardVersion === "V1" ? microbitBoardId.V1 : microbitBoardId.V2;
-    return micropythonFs.getIntelHex(boardId);
+    return micropythonFs.getIntelHex(microbitBoardId[boardVersion]);
   },
   {
     partial: true,
