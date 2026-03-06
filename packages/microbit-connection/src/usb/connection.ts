@@ -30,6 +30,7 @@ import {
   type BoardConnectionInfo,
 } from "./device-wrapper.js";
 import { PartialFlashing } from "./partial-flashing.js";
+import { saturateCdcPipeline } from "./cdc-saturation.js";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
@@ -155,6 +156,12 @@ class MicrobitUSBConnectionImpl
    */
   private cachedConnectionInfo: BoardConnectionInfo | undefined;
   private loggedBoardSerialInfo: BoardSerialInfo | undefined;
+  /**
+   * Whether CDC pipeline saturation has been performed for this physical
+   * USB connection. Once saturated, the buffers stay full until the device
+   * is physically disconnected.
+   */
+  private cdcSaturated = false;
 
   /**
    * Whether the serial read loop is running.
@@ -350,9 +357,33 @@ class MicrobitUSBConnectionImpl
       });
     }
 
-    this.log("Halting target and draining stale serial data");
-    await this.device.cortexM.halt();
-    await this.device.serial.drain();
+    // Saturate DAPLink's CDC buffers on the first flash after physical
+    // connection, but only if someone is listening for serial data.
+    // Once saturated, the buffers stay full until physical disconnect.
+    if (!this.cdcSaturated && this.hasSerialEventListeners()) {
+      // Ensure DAPLink's UART is at 115200 before saturation.
+      // V1 DAPLink defaults to 9600 on fresh connection.
+      // setBaudrate may reset the target, so reinit SWD afterwards.
+      const currentBaud = await this.device.serial.getBaudrate();
+      if (currentBaud !== 115200) {
+        this.log(`Setting DAPLink baud from ${currentBaud} to 115200`);
+        await this.device.serial.setBaudrate(115200);
+        await this.device.adi.reinit();
+      }
+
+      this.log("Halting target");
+      await this.device.cortexM.halt();
+      const boardVersion =
+        this.cachedConnectionInfo!.boardSerialInfo.id.toBoardVersion();
+      await saturateCdcPipeline(this.device, boardVersion, this.logging);
+      this.cdcSaturated = true;
+      await this.device.serial.drain();
+    }
+    // Halt unconditionally — flash needs the target stopped.
+    if (!(await this.device.cortexM.isHalted())) {
+      this.log("Halting target");
+      await this.device.cortexM.halt();
+    }
 
     const { boardSerialInfo, pageSize, numPages } = this.cachedConnectionInfo!;
     const boardVersion = boardSerialInfo.id.toBoardVersion();
@@ -564,6 +595,7 @@ class MicrobitUSBConnectionImpl
 
   private handleDisconnect = (event: USBConnectionEvent) => {
     if (event.device === this.usbDevice) {
+      this.cdcSaturated = false;
       this.device = undefined;
       this.usbDevice = undefined;
       this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
@@ -574,6 +606,7 @@ class MicrobitUSBConnectionImpl
     await this.disconnect();
     this.usbDevice = undefined;
     this.cachedConnectionInfo = undefined;
+    this.cdcSaturated = false;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
