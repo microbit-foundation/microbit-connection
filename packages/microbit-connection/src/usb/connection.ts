@@ -32,13 +32,6 @@ import {
 import { PartialFlashing } from "./partial-flashing.js";
 import { saturateCdcPipeline } from "./cdc-saturation.js";
 
-// Temporary workaround for ChromeOS 105 bug.
-// See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
-export const isChromeOS105 = (): boolean => {
-  const userAgent = navigator.userAgent;
-  return /CrOS/.test(userAgent) && /Chrome\/105\b/.test(userAgent);
-};
-
 const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
 
 export enum DeviceSelectionMode {
@@ -264,7 +257,7 @@ class MicrobitUSBConnectionImpl
   }
 
   async checkAvailability(): Promise<ConnectionAvailabilityStatus> {
-    if (!navigator.usb || isChromeOS105()) {
+    if (!navigator.usb) {
       return "unsupported";
     }
     return "available";
