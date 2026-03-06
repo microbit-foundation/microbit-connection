@@ -451,7 +451,11 @@ class MicrobitUSBConnectionImpl
         })
         .finally(() => {
           this.serialState = false;
-          this.dispatchEvent("serialreset");
+          // Don't reset when paused — the same program is still running and
+          // serial will resume when the tab becomes visible again.
+          if (this.status !== ConnectionStatus.Paused) {
+            this.dispatchEvent("serialreset");
+          }
         });
     });
   }
