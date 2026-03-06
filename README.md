@@ -13,8 +13,8 @@ A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. 
 
 ### Projects using this library
 
-- [micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/) — uses USB and Bluetooth connections
-- [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/) — [migration in progress](https://github.com/microbit-foundation/python-editor-v3/pull/1190)
+- [micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/)
+- [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/)
 
 ### Platform support
 
@@ -29,12 +29,12 @@ A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. 
 
 The library is split into separate entrypoints for tree-shaking. Import shared types from the root and connection-specific code from subpaths:
 
-| Import path                                   | Contents                                                                               |
-| --------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.) |
-| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                             |
-| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                         |
-| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)    |
+| Import path                                   | Contents                                                                                                                   |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                     |
+| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                 |
+| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                             |
+| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                        |
 | `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details. |
 
 ## Usage
@@ -47,12 +47,10 @@ Instantiate a WebUSB connection using {@link @microbit/microbit-connection/usb!c
 import { createUSBConnection } from "@microbit/microbit-connection/usb";
 
 const usb = createUSBConnection();
-const connectionStatus = await usb.connect();
+await usb.connect();
 
-console.log("Connection status: ", connectionStatus);
+console.log("Connection status: ", usb.status); // "Connected"
 ```
-
-{@link @microbit/microbit-connection!ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
 
 Flash a universal hex that supports both V1 and V2:
 
@@ -75,7 +73,6 @@ This example uses the [@microbit/microbit-fs library](https://microbit-foundatio
 
 ```ts
 import { MicropythonFsHex, microbitBoardId } from "@microbit/microbit-fs";
-import { BoardId } from "@microbit/microbit-connection";
 
 const micropythonFs = new MicropythonFsHex([
   { hex: microPythonV1HexFile, boardId: microbitBoardId.V1 },
@@ -85,7 +82,7 @@ const micropythonFs = new MicropythonFsHex([
 // Flash the device
 await usb.flash(
   async (boardVersion) => {
-    const boardId = BoardId.forVersion(boardVersion).id;
+    const boardId = boardVersion === "V1" ? microbitBoardId.V1 : microbitBoardId.V2;
     return micropythonFs.getIntelHex(boardId);
   },
   {
@@ -101,15 +98,15 @@ await usb.flash(
 
 The connection state after flashing differs between USB and Bluetooth because they connect to different parts of the micro:bit hardware:
 
-- **USB** connects to the **interface chip** (running DAPLink firmware), which is separate from the application processor that runs user code. Flashing does not affect the interface chip, so the USB connection remains in `"CONNECTED"` state and serial communication is automatically reinitialised.
+- **USB** connects to the **interface chip** (running DAPLink firmware), which is separate from the application processor that runs user code. Flashing does not affect the interface chip, so the USB connection remains in `"Connected"` state and serial communication is automatically reinitialised.
 
-- **Bluetooth** connects directly to the **application processor** (the Nordic nRF51/nRF52 running the user's program and BLE stack). This processor reboots after flashing, so the Bluetooth connection is necessarily lost. The connection is always left in `"DISCONNECTED"` state and callers must call `connect()` again after flashing.
+- **Bluetooth** connects directly to the **application processor** (the Nordic nRF51/nRF52 running the user's program and BLE stack). This processor reboots after flashing, so the Bluetooth connection is necessarily lost. The connection is always left in `"Disconnected"` state and callers must call `connect()` again after flashing.
 
-#### Tab visibility and the PAUSED state
+#### Tab visibility and the Paused state
 
-By default, a USB connection is automatically paused when the browser tab becomes hidden and reconnected when the tab becomes visible again. This frees the USB interface for other tabs or processes while the user isn't looking at the page. During this time the connection status is `"PAUSED"`.
+By default, a USB connection is automatically paused when the browser tab becomes hidden and reconnected when the tab becomes visible again. This frees the USB interface for other tabs or processes while the user isn't looking at the page. During this time the connection status is `"Paused"`.
 
-If reconnection fails when the tab becomes visible again (for example, because another process has claimed the USB interface), the connection transitions to `"DISCONNECTED"`.
+If reconnection fails when the tab becomes visible again (for example, because another process has claimed the USB interface), the connection transitions to `"Disconnected"`.
 
 To disable this behaviour, pass `pauseOnHidden: false`:
 
@@ -129,12 +126,10 @@ Instantiate a Bluetooth connection using {@link @microbit/microbit-connection/bl
 import { createBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 
 const bluetooth = createBluetoothConnection();
-const connectionStatus = await bluetooth.connect();
+await bluetooth.connect();
 
-console.log("Connection status: ", connectionStatus);
+console.log("Connection status: ", bluetooth.status); // "Connected"
 ```
-
-{@link @microbit/microbit-connection!ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
 
 For more examples see the [web demo source](apps/demo/src/demo.ts) and the [Capacitor demo source](apps/capacitor/src/).
 
