@@ -2,6 +2,7 @@ import { BleClient } from "@capacitor-community/bluetooth-le";
 import { Service } from "../device-wrapper.js";
 import { profile } from "../profile.js";
 import {
+  ButtonState,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../../service-events.js";
@@ -28,7 +29,7 @@ export class ButtonService implements Service {
             profile.button.id,
             this.characteristicForButtonEventType(type).id,
             (value) => {
-              const state = value.getUint8(0);
+              const state = value.getUint8(0) as ButtonState;
               this.dispatchTypedEvent(type, {
                 button: type === "buttonachanged" ? "A" : "B",
                 state,

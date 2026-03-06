@@ -103,36 +103,27 @@ export type DeviceErrorCode =
    */
   | "location-disabled";
 
-export enum ProgressStage {
-  /**
-   * Checking permissions and availability before connecting.
-   */
-  Initializing = "Initializing",
-  /**
-   * Finding device.
-   */
-  FindingDevice = "FindingDevice",
-  /**
-   * Checking that a bond is established. Only applicable on Native platforms.
-   */
-  CheckingBond = "CheckingBond",
-  /**
-   * Resetting device in preparation for flashing. Only applicable on Native platforms.
-   */
-  ResettingDevice = "ResettingDevice",
-  /**
-   * Connecting for flashing.
-   */
-  Connecting = "Connecting",
-  /**
-   * Partial flashing.
-   */
-  PartialFlashing = "PartialFlashing",
-  /**
-   * Full flashing.
-   */
-  FullFlashing = "FullFlashing",
-}
+/**
+ * Stages reported by the progress callback during connection and flashing.
+ */
+export const ProgressStage = {
+  /** Checking permissions and availability before connecting. */
+  Initializing: "Initializing",
+  /** Finding device. */
+  FindingDevice: "FindingDevice",
+  /** Checking that a bond is established. Only applicable on Native platforms. */
+  CheckingBond: "CheckingBond",
+  /** Resetting device in preparation for flashing. Only applicable on Native platforms. */
+  ResettingDevice: "ResettingDevice",
+  /** Connecting for flashing. */
+  Connecting: "Connecting",
+  /** Partial flashing. */
+  PartialFlashing: "PartialFlashing",
+  /** Full flashing. */
+  FullFlashing: "FullFlashing",
+} as const;
+
+export type ProgressStage = (typeof ProgressStage)[keyof typeof ProgressStage];
 
 /**
  * Progress callback for tracking operation stages (connection and flashing).
@@ -189,7 +180,7 @@ export function assertConnected<T>(
 /**
  * Tracks connection status.
  */
-export enum ConnectionStatus {
+export const ConnectionStatus = {
   /**
    * No device available.
    *
@@ -199,26 +190,23 @@ export enum ConnectionStatus {
    * Use checkAvailability() to determine whether the connection type is
    * supported before attempting to connect.
    */
-  NO_AUTHORIZED_DEVICE = "NO_AUTHORIZED_DEVICE",
-  /**
-   * Authorized device available but we haven't connected to it.
-   */
-  DISCONNECTED = "DISCONNECTED",
-  /**
-   * Connected.
-   */
-  CONNECTED = "CONNECTED",
-  /**
-   * Connecting.
-   */
-  CONNECTING = "CONNECTING",
+  NoAuthorizedDevice: "NoAuthorizedDevice",
+  /** Authorized device available but we haven't connected to it. */
+  Disconnected: "Disconnected",
+  /** Connected. */
+  Connected: "Connected",
+  /** Connecting. */
+  Connecting: "Connecting",
   /**
    * Paused due to tab visibility. The connection was temporarily suspended
    * because the browser tab became hidden. Reconnection will be attempted
    * automatically when the tab becomes visible again.
    */
-  PAUSED = "PAUSED",
-}
+  Paused: "Paused",
+} as const;
+
+export type ConnectionStatus =
+  (typeof ConnectionStatus)[keyof typeof ConnectionStatus];
 
 export interface ConnectOptions {
   /**
@@ -350,12 +338,12 @@ export interface DeviceConnection<M>
    *
    * Post-flash connection state differs by transport:
    *
-   * - **USB**: The connection remains in {@link ConnectionStatus.CONNECTED} state.
+   * - **USB**: The connection remains in {@link ConnectionStatus.Connected} state.
    *   USB connects to the micro:bit's interface chip (running DAPLink firmware),
    *   which is not affected by flashing the application processor, so the
    *   connection persists and serial communication is automatically reinitialised.
    *
-   * - **Bluetooth**: The connection is always left in {@link ConnectionStatus.DISCONNECTED}
+   * - **Bluetooth**: The connection is always left in {@link ConnectionStatus.Disconnected}
    *   state. Bluetooth connects to the application processor directly, which
    *   reboots after flashing, so the connection is necessarily lost. Callers
    *   must call {@link connect} again after flashing.

@@ -91,12 +91,12 @@ class MicrobitRadioBridgeConnectionImpl
 
   private delegateStatusListener = (e: ConnectionStatusChange) => {
     const currentStatus = this.status;
-    if (e.status !== ConnectionStatus.CONNECTED) {
+    if (e.status !== ConnectionStatus.Connected) {
       this.setStatus(e.status);
       // Don't dispose the serial session when PAUSED - USB is temporarily
       // unavailable due to tab visibility, but we'll reconnect when visible.
       // Attempting dispose would fail anyway since USB is disconnected.
-      if (e.status === ConnectionStatus.PAUSED) {
+      if (e.status === ConnectionStatus.Paused) {
         // Clear timestamp so stale values don't trigger reconnection when resuming.
         this.serialSession?.clearLastReceivedTimestamp();
       } else if (this.serialSessionOpen) {
@@ -104,11 +104,11 @@ class MicrobitRadioBridgeConnectionImpl
         this.serialSession?.dispose();
       }
     } else {
-      this.status = ConnectionStatus.DISCONNECTED;
+      this.status = ConnectionStatus.Disconnected;
       // Reconnect the serial session if we were previously paused.
       // PAUSED means the USB connection was temporarily suspended due to tab
       // visibility, and now the tab is visible again so we should reconnect.
-      const shouldReconnect = currentStatus === ConnectionStatus.PAUSED;
+      const shouldReconnect = currentStatus === ConnectionStatus.Paused;
       if (shouldReconnect && this.serialSessionOpen) {
         this.serialSession?.connect();
       }
@@ -180,20 +180,20 @@ class MicrobitRadioBridgeConnectionImpl
         this.dispatchEvent.bind(this),
         {
           onConnecting: () => {
-            this.setStatus(ConnectionStatus.CONNECTING);
+            this.setStatus(ConnectionStatus.Connecting);
             this.serialSessionOpen = true;
           },
           onFailPreDispose: () => {
             this.serialSessionOpen = false;
           },
           onFailPostDispose: () => {
-            if (this.status !== ConnectionStatus.DISCONNECTED) {
-              this.setStatus(ConnectionStatus.DISCONNECTED);
+            if (this.status !== ConnectionStatus.Disconnected) {
+              this.setStatus(ConnectionStatus.Disconnected);
             }
           },
           onSuccess: () => {
-            if (this.status !== ConnectionStatus.CONNECTED) {
-              this.setStatus(ConnectionStatus.CONNECTED);
+            if (this.status !== ConnectionStatus.Connected) {
+              this.setStatus(ConnectionStatus.Connected);
             }
             this.serialSessionOpen = true;
           },
@@ -243,8 +243,8 @@ class MicrobitRadioBridgeConnectionImpl
   }
 
   private statusFromDelegate(): ConnectionStatus {
-    return this.delegate.status == ConnectionStatus.CONNECTED
-      ? ConnectionStatus.DISCONNECTED
+    return this.delegate.status == ConnectionStatus.Connected
+      ? ConnectionStatus.Disconnected
       : this.delegate.status;
   }
 }
@@ -425,7 +425,7 @@ class RadioBridgeSerialSession {
       this.connectionCheckIntervalId = setInterval(async () => {
         // Don't check connection while USB is paused/disconnected.
         // The check will resume when USB reconnects.
-        if (this.delegate.status !== ConnectionStatus.CONNECTED) {
+        if (this.delegate.status !== ConnectionStatus.Connected) {
           return;
         }
         if (

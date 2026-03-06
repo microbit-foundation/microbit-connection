@@ -30,7 +30,7 @@ function createUSBSuite({
           await ctx.connection.clearDevice();
           ctx.log("Requesting device...");
           await ctx.connection.connect();
-          await ctx.waitForStatus(ConnectionStatus.CONNECTED);
+          await ctx.waitForStatus(ConnectionStatus.Connected);
           ctx.log(`Status: ${ctx.connection.status}`);
           ctx.assert(
             ctx.connection.getBoardVersion() === boardVersion,
@@ -149,7 +149,7 @@ function createUSBSuite({
         run: async (ctx) => {
           await ctx.connection.disconnect();
           ctx.assert(
-            ctx.connection.status === ConnectionStatus.DISCONNECTED,
+            ctx.connection.status === ConnectionStatus.Disconnected,
             "Disconnected cleanly",
           );
         },
@@ -165,11 +165,11 @@ async function replugAndReconnect(
   boardVersion: BoardVersion,
 ): Promise<void> {
   assertConnected(ctx);
-  await ctx.waitForStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE, 60_000, {
+  await ctx.waitForStatus(ConnectionStatus.NoAuthorizedDevice, 60_000, {
     instruction: "Unplug the micro:bit.",
   });
   ctx.assert(
-    ctx.connection.status === ConnectionStatus.NO_AUTHORIZED_DEVICE,
+    ctx.connection.status === ConnectionStatus.NoAuthorizedDevice,
     "Device lost after unplug",
   );
   await ctx.waitForUser(
@@ -177,9 +177,9 @@ async function replugAndReconnect(
   );
   ctx.log("Reconnecting...");
   await ctx.connection.connect();
-  await ctx.waitForStatus(ConnectionStatus.CONNECTED, 15_000);
+  await ctx.waitForStatus(ConnectionStatus.Connected, 15_000);
   ctx.assert(
-    ctx.connection.status === ConnectionStatus.CONNECTED,
+    ctx.connection.status === ConnectionStatus.Connected,
     "Reconnected",
   );
   ctx.assert(
@@ -190,7 +190,7 @@ async function replugAndReconnect(
 
 function assertConnected(ctx: TestContext): void {
   ctx.assert(
-    ctx.connection.status === ConnectionStatus.CONNECTED,
+    ctx.connection.status === ConnectionStatus.Connected,
     "Connected",
   );
 }

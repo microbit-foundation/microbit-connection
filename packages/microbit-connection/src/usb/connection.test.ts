@@ -57,7 +57,7 @@ describe("MicrobitUSBConnection (WebUSB unsupported)", () => {
       },
     });
     const microbit = createUSBConnection();
-    expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    expect(microbit.status).toBe(ConnectionStatus.NoAuthorizedDevice);
     const afterRequestDevice = vi.fn();
     microbit.addEventListener("afterrequestdevice", afterRequestDevice);
 
@@ -86,7 +86,7 @@ describeDeviceOnly("MicrobitUSBConnection (WebUSB supported)", () => {
 
   it("shows no device as initial status", () => {
     const microbit = createUSBConnection();
-    expect(microbit.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    expect(microbit.status).toBe(ConnectionStatus.NoAuthorizedDevice);
   });
 
   it("connects and disconnects updating status and events", async () => {
@@ -98,18 +98,18 @@ describeDeviceOnly("MicrobitUSBConnection (WebUSB supported)", () => {
 
     await connection.connect();
 
-    expect(connection.status).toEqual(ConnectionStatus.CONNECTED);
-    expect(events).toEqual([ConnectionStatus.CONNECTED]);
+    expect(connection.status).toEqual(ConnectionStatus.Connected);
+    expect(events).toEqual([ConnectionStatus.Connected]);
 
     // without this it breaks! something is up!
     await new Promise((resolve) => setTimeout(resolve, 100));
     await connection.disconnect();
     connection.dispose();
 
-    expect(connection.status).toEqual(ConnectionStatus.DISCONNECTED);
+    expect(connection.status).toEqual(ConnectionStatus.Disconnected);
     expect(events).toEqual([
-      ConnectionStatus.CONNECTED,
-      ConnectionStatus.DISCONNECTED,
+      ConnectionStatus.Connected,
+      ConnectionStatus.Disconnected,
     ]);
   });
 });
@@ -219,13 +219,13 @@ describe("Tab visibility and PAUSED state", () => {
     const connection = createUSBConnection();
     await connection.initialize();
     await connection.connect();
-    expect(connection.status).toBe(ConnectionStatus.CONNECTED);
+    expect(connection.status).toBe(ConnectionStatus.Connected);
 
     visibilityState = "hidden";
     visibilityListeners.forEach((l) => l());
 
-    await waitForStatus(connection, ConnectionStatus.PAUSED);
-    expect(connection.status).toBe(ConnectionStatus.PAUSED);
+    await waitForStatus(connection, ConnectionStatus.Paused);
+    expect(connection.status).toBe(ConnectionStatus.Paused);
   });
 
   it("reconnects when tab becomes visible while paused", async () => {
@@ -235,13 +235,13 @@ describe("Tab visibility and PAUSED state", () => {
 
     visibilityState = "hidden";
     visibilityListeners.forEach((l) => l());
-    await waitForStatus(connection, ConnectionStatus.PAUSED);
+    await waitForStatus(connection, ConnectionStatus.Paused);
 
     visibilityState = "visible";
     visibilityListeners.forEach((l) => l());
 
-    await waitForStatus(connection, ConnectionStatus.CONNECTED);
-    expect(connection.status).toBe(ConnectionStatus.CONNECTED);
+    await waitForStatus(connection, ConnectionStatus.Connected);
+    expect(connection.status).toBe(ConnectionStatus.Connected);
   });
 });
 

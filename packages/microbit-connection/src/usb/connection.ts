@@ -34,19 +34,21 @@ import { saturateCdcPipeline } from "./cdc-saturation.js";
 
 const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
 
-export enum DeviceSelectionMode {
+export const DeviceSelectionMode = {
   /**
    * Attempts to connect to known device, otherwise asks which device to
    * connect to.
    */
-  AlwaysAsk = "AlwaysAsk",
-
+  AlwaysAsk: "AlwaysAsk",
   /**
    * Attempts to connect to known device, otherwise attempts to connect to any
    * allowed devices. If that fails, asks which device to connect to.
    */
-  UseAnyAllowed = "UseAnyAllowed",
-}
+  UseAnyAllowed: "UseAnyAllowed",
+} as const;
+
+export type DeviceSelectionMode =
+  (typeof DeviceSelectionMode)[keyof typeof DeviceSelectionMode];
 
 export interface MicrobitUSBConnectionOptions {
   // We should copy this type when extracting a library, and make it optional.
@@ -131,7 +133,7 @@ class MicrobitUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
   implements MicrobitUSBConnection
 {
-  status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
+  status: ConnectionStatus = ConnectionStatus.NoAuthorizedDevice;
 
   private exclusionFilters: USBDeviceFilter[] | undefined;
   /**
@@ -176,7 +178,7 @@ class MicrobitUSBConnectionImpl
     if (document.visibilityState === "visible") {
       // We may not have actually paused when we became hidden due to an in-progress flash.
       this.pauseAfterFlash = false;
-      if (this.status === ConnectionStatus.PAUSED) {
+      if (this.status === ConnectionStatus.Paused) {
         if (!this.flashing) {
           this.log("Reconnecting visible tab");
           // withEnrichedErrors already disconnects and logs on failure.
@@ -184,11 +186,11 @@ class MicrobitUSBConnectionImpl
         }
       }
     } else {
-      if (!this.unloading && this.status === ConnectionStatus.CONNECTED) {
+      if (!this.unloading && this.status === ConnectionStatus.Connected) {
         if (!this.flashing) {
           this.log("Pausing connection for hidden tab");
           // Transition to PAUSED not DISCONNECTED
-          this.disconnect(false, ConnectionStatus.PAUSED);
+          this.disconnect(false, ConnectionStatus.Paused);
         } else {
           this.log("Scheduling disconnect of hidden tab for after flash");
           this.pauseAfterFlash = true;
@@ -212,7 +214,7 @@ class MicrobitUSBConnectionImpl
       () => {
         const assumePageIsStayingOpenDelay = 1000;
         setTimeout(() => {
-          if (this.status === ConnectionStatus.CONNECTED) {
+          if (this.status === ConnectionStatus.Connected) {
             this.unloading = false;
             if (this.hasSerialEventListeners()) {
               this.startSerialInternal();
@@ -404,7 +406,7 @@ class MicrobitUSBConnectionImpl
       if (this.pauseAfterFlash) {
         this.log("Disconnecting after flash due to tab visibility");
         this.pauseAfterFlash = false;
-        await this.disconnect(false, ConnectionStatus.PAUSED);
+        await this.disconnect(false, ConnectionStatus.Paused);
       } else {
         await this.device.adi.reinit();
         // Start serial before resetting so we capture startup output.
@@ -468,7 +470,7 @@ class MicrobitUSBConnectionImpl
 
   async disconnect(
     quiet?: boolean,
-    finalStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
+    finalStatus: ConnectionStatus = ConnectionStatus.Disconnected,
   ): Promise<void> {
     try {
       if (this.device) {
@@ -591,7 +593,7 @@ class MicrobitUSBConnectionImpl
       this.cdcSaturated = false;
       this.device = undefined;
       this.usbDevice = undefined;
-      this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+      this.setStatus(ConnectionStatus.NoAuthorizedDevice);
     }
   };
 
@@ -600,7 +602,7 @@ class MicrobitUSBConnectionImpl
     this.usbDevice = undefined;
     this.cachedConnectionInfo = undefined;
     this.cdcSaturated = false;
-    this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    this.setStatus(ConnectionStatus.NoAuthorizedDevice);
   }
 
   private async connectInternal(progress?: ProgressCallback): Promise<void> {
@@ -629,7 +631,7 @@ class MicrobitUSBConnectionImpl
     if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
     }
-    this.setStatus(ConnectionStatus.CONNECTED);
+    this.setStatus(ConnectionStatus.Connected);
   }
 
   private async connectWithOtherDevice(

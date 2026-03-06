@@ -33,7 +33,7 @@ export const useConnection = () => {
 
   // Listen to accelerometer data once connected.
   useEffect(() => {
-    if (status !== ConnectionStatus.CONNECTED) {
+    if (status !== ConnectionStatus.Connected) {
       setAccelerometerData(undefined);
       return;
     }

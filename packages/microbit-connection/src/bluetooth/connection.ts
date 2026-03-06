@@ -195,7 +195,7 @@ class MicrobitBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitBluetoothConnection
 {
-  status: ConnectionStatus = ConnectionStatus.NO_AUTHORIZED_DEVICE;
+  status: ConnectionStatus = ConnectionStatus.NoAuthorizedDevice;
 
   /**
    * The BLE device we last connected to.
@@ -339,9 +339,9 @@ class MicrobitBluetoothConnectionImpl
         this.dispatchEvent.bind(this),
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
-          onConnecting: () => this.setStatus(ConnectionStatus.CONNECTING),
-          onSuccess: () => this.setStatus(ConnectionStatus.CONNECTED),
-          onDisconnect: () => this.setStatus(ConnectionStatus.DISCONNECTED),
+          onConnecting: () => this.setStatus(ConnectionStatus.Connecting),
+          onSuccess: () => this.setStatus(ConnectionStatus.Connected),
+          onDisconnect: () => this.setStatus(ConnectionStatus.Disconnected),
         },
       );
     }
@@ -361,7 +361,7 @@ class MicrobitBluetoothConnectionImpl
         message: "error-disconnecting",
       });
     } finally {
-      this.setStatus(ConnectionStatus.DISCONNECTED);
+      this.setStatus(ConnectionStatus.Disconnected);
       this.logging.event({
         type: "Bluetooth-info",
         message: "disconnected",
@@ -385,7 +385,7 @@ class MicrobitBluetoothConnectionImpl
     await this.disconnect();
     this.bleDevice = undefined;
     this.cachedBoardVersion = undefined;
-    this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    this.setStatus(ConnectionStatus.NoAuthorizedDevice);
   }
 
   setNameFilter(name: string) {
@@ -418,7 +418,7 @@ class MicrobitBluetoothConnectionImpl
         ? await this.requestDeviceNative(namePrefixes, signal)
         : await this.requestDeviceWeb(namePrefixes);
       if (!this.bleDevice) {
-        this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+        this.setStatus(ConnectionStatus.NoAuthorizedDevice);
         throw new DeviceError({
           code: "no-device-selected",
           message: "No device selected",
@@ -503,7 +503,7 @@ class MicrobitBluetoothConnectionImpl
   /**
    * Flash the micro:bit.
    *
-   * Always leaves the connection in {@link ConnectionStatus.DISCONNECTED} state.
+   * Always leaves the connection in {@link ConnectionStatus.Disconnected} state.
    * Bluetooth connects directly to the application processor, which reboots
    * after flashing, so the connection is necessarily lost. Call {@link connect}
    * again after flashing to reconnect.
@@ -520,7 +520,7 @@ class MicrobitBluetoothConnectionImpl
       // We'll disconnect/reconnect multiple times due to device resets, but reporting this is unhelpful.
       this.deferredUpdatesPreviousStatus = this.status;
 
-      if (this.status !== ConnectionStatus.CONNECTED) {
+      if (this.status !== ConnectionStatus.Connected) {
         await this.connect({ progress, signal: options.signal });
       }
 
@@ -587,7 +587,7 @@ class MicrobitBluetoothConnectionImpl
               }
             }
           })();
-          this.setStatus(ConnectionStatus.DISCONNECTED);
+          this.setStatus(ConnectionStatus.Disconnected);
         }
       } catch (e) {
         this.error("Failed to flash", e);

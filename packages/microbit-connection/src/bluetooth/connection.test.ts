@@ -58,7 +58,7 @@ describe("Bluetooth connection status events", () => {
     const connection = createBluetoothConnection();
     await connection.initialize();
 
-    expect(connection.status).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    expect(connection.status).toBe(ConnectionStatus.NoAuthorizedDevice);
 
     const events: ConnectionStatusChange[] = [];
     connection.addEventListener("status", (e) => {
@@ -68,10 +68,8 @@ describe("Bluetooth connection status events", () => {
     await connection.disconnect();
 
     expect(events).toHaveLength(1);
-    expect(events[0].status).toBe(ConnectionStatus.DISCONNECTED);
-    expect(events[0].previousStatus).toBe(
-      ConnectionStatus.NO_AUTHORIZED_DEVICE,
-    );
+    expect(events[0].status).toBe(ConnectionStatus.Disconnected);
+    expect(events[0].previousStatus).toBe(ConnectionStatus.NoAuthorizedDevice);
   });
 
   it("defers status updates during flash, emitting single catch-up event", async () => {
@@ -80,7 +78,7 @@ describe("Bluetooth connection status events", () => {
     await connection.initialize();
 
     const statusBeforeFlash = connection.status;
-    expect(statusBeforeFlash).toBe(ConnectionStatus.NO_AUTHORIZED_DEVICE);
+    expect(statusBeforeFlash).toBe(ConnectionStatus.NoAuthorizedDevice);
 
     const events: ConnectionStatusChange[] = [];
     connection.addEventListener("status", (e) => {
