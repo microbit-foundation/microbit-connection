@@ -7,7 +7,7 @@
   "entryPoints": [
     "./src/index.ts",
     "./src/bluetooth-entrypoint.ts",
-    "./src/usb-entrypoint.ts",
+    "./src/usb/index.ts",
     "./src/universal-hex-entrypoint.ts",
     "./src/radio-bridge-entrypoint.ts"
   ],

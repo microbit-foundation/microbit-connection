@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TimeoutError, withTimeout } from "./async-util.js";
-import { throwIfUnavailable } from "./availability.js";
+import { TimeoutError, withTimeout } from "../async-util.js";
+import { throwIfUnavailable } from "../availability.js";
 import {
   BoardVersion,
   ConnectOptions,
@@ -19,13 +19,18 @@ import {
   ProgressCallback,
   ProgressStage,
   assertConnected,
-} from "./device.js";
-import { TypedEventTarget } from "./events.js";
-import { Logging, ConsoleLogging } from "./logging.js";
-import { PromiseQueue } from "./promise-queue.js";
-import { SerialConnectionEventMap } from "./serial-events.js";
-import { DAPWrapper } from "./usb-device-wrapper.js";
-import { PartialFlashing } from "./usb-partial-flashing.js";
+} from "../device.js";
+import { TypedEventTarget } from "../events.js";
+import { Logging, ConsoleLogging } from "../logging.js";
+import { PromiseQueue } from "../promise-queue.js";
+import { SerialConnectionEventMap } from "../serial-events.js";
+import { BoardSerialInfo } from "../board-serial-info.js";
+import {
+  USBDeviceWrapper,
+  type BoardConnectionInfo,
+} from "./device-wrapper.js";
+import { PartialFlashing } from "./partial-flashing.js";
+import { saturateCdcPipeline } from "./cdc-saturation.js";
 
 // Temporary workaround for ChromeOS 105 bug.
 // See https://bugs.chromium.org/p/chromium/issues/detail?id=1363712&q=usb&can=2
@@ -137,20 +142,26 @@ class MicrobitUSBConnectionImpl
 
   private exclusionFilters: USBDeviceFilter[] | undefined;
   /**
-   * The USB device we last connected to.
+   * The raw USB device we last connected to.
    * Cleared if it is disconnected.
    */
-  private device: USBDevice | undefined;
+  private usbDevice: USBDevice | undefined;
   /**
-   * The connection to the device.
+   * Device-specific state. Created on connect, cleared on disconnect.
    */
-  private connection: DAPWrapper | undefined;
+  private device: USBDeviceWrapper | undefined;
 
   /**
    * Cached device properties that persist across reconnections until clearDevice.
    */
-  private cachedBoardVersion: BoardVersion | undefined;
-  private cachedDeviceId: number | undefined;
+  private cachedConnectionInfo: BoardConnectionInfo | undefined;
+  private loggedBoardSerialInfo: BoardSerialInfo | undefined;
+  /**
+   * Whether CDC pipeline saturation has been performed for this physical
+   * USB connection. Once saturated, the buffers stay full until the device
+   * is physically disconnected.
+   */
+  private cdcSaturated = false;
 
   /**
    * Whether the serial read loop is running.
@@ -286,17 +297,17 @@ class MicrobitUSBConnectionImpl
   }
 
   getDeviceId(): number {
-    assertConnected(this.cachedDeviceId);
-    return this.cachedDeviceId;
+    assertConnected(this.cachedConnectionInfo);
+    return this.cachedConnectionInfo.deviceId;
   }
 
   getDevice(): USBDevice | undefined {
-    return this.device;
+    return this.usbDevice;
   }
 
   getBoardVersion(): BoardVersion {
-    assertConnected(this.cachedBoardVersion);
-    return this.cachedBoardVersion;
+    assertConnected(this.cachedConnectionInfo);
+    return this.cachedConnectionInfo.boardSerialInfo.id.toBoardVersion();
   }
 
   async flash(
@@ -339,20 +350,50 @@ class MicrobitUSBConnectionImpl
 
     this.log("Reconnecting before flash");
     await this.connectInternal(progress);
-    if (!this.connection) {
+    if (!this.device) {
       throw new DeviceError({
         code: "device-disconnected",
         message: "Must be connected now",
       });
     }
 
-    const boardId = this.connection.boardSerialInfo.id;
-    const boardVersion = boardId.toBoardVersion();
+    // Saturate DAPLink's CDC buffers on the first flash after physical
+    // connection, but only if someone is listening for serial data.
+    // Once saturated, the buffers stay full until physical disconnect.
+    if (!this.cdcSaturated && this.hasSerialEventListeners()) {
+      // Ensure DAPLink's UART is at 115200 before saturation.
+      // V1 DAPLink defaults to 9600 on fresh connection.
+      // setBaudrate may reset the target, so reinit SWD afterwards.
+      const currentBaud = await this.device.serial.getBaudrate();
+      if (currentBaud !== 115200) {
+        this.log(`Setting DAPLink baud from ${currentBaud} to 115200`);
+        await this.device.serial.setBaudrate(115200);
+        await this.device.adi.reinit();
+      }
+
+      this.log("Halting target");
+      await this.device.cortexM.halt();
+      const boardVersion =
+        this.cachedConnectionInfo!.boardSerialInfo.id.toBoardVersion();
+      await saturateCdcPipeline(this.device, boardVersion, this.logging);
+      this.cdcSaturated = true;
+      await this.device.serial.drain();
+    }
+    // Halt unconditionally — flash needs the target stopped.
+    if (!(await this.device.cortexM.isHalted())) {
+      this.log("Halting target");
+      await this.device.cortexM.halt();
+    }
+
+    const { boardSerialInfo, pageSize, numPages } = this.cachedConnectionInfo!;
+    const boardVersion = boardSerialInfo.id.toBoardVersion();
     const data = await dataSource(boardVersion);
     const flashing = new PartialFlashing(
-      this.connection,
+      this.device,
       this.logging,
       boardVersion,
+      pageSize,
+      numPages,
     );
     let wasPartial: boolean = false;
     try {
@@ -372,11 +413,23 @@ class MicrobitUSBConnectionImpl
         this.pauseAfterFlash = false;
         await this.disconnect(false, ConnectionStatus.PAUSED);
       } else {
+        await this.device.adi.reinit();
+        // Start serial before resetting so we capture startup output.
+        // For full flash FLASH_CLOSE already reset the target, so its
+        // early output accumulates in DAPLink's 512-byte serial ring
+        // buffer until the first read here.
         if (this.hasSerialEventListeners()) {
           this.log("Reinstating serial after flash");
-          if (this.connection.daplink) {
-            await this.connection.daplink.connect();
-            await this.startSerialInternal();
+          await this.startSerialInternal();
+        }
+        if (wasPartial) {
+          // Partial flash writes pages via SWD without resetting.
+          // Full flash already resets via FLASH_CLOSE.
+          this.log("Resetting micro:bit to run new program");
+          try {
+            await this.device.cortexM.reset();
+          } catch (e) {
+            // Allow errors on resetting, user can always manually reset if necessary.
           }
         }
       }
@@ -385,13 +438,19 @@ class MicrobitUSBConnectionImpl
 
   private async startSerialInternal() {
     return this.serialStateChangeQueue.add(async () => {
-      if (!this.connection || this.serialState) {
+      if (!this.device || this.serialState) {
         return;
       }
       this.log("Starting serial");
       this.serialState = true;
-      this.connection
-        .startSerial(this.serialListener)
+      const serial = this.device.serial;
+      const currentBaud = await serial.getBaudrate();
+      if (currentBaud !== 115200) {
+        // Changing the baud rate causes a micro:bit reset, so only do it if necessary
+        await serial.setBaudrate(115200);
+      }
+      serial
+        .startPolling(this.serialListener, 1)
         .then(() => {
           this.log("Finished listening for serial data");
         })
@@ -400,17 +459,17 @@ class MicrobitUSBConnectionImpl
         })
         .finally(() => {
           this.serialState = false;
+          this.dispatchEvent("serialreset");
         });
     });
   }
 
   private async stopSerialInternal() {
     return this.serialStateChangeQueue.add(async () => {
-      if (!this.connection || !this.serialState) {
+      if (!this.device || !this.serialState) {
         return;
       }
-      this.connection.stopSerial(this.serialListener);
-      this.dispatchEvent("serialreset");
+      this.device.serial.stopPolling();
     });
   }
 
@@ -419,9 +478,9 @@ class MicrobitUSBConnectionImpl
     finalStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
   ): Promise<void> {
     try {
-      if (this.connection) {
+      if (this.device) {
         await this.stopSerialInternal();
-        await this.connection.disconnectAsync();
+        await this.device.disconnect();
       }
     } catch (e) {
       if (!quiet) {
@@ -432,7 +491,7 @@ class MicrobitUSBConnectionImpl
         });
       }
     } finally {
-      this.connection = undefined;
+      this.device = undefined;
       this.setStatus(finalStatus);
       if (!quiet) {
         this.logging.log("Disconnection complete");
@@ -452,6 +511,24 @@ class MicrobitUSBConnectionImpl
       status: newStatus,
       previousStatus,
     });
+  }
+
+  private logBoardInfo(info: BoardSerialInfo): void {
+    this.logging.event({
+      type: "WebUSB-info",
+      message: "connected",
+    });
+    if (!this.loggedBoardSerialInfo || !this.loggedBoardSerialInfo.eq(info)) {
+      this.loggedBoardSerialInfo = info;
+      this.logging.event({
+        type: "WebUSB-info",
+        message: "board-id/" + info.id,
+      });
+      this.logging.event({
+        type: "WebUSB-info",
+        message: "board-family-hic/" + info.familyId + info.hic,
+      });
+    }
   }
 
   private async withEnrichedErrors<T>(f: () => Promise<T>): Promise<T> {
@@ -492,43 +569,44 @@ class MicrobitUSBConnectionImpl
   }
 
   serialWrite(data: string): Promise<void> {
-    assertConnected(this.connection);
-    const connection = this.connection;
+    assertConnected(this.device);
+    const device = this.device;
     return this.withEnrichedErrors(async () => {
-      // Using WebUSB/DAPJs we're limited to 64 byte packet size with a two byte header.
+      // WebUSB packets are 64 bytes with a two byte header.
       // https://github.com/microbit-foundation/python-editor-v3/issues/215
       const maxSerialWrite = 62;
       let start = 0;
       while (start < data.length) {
         const end = Math.min(start + maxSerialWrite, data.length);
         const chunkData = data.slice(start, end);
-        await connection.daplink.serialWrite(chunkData);
+        await device.serial.write(chunkData);
         start = end;
       }
     });
   }
 
   async softwareReset(): Promise<void> {
-    assertConnected(this.connection);
-    const connection = this.connection;
+    assertConnected(this.device);
+    const device = this.device;
     return this.serialStateChangeQueue.add(
-      async () => await connection.softwareReset(),
+      async () => await device.cortexM.softwareReset(),
     );
   }
 
   private handleDisconnect = (event: USBConnectionEvent) => {
-    if (event.device === this.device) {
-      this.connection = undefined;
+    if (event.device === this.usbDevice) {
+      this.cdcSaturated = false;
       this.device = undefined;
+      this.usbDevice = undefined;
       this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
     }
   };
 
   async clearDevice(): Promise<void> {
     await this.disconnect();
-    this.device = undefined;
-    this.cachedBoardVersion = undefined;
-    this.cachedDeviceId = undefined;
+    this.usbDevice = undefined;
+    this.cachedConnectionInfo = undefined;
+    this.cdcSaturated = false;
     this.setStatus(ConnectionStatus.NO_AUTHORIZED_DEVICE);
   }
 
@@ -537,24 +615,23 @@ class MicrobitUSBConnectionImpl
     reportProgress(ProgressStage.Initializing);
     throwIfUnavailable(await this.checkAvailability());
 
-    if (!this.connection && this.device) {
+    if (!this.device && this.usbDevice) {
       reportProgress(ProgressStage.Connecting);
-      this.connection = new DAPWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
-    } else if (!this.connection) {
+      this.device = new USBDeviceWrapper(this.usbDevice, this.logging);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
+    } else if (!this.device) {
       await this.connectWithOtherDevice(reportProgress);
     } else {
       reportProgress(ProgressStage.Connecting);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
     }
-    // Cache device properties so they survive disconnection.
-    this.cachedDeviceId = this.connection!.deviceId;
-    try {
-      this.cachedBoardVersion =
-        this.connection!.boardSerialInfo.id.toBoardVersion();
-    } catch {
-      // boardSerialInfo may not be available (e.g. in tests).
-    }
+    this.logBoardInfo(this.cachedConnectionInfo!.boardSerialInfo);
 
     if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
@@ -568,23 +645,26 @@ class MicrobitUSBConnectionImpl
     if (this.deviceSelectionMode === DeviceSelectionMode.UseAnyAllowed) {
       await this.attemptConnectAllowedDevices();
     }
-    if (!this.connection) {
+    if (!this.device) {
       progress(ProgressStage.FindingDevice);
-      this.device = await this.chooseDevice();
+      this.usbDevice = await this.chooseDevice();
       progress(ProgressStage.Connecting);
-      this.connection = new DAPWrapper(this.device, this.logging);
-      await withTimeout(this.connection.reconnectAsync(), 10_000);
+      this.device = new USBDeviceWrapper(this.usbDevice, this.logging);
+      this.cachedConnectionInfo = await withTimeout(
+        this.device.reconnect(),
+        10_000,
+      );
     }
   }
 
   // Based on: https://github.com/microsoft/pxt/blob/ab97a2422879824c730f009b15d4bf446b0e8547/pxtlib/webusb.ts#L361
   private async attemptConnectAllowedDevices(): Promise<void> {
     const pairedDevices = await this.getFilteredAllowedDevices();
-    for (const device of pairedDevices) {
-      const connection = await this.attemptDeviceConnection(device);
-      if (connection) {
+    for (const usbDevice of pairedDevices) {
+      const device = await this.attemptDeviceConnection(usbDevice);
+      if (device) {
+        this.usbDevice = usbDevice;
         this.device = device;
-        this.connection = connection;
         return;
       }
     }
@@ -604,28 +684,28 @@ class MicrobitUSBConnectionImpl
   }
 
   private async attemptDeviceConnection(
-    device: USBDevice,
-  ): Promise<DAPWrapper | undefined> {
+    usbDevice: USBDevice,
+  ): Promise<USBDeviceWrapper | undefined> {
     this.log(
-      `Attempting connection to: ${device.manufacturerName} ${device.productName}`,
+      `Attempting connection to: ${usbDevice.manufacturerName} ${usbDevice.productName}`,
     );
-    this.log(`Serial number: ${device.serialNumber}`);
-    const connection = new DAPWrapper(device, this.logging);
-    await withTimeout(connection.reconnectAsync(), 10_000);
-    return connection;
+    this.log(`Serial number: ${usbDevice.serialNumber}`);
+    const device = new USBDeviceWrapper(usbDevice, this.logging);
+    this.cachedConnectionInfo = await withTimeout(device.reconnect(), 10_000);
+    return device;
   }
 
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchEvent("beforerequestdevice");
     try {
-      this.device = await navigator.usb.requestDevice({
+      this.usbDevice = await navigator.usb.requestDevice({
         exclusionFilters: this.exclusionFilters,
         filters: defaultFilters,
       });
     } finally {
       this.dispatchEvent("afterrequestdevice");
     }
-    return this.device;
+    return this.usbDevice;
   }
 
   protected eventActivated(type: string): void {
@@ -712,13 +792,6 @@ const hasMatchingInterface = (device: USBDevice, filter: USBDeviceFilter) => {
   });
 };
 
-const genericErrorSuggestingReconnect = (e: any) =>
-  new DeviceError({
-    code: "reconnect-microbit",
-    message: e.message,
-  });
-
-// tslint:disable-next-line: no-any
 const enrichedError = (err: any): DeviceError => {
   if (err instanceof DeviceError) {
     return err;
@@ -730,47 +803,34 @@ const enrichedError = (err: any): DeviceError => {
     });
   }
 
-  switch (typeof err) {
-    case "object":
-      // We might get Error objects as Promise rejection arguments
-      if (!err.message && err.promise && err.reason) {
-        err = err.reason;
-      }
-      // This is somewhat fragile but worth it for scenario specific errors.
-      // These messages changed to be prefixed in 2023 so we've relaxed the checks.
-      if (/No valid interfaces found/.test(err.message)) {
-        // This comes from DAPjs's WebUSB open.
-        return new DeviceError({
-          code: "update-req",
-          message: err.message,
-        });
-      } else if (/No device selected/.test(err.message)) {
-        return new DeviceError({
-          code: "no-device-selected",
-          message: err.message,
-        });
-      } else if (/Unable to claim interface/.test(err.message)) {
-        return new DeviceError({
-          code: "clear-connect",
-          message: err.message,
-        });
-      } else if (err.name === "device-disconnected") {
-        return new DeviceError({
-          code: "device-disconnected",
-          message: err.message,
-        });
-      } else {
-        // Unhandled error. User will need to reconnect their micro:bit
-        return genericErrorSuggestingReconnect(err);
-      }
-    case "string": {
-      // Caught a string. Example case: "Flash error" from DAPjs
-      return genericErrorSuggestingReconnect(err);
+  if (err instanceof Error) {
+    // Match Chromium WebUSB DOMException messages for user-friendly error codes.
+    // These are hardcoded English strings in Chromium (not localized).
+    // https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webusb/usb.cc
+    if (/No device selected/.test(err.message)) {
+      return new DeviceError({
+        code: "no-device-selected",
+        message: err.message,
+      });
     }
-    default: {
-      return genericErrorSuggestingReconnect(err);
+    // https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webusb/usb_device.cc
+    if (/Unable to claim interface/.test(err.message)) {
+      return new DeviceError({
+        code: "clear-connect",
+        message: err.message,
+      });
+    }
+    if (/The device was disconnected/.test(err.message)) {
+      return new DeviceError({
+        code: "device-disconnected",
+        message: err.message,
+      });
     }
   }
+  return new DeviceError({
+    code: "reconnect-microbit",
+    message: err.message,
+  });
 };
 
 const rateLimitProgress = (

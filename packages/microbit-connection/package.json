@@ -31,12 +31,12 @@
     },
     "./usb": {
       "import": {
-        "types": "./build/esm/usb-entrypoint.d.ts",
-        "default": "./build/esm/usb-entrypoint.js"
+        "types": "./build/esm/usb/index.d.ts",
+        "default": "./build/esm/usb/index.js"
       },
       "require": {
-        "types": "./build/cjs/usb-entrypoint.d.ts",
-        "default": "./build/cjs/usb-entrypoint.js"
+        "types": "./build/cjs/usb/index.d.ts",
+        "default": "./build/cjs/usb/index.js"
       }
     },
     "./universal-hex": {
@@ -78,8 +78,8 @@
   },
   "dependencies": {
     "@microbit/microbit-universal-hex": "^0.2.2",
+    "@types/w3c-web-usb": "^1.0.13",
     "@types/web-bluetooth": "^0.0.20",
-    "dapjs": "^2.3.0",
     "nrf-intel-hex": "^1.4.0"
   },
   "peerDependencies": {

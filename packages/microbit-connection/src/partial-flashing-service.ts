@@ -58,7 +58,7 @@ export class PartialFlashingService {
 
   async resetToMode(mode: MicroBitMode): Promise<void> {
     await BleClient.writeWithoutResponse(
-      this.connection.device.deviceId,
+      this.connection.bleDevice.deviceId,
       profile.partialFlashing.id,
       profile.partialFlashing.characteristics.partialFlash.id,
       numbersToDataView([MICROBIT_RESET_COMMAND, mode]),
@@ -88,7 +88,7 @@ export class PartialFlashingService {
     packetInBatch: number,
   ) {
     return await BleClient.writeWithoutResponse(
-      this.connection.device.deviceId,
+      this.connection.bleDevice.deviceId,
       profile.partialFlashing.id,
       profile.partialFlashing.characteristics.partialFlash.id,
       this.createWriteDataCommand(
@@ -132,7 +132,7 @@ export class PartialFlashingService {
 
   async writeEndOfFlashPacket() {
     return await BleClient.writeWithoutResponse(
-      this.connection.device.deviceId,
+      this.connection.bleDevice.deviceId,
       profile.partialFlashing.id,
       profile.partialFlashing.characteristics.partialFlash.id,
       numbersToDataView([0x02]),

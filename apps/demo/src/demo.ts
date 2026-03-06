@@ -243,30 +243,44 @@ const createFlashSection = (): Section => {
   if (type !== "usb") {
     return {};
   }
+  let hexText: string | undefined;
+  const flashButton = crelt("button", {
+    disabled: true,
+    onclick: async () => {
+      if (!hexText) return;
+      flashButton.disabled = true;
+      try {
+        console.time("flash");
+        await connection.flash(createUniversalHexFlashDataSource(hexText), {
+          partial: true,
+          progress: (stage, percentage) => {
+            console.log(stage, percentage);
+          },
+        });
+        console.timeEnd("flash");
+      } finally {
+        flashButton.disabled = false;
+      }
+    },
+  }, "Flash") as HTMLButtonElement;
   const dom = crelt(
     "section",
     crelt("h2", "Flash"),
     crelt(
       "label",
-      "File to flash",
+      "Hex file ",
       crelt("input", {
         type: "file",
+        accept: ".hex",
         onchange: async (e: Event) => {
           const file = (e.currentTarget as HTMLInputElement).files?.item(0);
-          if (file) {
-            const text = await file.text();
-            console.time("flash");
-            await connection.flash(createUniversalHexFlashDataSource(text), {
-              partial: true,
-              progress: (stage, percentage) => {
-                console.log(stage, percentage);
-              },
-            });
-            console.timeEnd("flash");
-          }
+          hexText = file ? await file.text() : undefined;
+          flashButton.disabled = !hexText;
         },
       }),
     ),
+    " ",
+    flashButton,
   );
   return { dom };
 };
@@ -278,12 +292,16 @@ const createSerialSection = (): Section => {
   }
 
   let data = "";
+  const serialResetListener = () => {
+    data = "";
+  };
+  serialConnection.addEventListener("serialreset", serialResetListener);
   const serialDataListener = (event: SerialData) => {
     for (const char of event.data) {
       if (char === "\n") {
         console.log(data);
         data = "";
-      } else {
+      } else if (char !== "\r") {
         data += char;
       }
     }
@@ -319,6 +337,7 @@ const createSerialSection = (): Section => {
     dom,
     cleanup: () => {
       serialConnection.removeEventListener("serialdata", serialDataListener);
+      serialConnection.removeEventListener("serialreset", serialResetListener);
     },
   };
 };

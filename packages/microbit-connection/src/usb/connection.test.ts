@@ -9,16 +9,31 @@
  * It might be we could create a custom environment that was web but
  * with a tweak to Buffer.
  */
-import { ConnectionStatus, ConnectionStatusChange } from "./device.js";
-import { applyDeviceFilters, createUSBConnection } from "./usb.js";
+import { ConnectionStatus, ConnectionStatusChange } from "../device.js";
+import { applyDeviceFilters, createUSBConnection } from "./connection.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
-vi.mock("./usb-device-wrapper.js", () => ({
-  DAPWrapper: class DapWrapper {
-    startSerial = vi.fn().mockReturnValue(Promise.resolve());
-    reconnectAsync = vi.fn().mockResolvedValue(undefined);
-    disconnectAsync = vi.fn().mockResolvedValue(undefined);
-    stopSerial = vi.fn();
+vi.mock("./device-wrapper.js", () => ({
+  USBDeviceWrapper: class USBDeviceWrapper {
+    serial = {
+      getBaudrate: vi.fn().mockResolvedValue(115200),
+      setBaudrate: vi.fn().mockResolvedValue(undefined),
+      startPolling: vi.fn().mockResolvedValue(undefined),
+      stopPolling: vi.fn(),
+      drain: vi.fn().mockResolvedValue(undefined),
+    };
+    reconnect = vi.fn().mockResolvedValue({
+      boardSerialInfo: {
+        id: { toBoardVersion: () => "V2", toString: () => "9900" },
+        familyId: "99",
+        hic: "00",
+        eq: () => true,
+      },
+      deviceId: 1,
+      pageSize: 1024,
+      numPages: 256,
+    });
+    disconnect = vi.fn().mockResolvedValue(undefined);
   },
 }));
 

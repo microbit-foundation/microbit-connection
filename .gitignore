@@ -26,3 +26,6 @@ docs/build
 
 build
 *.tgz
+
+# Hex files copied from top-level hex-files/ into app public dirs
+apps/*/public/hex-files

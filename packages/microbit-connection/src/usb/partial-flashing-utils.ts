@@ -3,15 +3,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { DapVal } from "./constants.js";
-
-// Represents the micro:bit's core registers
-// Drawn from https://armmbed.github.io/dapjs/docs/enums/coreregister.html
-export const CoreRegister = {
-  SP: 13,
-  LR: 14,
-  PC: 15,
-};
 
 export const read32FromUInt8Array = (data: Uint8Array, i: number): number => {
   return (
@@ -21,20 +12,6 @@ export const read32FromUInt8Array = (data: Uint8Array, i: number): number => {
       (data[i + 3] << 24)) >>>
     0
   );
-};
-
-export const bufferConcat = (bufs: Uint8Array[]): Uint8Array => {
-  let len = 0;
-  for (const b of bufs) {
-    len += b.length;
-  }
-  const r = new Uint8Array(len);
-  len = 0;
-  for (const b of bufs) {
-    r.set(b, len);
-    len += b.length;
-  }
-  return r;
 };
 
 // Returns the MurmurHash of the data passed to it, used for checksum calculation.
@@ -57,29 +34,6 @@ export const murmur3_core = (data: Uint8Array): [number, number] => {
     h1 = (Math.imul(h1, 5) + 0xe6546b64) >>> 0;
   }
   return [h0, h1];
-};
-
-// Returns a representation of an Access Port Register.
-// Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/util.ts#L63
-export const apReg = (r: number, mode: number): number /* Reg */ => {
-  const v = r | mode | DapVal.AP_ACC;
-  return 4 + ((v & 0x0c) >> 2);
-};
-
-// Returns a code representing a request to read/write a certain register.
-// Drawn from https://github.com/mmoskal/dapjs/blob/a32f11f54e9e76a9c61896ddd425c1cb1a29c143/src/util.ts#L92
-export const regRequest = (regId: number, isWrite: boolean = false): number => {
-  let request = !isWrite ? 1 << 1 /* READ */ : 0 << 1; /* WRITE */
-
-  if (regId < 4) {
-    request |= 0 << 0 /* DP_ACC */;
-  } else {
-    request |= 1 << 0 /* AP_ACC */;
-  }
-
-  request |= (regId & 3) << 2;
-
-  return request;
 };
 
 export class Page {
@@ -116,14 +70,14 @@ export const pageAlignBlocks = (
 // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L523
 export const onlyChanged = (
   pages: Page[],
-  checksums: Uint8Array,
+  checksums: Uint32Array,
   pageSize: number,
 ): Page[] => {
   return pages.filter((page) => {
     let idx = page.targetAddr / pageSize;
-    if (idx * 8 + 8 > checksums.length) return true; // out of range?
-    let c0 = read32FromUInt8Array(checksums, idx * 8);
-    let c1 = read32FromUInt8Array(checksums, idx * 8 + 4);
+    if (idx * 2 + 2 > checksums.length) return true; // out of range?
+    let c0 = checksums[idx * 2];
+    let c1 = checksums[idx * 2 + 1];
     let ch = murmur3_core(page.data);
     if (c0 === ch[0] && c1 === ch[1]) return false;
     return true;

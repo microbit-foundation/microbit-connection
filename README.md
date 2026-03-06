@@ -170,6 +170,17 @@ Open link hex files are not common. The most common source is the micro:bit Crea
 
 - **Hex with no partial flashing or DFU control service (V1)**: This is currently the case for CreateAI data collection hex files for micro:bit V1. There's nothing that can be done via Bluetooth. When the apps branch of CreateAI is released this will eventually resolve itself (or at least, we'll stop creating more such micro:bits). Workaround: flash via WebUSB or drag and drop from a computer. The equivalent V2 hex does have the Secure DFU service (but not partial flashing) which we support.
 
+## Hardware testing
+
+The [hardware test app](apps/hardware-test/) is a human-in-the-loop test runner for USB flashing. It covers partial and full flash, flash fallback paths, serial data integrity after flash, and reconnection after unplug. Run it with:
+
+```bash
+cd apps/hardware-test
+npm run dev
+```
+
+The tests prompt you for physical actions (plugging/unplugging) and verify the results automatically.
+
 ## License
 
 This software is under the MIT open source license.

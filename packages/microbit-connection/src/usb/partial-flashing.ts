@@ -45,22 +45,19 @@
  * https://github.com/microsoft/pxt-microbit/blob/master/editor/flash.ts
  */
 
-// dapjs import faff needed for Vitest https://github.com/ARMmbed/dapjs/issues/118
-import * as dapjs from "dapjs";
-const { DAPLink: DAPLinkValue } = dapjs;
-import { Logging } from "./logging.js";
-import { withTimeout, TimeoutError } from "./async-util.js";
-import { DAPWrapper } from "./usb-device-wrapper.js";
+import { Logging } from "../logging.js";
+import { BoardVersion, ProgressCallback, ProgressStage } from "../device.js";
+import { truncateHexAfterEof } from "../hex-util.js";
+import MemoryMap from "nrf-intel-hex";
+import { CoreRegister } from "./cortex-m.js";
+import { dapLinkFlash } from "./daplink.js";
+import { USBDeviceWrapper } from "./device-wrapper.js";
 import {
-  CoreRegister,
   onlyChanged,
   Page,
   pageAlignBlocks,
   read32FromUInt8Array,
-} from "./usb-partial-flashing-utils.js";
-import { BoardVersion, ProgressCallback, ProgressStage } from "./device.js";
-import { truncateHexAfterEof } from "./hex-util.js";
-import MemoryMap from "nrf-intel-hex";
+} from "./partial-flashing-utils.js";
 
 // Source code for binaries in can be found at https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/external/sha/source/main.c
 // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L243
@@ -96,15 +93,17 @@ const dataAddr = 0x20002000;
 const stackAddr = 0x20001000;
 
 /**
- * Uses a DAPWrapper to flash the micro:bit.
+ * Uses a USBDeviceWrapper to flash the micro:bit.
  *
- * Intented to be used for a single flash with a pre-connected DAPWrapper.
+ * Intended to be used for a single flash with a pre-connected USBDeviceWrapper.
  */
 export class PartialFlashing {
   constructor(
-    private dapwrapper: DAPWrapper,
+    private device: USBDeviceWrapper,
     private logging: Logging,
     private boardVersion: BoardVersion,
+    private pageSize: number,
+    private numPages: number,
   ) {}
 
   private log(v: any): void {
@@ -114,7 +113,7 @@ export class PartialFlashing {
   // Runs the checksum algorithm on the micro:bit's whole flash memory, and returns the results.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L365
   private async getFlashChecksumsAsync() {
-    await this.dapwrapper.executeAsync(
+    await this.device.cortexM.execute(
       loadAddr,
       computeChecksums2,
       stackAddr,
@@ -122,35 +121,27 @@ export class PartialFlashing {
       0xffffffff,
       dataAddr,
       0,
-      this.dapwrapper.pageSize,
-      this.dapwrapper.numPages,
+      this.pageSize,
+      this.numPages,
     );
-    return this.dapwrapper.readBlockAsync(
-      dataAddr,
-      this.dapwrapper.numPages * 2,
-    );
+    return this.device.adi.readBlock(dataAddr, this.numPages * 2);
   }
 
   // Runs the code on the micro:bit to copy a single page of data from RAM address addr to the ROM address specified by the page.
   // Does not wait for execution to halt.
   // Drawn from https://github.com/microsoft/pxt-microbit/blob/dec5b8ce72d5c2b4b0b20aafefce7474a6f0c7b2/editor/extension.tsx#L340
   private async runFlash(page: Page, addr: number): Promise<void> {
-    await this.dapwrapper.cortexM.halt(true);
-    await Promise.all([
-      this.dapwrapper.cortexM.writeCoreRegister(
-        CoreRegister.PC,
-        loadAddr + 4 + 1,
-      ),
-      this.dapwrapper.cortexM.writeCoreRegister(CoreRegister.LR, loadAddr + 1),
-      this.dapwrapper.cortexM.writeCoreRegister(CoreRegister.SP, stackAddr),
-      this.dapwrapper.cortexM.writeCoreRegister(0, page.targetAddr),
-      this.dapwrapper.cortexM.writeCoreRegister(1, addr),
-      this.dapwrapper.cortexM.writeCoreRegister(
-        2,
-        this.dapwrapper.pageSize >> 2,
-      ),
-    ]);
-    return this.dapwrapper.cortexM.resume(false);
+    await this.device.cortexM.halt(true);
+    await this.device.cortexM.writeCoreRegister(
+      CoreRegister.PC,
+      loadAddr + 4 + 1,
+    );
+    await this.device.cortexM.writeCoreRegister(CoreRegister.LR, loadAddr + 1);
+    await this.device.cortexM.writeCoreRegister(CoreRegister.SP, stackAddr);
+    await this.device.cortexM.writeCoreRegister(0, page.targetAddr);
+    await this.device.cortexM.writeCoreRegister(1, addr);
+    await this.device.cortexM.writeCoreRegister(2, this.pageSize >> 2);
+    return this.device.cortexM.resume(false);
   }
 
   // Write a single page of data to micro:bit ROM by writing it to micro:bit RAM and copying to ROM.
@@ -168,8 +159,8 @@ export class PartialFlashing {
     // Use two slots in RAM to allow parallelisation of the following two tasks.
     // 1. DAPjs writes a page to one slot.
     // 2. flashPageBIN copies a page to flash from the other slot.
-    let thisAddr = i & 1 ? dataAddr : dataAddr + this.dapwrapper.pageSize;
-    let nextAddr = i & 1 ? dataAddr + this.dapwrapper.pageSize : dataAddr;
+    let thisAddr = i & 1 ? dataAddr : dataAddr + this.pageSize;
+    let nextAddr = i & 1 ? dataAddr + this.pageSize : dataAddr;
 
     // Write first page to slot in RAM.
     // All subsequent pages will have already been written to RAM.
@@ -178,16 +169,16 @@ export class PartialFlashing {
       for (let j = 0; j < page.data.length; j += 4) {
         u32data[j >> 2] = read32FromUInt8Array(page.data, j);
       }
-      await this.dapwrapper.writeBlockAsync(thisAddr, u32data);
+      await this.device.adi.writeBlock(thisAddr, u32data);
     }
 
     await this.runFlash(page, thisAddr);
     // Write next page to micro:bit RAM if it exists.
     if (nextPage) {
       let buf = new Uint32Array(nextPage.data.buffer);
-      await this.dapwrapper.writeBlockAsync(nextAddr, buf);
+      await this.device.adi.writeBlock(nextAddr, buf);
     }
-    return this.dapwrapper.waitForHalt();
+    return this.device.cortexM.waitForHalt();
   }
 
   // Write pages of data to micro:bit ROM.
@@ -196,6 +187,7 @@ export class PartialFlashing {
     updateProgress: ProgressCallback,
   ) {
     this.log("Partial flash");
+    await this.device.adi.writeBlock(loadAddr, flashPageBIN);
     for (let i = 0; i < pages.length; ++i) {
       updateProgress(ProgressStage.PartialFlashing, i / pages.length);
       await this.partialFlashPageAsync(pages[i], pages[i + 1], i);
@@ -213,11 +205,10 @@ export class PartialFlashing {
     const flashBytes = this.convertDataToPaddedBytes(data);
 
     const checksums = await this.getFlashChecksumsAsync();
-    await this.dapwrapper.writeBlockAsync(loadAddr, flashPageBIN);
-    let aligned = pageAlignBlocks(flashBytes, 0, this.dapwrapper.pageSize);
+    let aligned = pageAlignBlocks(flashBytes, 0, this.pageSize);
     const totalPages = aligned.length;
     this.log("Total pages: " + totalPages);
-    aligned = onlyChanged(aligned, checksums, this.dapwrapper.pageSize);
+    aligned = onlyChanged(aligned, checksums, this.pageSize);
     this.log("Changed pages: " + aligned.length);
     let partial: boolean | undefined;
     if (aligned.length > totalPages / 2) {
@@ -227,6 +218,10 @@ export class PartialFlashing {
       } catch (e) {
         this.log(e);
         this.log("Full flash failed, attempting partial flash.");
+        // FLASH_CLOSE (called during full flash cleanup) disables SWD,
+        // so we must reconnect before partial flash can use it.
+        await this.device.adi.reinit();
+        await this.device.cortexM.reset(true);
         await this.partialFlashCoreAsync(aligned, updateProgress);
         partial = true;
       }
@@ -242,16 +237,11 @@ export class PartialFlashing {
       }
     }
 
-    try {
-      await this.dapwrapper.reset();
-    } catch (e) {
-      // Allow errors on resetting, user can always manually reset if necessary.
-    }
     this.log("Flashing complete");
     return partial;
   }
 
-  // Perform full flash of micro:bit's ROM using daplink.
+  // Perform full flash of micro:bit's ROM using DAPLink vendor commands.
   async fullFlashAsync(
     data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
@@ -261,21 +251,16 @@ export class PartialFlashing {
     const fullFlashProgress = (progress: number) => {
       updateProgress(ProgressStage.FullFlashing, progress);
     };
-    this.dapwrapper.daplink.on(DAPLinkValue.EVENT_PROGRESS, fullFlashProgress);
-    try {
-      data = this.convertDataToHexString(data);
-      await this.dapwrapper.transport.open();
-      await this.dapwrapper.daplink.flash(new TextEncoder().encode(data));
-      this.logging.event({
-        type: "WebUSB-info",
-        message: "full-flash-successful",
-      });
-    } finally {
-      this.dapwrapper.daplink.removeListener(
-        DAPLinkValue.EVENT_PROGRESS,
-        fullFlashProgress,
-      );
-    }
+    const hexData = this.convertDataToHexString(data);
+    await dapLinkFlash(
+      this.device.adi,
+      new TextEncoder().encode(hexData),
+      fullFlashProgress,
+    );
+    this.logging.event({
+      type: "WebUSB-info",
+      message: "full-flash-successful",
+    });
   }
 
   // Flash the micro:bit's ROM with the provided image, resetting the micro:bit first.
@@ -284,42 +269,19 @@ export class PartialFlashing {
     data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
-    let resetPromise = (async () => {
-      // Reset micro:bit to ensure interface responds correctly.
-      this.log("Begin reset");
-      try {
-        await this.dapwrapper.reset(true);
-      } catch (e) {
-        this.log("Retrying reset");
-        await this.dapwrapper.reconnectAsync();
-        await this.dapwrapper.reset(true);
-      }
-    })();
-
+    // Reset into halted state so partial flash can execute code from a clean
+    // state.
+    this.log("Begin reset");
     try {
-      try {
-        await withTimeout(resetPromise, 1000);
-
-        this.log("Begin flashing");
-        return await this.partialFlashAsync(data, updateProgress);
-      } catch (e) {
-        if (e instanceof TimeoutError) {
-          this.log("Resetting micro:bit timed out");
-          this.log("Partial flashing failed. Attempting full flash");
-          this.logging.event({
-            type: "WebUSB-info",
-            message: "flash-failed/attempting-full-flash",
-          });
-          await this.fullFlashAsync(data, updateProgress);
-          return false;
-        } else {
-          throw e;
-        }
-      }
-    } finally {
-      // NB cannot return Promises above!
-      await this.dapwrapper.disconnectAsync();
+      await this.device.cortexM.reset(true);
+    } catch (e) {
+      this.log("Retrying reset");
+      await this.device.reconnect();
+      await this.device.cortexM.reset(true);
     }
+
+    this.log("Begin flashing");
+    return this.partialFlashAsync(data, updateProgress);
   }
 
   private convertDataToHexString(
