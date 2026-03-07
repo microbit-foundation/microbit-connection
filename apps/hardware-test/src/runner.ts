@@ -88,10 +88,9 @@ export class SerialAccumulator {
 export interface TestContext {
   connection: MicrobitUSBConnection;
   serial: SerialAccumulator;
-  /** Messages logged by the library (via Logging.log) during the current test. */
-  libraryLogs: string[];
   log: (msg: string) => void;
   assert: (condition: boolean, msg: string) => void;
+  assertLogged: (pattern: string, msg: string) => void;
   waitForUser: (instruction: string) => Promise<void>;
   waitForStatus: (
     status: ConnectionStatus,
@@ -287,10 +286,17 @@ export class TestRunner {
     const ctx: TestContext = {
       connection: this.connection,
       serial: this.serial,
-      libraryLogs: this.logging.messages,
       log: (msg: string) => this.appendLog(test, msg, "info"),
       assert: (condition: boolean, msg: string) => {
         if (!condition) {
+          this.appendLog(test, `FAIL: ${msg}`, "error");
+          throw new Error(`Assertion failed: ${msg}`);
+        }
+        this.appendLog(test, `PASS: ${msg}`, "success");
+      },
+      assertLogged: (pattern: string, msg: string) => {
+        const found = this.logging.messages.some((m) => m.includes(pattern));
+        if (!found) {
           this.appendLog(test, `FAIL: ${msg}`, "error");
           throw new Error(`Assertion failed: ${msg}`);
         }

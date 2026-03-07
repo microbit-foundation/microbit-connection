@@ -146,12 +146,9 @@ function createUSBSuite({
           // (wiping UICR). The fallback partial flash wrote main flash but
           // partial flashing skips addresses >= 0x10000000. ensureUicr()
           // should have detected the blank UICR and repaired it.
-          ctx.assert(
-            ctx.libraryLogs.some((m) => m.includes("UICR mismatch")),
-            "Library detected UICR mismatch",
-          );
-          ctx.assert(
-            ctx.libraryLogs.some((m) => m.includes("UICR repair complete")),
+          ctx.assertLogged("UICR mismatch", "Library detected UICR mismatch");
+          ctx.assertLogged(
+            "UICR repair complete",
             "Library repaired UICR",
           );
           ctx.log("Flashing incremental Python to verify device boots...");
