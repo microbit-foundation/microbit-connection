@@ -46,6 +46,7 @@
  */
 
 import { Logging } from "../logging.js";
+import { waitFor } from "./arm-debug.js";
 import { BoardVersion, ProgressCallback, ProgressStage } from "../device.js";
 import { truncateHexAfterEof } from "../hex-util.js";
 import MemoryMap from "nrf-intel-hex";
@@ -412,14 +413,17 @@ export class PartialFlashing {
       return false;
     }
 
+    const waitNvmcReady = () =>
+      waitFor(
+        async () => ((await this.device.adi.readMem32(NVMC_READY)) & 1) === 1,
+      );
+
     if (needsErase) {
       // V2: erase UICR via dedicated NVMC register
       this.log("Erasing UICR");
       await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_EEN);
       await this.device.adi.writeMem32(NVMC_ERASEUICR, 1);
-      while (((await this.device.adi.readMem32(NVMC_READY)) & 1) === 0) {
-        // Poll until ready
-      }
+      await waitNvmcReady();
     }
 
     // Write UICR words
@@ -427,9 +431,7 @@ export class PartialFlashing {
     await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_WEN);
     for (const { address, value } of entries) {
       await this.device.adi.writeMem32(address, value);
-      while (((await this.device.adi.readMem32(NVMC_READY)) & 1) === 0) {
-        // Poll until ready
-      }
+      await waitNvmcReady();
     }
     await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_REN);
     this.log("UICR repair complete");
