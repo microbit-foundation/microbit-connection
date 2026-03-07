@@ -145,6 +145,27 @@ function createUSBSuite({
         },
       },
       {
+        name: "UICR recovery after interrupted full flash",
+        run: async (ctx) => {
+          // The previous test ("Full flash fallback to partial") left the
+          // device with correct main flash but erased UICR: the full flash
+          // FLASH_OPEN triggered a chip erase (wiping UICR), the fault
+          // interrupted before UICR records were written, and the fallback
+          // partial flash completed main flash but skipped UICR
+          // (targetAddr >= 0x10000000).
+          //
+          // Re-flashing the same hex should detect the UICR mismatch and
+          // repair it so the program actually boots.
+          assertConnected(ctx);
+          ctx.log("Re-flashing Python, expecting UICR recovery...");
+          const hex = await ctx.fetchHex("incremental-python.hex");
+          const stages = await flashWithProgress(ctx, hex);
+          assertFlashType(ctx, stages, "PartialFlashing");
+          ctx.log("Checking device boots after UICR recovery...");
+          await assertSerialFromZero(ctx, 5, 15_000);
+        },
+      },
+      {
         name: "Clean disconnect",
         run: async (ctx) => {
           await ctx.connection.disconnect();
