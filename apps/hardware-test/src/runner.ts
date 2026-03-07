@@ -244,6 +244,12 @@ export class TestRunner {
     try {
       for (const test of tests) {
         await this.runTest(test);
+        if (test.status === "fail") {
+          for (const remaining of tests.slice(tests.indexOf(test) + 1)) {
+            this.setStatus(remaining, "skipped");
+          }
+          break;
+        }
       }
     } finally {
       this.serial.detach(this.connection);
