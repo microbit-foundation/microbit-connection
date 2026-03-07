@@ -98,6 +98,7 @@ const stackAddr = 0x20001000;
 // cleared (1→0); restoring a bit to 1 requires erasing the entire UICR region.
 // https://docs.nordicsemi.com/bundle/ps_nrf52833/page/uicr.html
 const UICR_BASE = 0x10001000;
+const UICR_LIMIT = 0x10002000;
 
 // nRF52 NVMC registers for UICR erase/write
 const NVMC_CONFIG = 0x4001e504;
@@ -353,7 +354,7 @@ export class PartialFlashing {
 
     const uicrEntries: UicrEntry[] = [];
     for (const [addr, block] of memoryMap) {
-      if (addr < UICR_BASE) continue;
+      if (addr < UICR_BASE || addr >= UICR_LIMIT) continue;
       for (let i = 0; i < block.length; i += 4) {
         uicrEntries.push({
           address: addr + i,
@@ -416,6 +417,8 @@ export class PartialFlashing {
     const waitNvmcReady = () =>
       waitFor(
         async () => ((await this.device.adi.readMem32(NVMC_READY)) & 1) === 1,
+        10_000,
+        5,
       );
 
     if (needsErase) {
