@@ -6,6 +6,8 @@
 import {
   ConnectionStatus,
   type ConnectionStatusChange,
+  type Logging,
+  type LoggingEvent,
 } from "@microbit/microbit-connection";
 import {
   createUSBConnection,
@@ -88,6 +90,7 @@ export interface TestContext {
   serial: SerialAccumulator;
   log: (msg: string) => void;
   assert: (condition: boolean, msg: string) => void;
+  assertLogged: (pattern: string, msg: string) => void;
   waitForUser: (instruction: string) => Promise<void>;
   waitForStatus: (
     status: ConnectionStatus,
@@ -121,17 +124,38 @@ interface TestState {
   };
 }
 
+class CapturingLogging implements Logging {
+  messages: string[] = [];
+  event(event: LoggingEvent): void {
+    console.log(event);
+  }
+  error(message: string, e: unknown): void {
+    console.error(message, e);
+  }
+  log(e: any): void {
+    const msg = String(e);
+    this.messages.push(msg);
+    console.log(e);
+  }
+  clear(): void {
+    this.messages.length = 0;
+  }
+}
+
 export class TestRunner {
   private connection: MicrobitUSBConnection;
   private serial: SerialAccumulator;
+  private logging: CapturingLogging;
   private container: HTMLElement;
   private tests: TestState[] = [];
   private running = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.logging = new CapturingLogging();
     this.connection = createUSBConnection({
       deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
+      logging: this.logging,
     });
     this.serial = new SerialAccumulator();
   }
@@ -258,12 +282,21 @@ export class TestRunner {
     this.setStatus(test, "running");
     test.el.root.classList.add("expanded");
 
+    this.logging.clear();
     const ctx: TestContext = {
       connection: this.connection,
       serial: this.serial,
       log: (msg: string) => this.appendLog(test, msg, "info"),
       assert: (condition: boolean, msg: string) => {
         if (!condition) {
+          this.appendLog(test, `FAIL: ${msg}`, "error");
+          throw new Error(`Assertion failed: ${msg}`);
+        }
+        this.appendLog(test, `PASS: ${msg}`, "success");
+      },
+      assertLogged: (pattern: string, msg: string) => {
+        const found = this.logging.messages.some((m) => m.includes(pattern));
+        if (!found) {
           this.appendLog(test, `FAIL: ${msg}`, "error");
           throw new Error(`Assertion failed: ${msg}`);
         }
