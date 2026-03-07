@@ -92,6 +92,26 @@ const loadAddr = membase;
 const dataAddr = 0x20002000;
 const stackAddr = 0x20001000;
 
+// UICR (User Information Configuration Registers) — non-volatile registers
+// for chip config (bootloader address, NFC pin mode, etc). Bits can only be
+// cleared (1→0); restoring a bit to 1 requires erasing the entire UICR region.
+// https://docs.nordicsemi.com/bundle/ps_nrf52833/page/uicr.html
+const UICR_BASE = 0x10001000;
+
+// nRF52 NVMC registers for UICR erase/write
+const NVMC_CONFIG = 0x4001e504;
+const NVMC_ERASEUICR = 0x4001e514;
+const NVMC_READY = 0x4001e400;
+const NVMC_CONFIG_WEN = 1; // Write enable
+const NVMC_CONFIG_EEN = 2; // Erase enable
+const NVMC_CONFIG_REN = 0; // Read only
+
+/** A UICR word: address and expected 32-bit value. */
+interface UicrEntry {
+  address: number;
+  value: number;
+}
+
 /**
  * Uses a USBDeviceWrapper to flash the micro:bit.
  *
@@ -151,7 +171,7 @@ export class PartialFlashing {
     nextPage: Page,
     i: number,
   ): Promise<void> {
-    // TODO: This short-circuits UICR, do we need to update this?
+    // UICR pages are handled separately by checkUicr/repairUicr.
     if (page.targetAddr >= 0x10000000) {
       return;
     }
@@ -202,7 +222,8 @@ export class PartialFlashing {
     data: string | Uint8Array | MemoryMap,
     updateProgress: ProgressCallback,
   ): Promise<boolean> {
-    const flashBytes = this.convertDataToPaddedBytes(data);
+    const memoryMap = this.toMemoryMap(data);
+    const { flashBytes, uicrEntries } = this.extractFlashAndUicr(memoryMap);
 
     const checksums = await this.getFlashChecksumsAsync();
     let aligned = pageAlignBlocks(flashBytes, 0, this.pageSize);
@@ -235,6 +256,12 @@ export class PartialFlashing {
         await this.fullFlashAsync(data, updateProgress);
         partial = false;
       }
+    }
+
+    // After partial flash, check UICR. Full flash writes UICR as part of
+    // the hex stream so doesn't need this.
+    if (partial && uicrEntries.length > 0) {
+      partial = await this.ensureUicr(data, uicrEntries, updateProgress);
     }
 
     this.log("Flashing complete");
@@ -291,37 +318,121 @@ export class PartialFlashing {
       return data;
     }
     if (data instanceof Uint8Array) {
-      return this.paddedBytesToHexString(data);
+      return MemoryMap.fromPaddedUint8Array(data).asHexString();
     }
     return data.asHexString();
   }
 
-  private convertDataToPaddedBytes(
-    data: string | Uint8Array | MemoryMap,
-  ): Uint8Array {
-    if (data instanceof Uint8Array) {
-      return data;
-    }
+  /**
+   * Parse the flash data into a MemoryMap (if not already one).
+   */
+  private toMemoryMap(data: string | Uint8Array | MemoryMap): MemoryMap {
     if (typeof data === "string") {
-      return this.hexStringToPaddedBytes(data);
+      return MemoryMap.fromHex(truncateHexAfterEof(data));
     }
-    return this.memoryMapToPaddedBytes(data);
+    if (data instanceof Uint8Array) {
+      return MemoryMap.fromPaddedUint8Array(data);
+    }
+    return data;
   }
 
-  private hexStringToPaddedBytes(hex: string): Uint8Array {
-    const m = MemoryMap.fromHex(truncateHexAfterEof(hex));
-    return this.memoryMapToPaddedBytes(m);
-  }
-
-  private paddedBytesToHexString(data: Uint8Array): string {
-    return MemoryMap.fromPaddedUint8Array(data).asHexString();
-  }
-
-  private memoryMapToPaddedBytes(memoryMap: MemoryMap): Uint8Array {
+  /**
+   * Extract padded flash bytes (main flash only) and UICR entries from a
+   * MemoryMap. Parses the data once for both.
+   */
+  private extractFlashAndUicr(memoryMap: MemoryMap): {
+    flashBytes: Uint8Array;
+    uicrEntries: UicrEntry[];
+  } {
     const flashSize = {
       V1: 256 * 1024,
       V2: 512 * 1024,
     }[this.boardVersion];
-    return memoryMap.slicePad(0, flashSize);
+    const flashBytes = memoryMap.slicePad(0, flashSize);
+
+    const uicrEntries: UicrEntry[] = [];
+    for (const [addr, block] of memoryMap) {
+      if (addr < UICR_BASE) continue;
+      for (let i = 0; i < block.length; i += 4) {
+        uicrEntries.push({
+          address: addr + i,
+          value: read32FromUInt8Array(block, i),
+        });
+      }
+    }
+    return { flashBytes, uicrEntries };
+  }
+
+  /**
+   * Check UICR and repair if needed after a partial flash.
+   *
+   * UICR bits can only be cleared (1→0) without erasing. If all mismatched
+   * bits only need 1→0, we can write directly on both V1 and V2.
+   * If any bit needs 0→1, an erase is required first:
+   *  - V2: erase via NVMC.ERASEUICR, then write
+   *  - V1: no independent UICR erase, fall back to full flash
+   *
+   * Returns true if we stayed on the partial flash path, false if we had
+   * to fall back to full flash.
+   */
+  private async ensureUicr(
+    data: string | Uint8Array | MemoryMap,
+    entries: UicrEntry[],
+    updateProgress: ProgressCallback,
+  ): Promise<boolean> {
+    let needsErase = false;
+    let hasMismatch = false;
+
+    for (const { address, value } of entries) {
+      const actual = await this.device.adi.readMem32(address);
+      if (actual === value) continue;
+      hasMismatch = true;
+
+      // Check if any bit needs to go from 0→1 (requires erase)
+      const canWriteInPlace = (actual & value) >>> 0 === value >>> 0;
+      this.log(
+        `UICR mismatch at 0x${address.toString(16)}: ` +
+          `device=0x${(actual >>> 0).toString(16)} ` +
+          `expected=0x${(value >>> 0).toString(16)}` +
+          (canWriteInPlace ? "" : " (needs erase)"),
+      );
+      if (!canWriteInPlace) {
+        needsErase = true;
+      }
+    }
+
+    if (!hasMismatch) {
+      return true;
+    }
+
+    if (needsErase && this.boardVersion === "V1") {
+      // V1 has no ERASEUICR — must do a full flash (chip erase).
+      this.log("UICR requires erase on V1, falling back to full flash.");
+      await this.fullFlashAsync(data, updateProgress);
+      return false;
+    }
+
+    if (needsErase) {
+      // V2: erase UICR via dedicated NVMC register
+      this.log("Erasing UICR");
+      await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_EEN);
+      await this.device.adi.writeMem32(NVMC_ERASEUICR, 1);
+      while (((await this.device.adi.readMem32(NVMC_READY)) & 1) === 0) {
+        // Poll until ready
+      }
+    }
+
+    // Write UICR words
+    this.log("Writing UICR");
+    await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_WEN);
+    for (const { address, value } of entries) {
+      await this.device.adi.writeMem32(address, value);
+      while (((await this.device.adi.readMem32(NVMC_READY)) & 1) === 0) {
+        // Poll until ready
+      }
+    }
+    await this.device.adi.writeMem32(NVMC_CONFIG, NVMC_CONFIG_REN);
+    this.log("UICR repair complete");
+    return true;
   }
 }
