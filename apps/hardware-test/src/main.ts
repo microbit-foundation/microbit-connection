@@ -131,7 +131,7 @@ function createUSBSuite({
         },
       },
       {
-        name: "Full flash fallback to partial",
+        name: "Full flash fallback to partial, UICR recovery",
         run: async (ctx) => {
           assertConnected(ctx);
           ctx.log("Flashing Python with fault injection during full...");
@@ -142,25 +142,21 @@ function createUSBSuite({
               stages.includes("PartialFlashing"),
             `Full failed then fell back to partial (stages: ${stages.join(" → ")})`,
           );
-        },
-      },
-      {
-        name: "UICR recovery after interrupted full flash",
-        run: async (ctx) => {
-          // The previous test ("Full flash fallback to partial") left the
-          // device with correct main flash but erased UICR: the full flash
-          // FLASH_OPEN triggered a chip erase (wiping UICR), the fault
-          // interrupted before UICR records were written, and the fallback
-          // partial flash completed main flash but skipped UICR
-          // (targetAddr >= 0x10000000).
-          //
-          // Re-flashing the same hex should detect the UICR mismatch and
-          // repair it so the program actually boots.
-          assertConnected(ctx);
-          ctx.log("Re-flashing Python, expecting UICR recovery...");
-          const hex = await ctx.fetchHex("incremental-python.hex");
-          const stages = await flashWithProgress(ctx, hex);
-          assertFlashType(ctx, stages, "PartialFlashing");
+          // The fault interrupted after FLASH_OPEN triggered a chip erase
+          // (wiping UICR). The fallback partial flash wrote main flash but
+          // partial flashing skips addresses >= 0x10000000. ensureUicr()
+          // should have detected the blank UICR and repaired it.
+          ctx.assert(
+            ctx.libraryLogs.some((m) => m.includes("UICR mismatch")),
+            "Library detected UICR mismatch",
+          );
+          ctx.assert(
+            ctx.libraryLogs.some((m) => m.includes("UICR repair complete")),
+            "Library repaired UICR",
+          );
+          ctx.log("Flashing incremental Python to verify device boots...");
+          const verifyHex = await ctx.fetchHex("incremental-python.hex");
+          await flashWithProgress(ctx, verifyHex);
           ctx.log("Checking device boots after UICR recovery...");
           await assertSerialFromZero(ctx, 5, 15_000);
         },

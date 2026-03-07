@@ -6,6 +6,8 @@
 import {
   ConnectionStatus,
   type ConnectionStatusChange,
+  type Logging,
+  type LoggingEvent,
 } from "@microbit/microbit-connection";
 import {
   createUSBConnection,
@@ -86,6 +88,8 @@ export class SerialAccumulator {
 export interface TestContext {
   connection: MicrobitUSBConnection;
   serial: SerialAccumulator;
+  /** Messages logged by the library (via Logging.log) during the current test. */
+  libraryLogs: string[];
   log: (msg: string) => void;
   assert: (condition: boolean, msg: string) => void;
   waitForUser: (instruction: string) => Promise<void>;
@@ -121,17 +125,38 @@ interface TestState {
   };
 }
 
+class CapturingLogging implements Logging {
+  messages: string[] = [];
+  event(event: LoggingEvent): void {
+    console.log(event);
+  }
+  error(message: string, e: unknown): void {
+    console.error(message, e);
+  }
+  log(e: any): void {
+    const msg = String(e);
+    this.messages.push(msg);
+    console.log(e);
+  }
+  clear(): void {
+    this.messages.length = 0;
+  }
+}
+
 export class TestRunner {
   private connection: MicrobitUSBConnection;
   private serial: SerialAccumulator;
+  private logging: CapturingLogging;
   private container: HTMLElement;
   private tests: TestState[] = [];
   private running = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.logging = new CapturingLogging();
     this.connection = createUSBConnection({
       deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
+      logging: this.logging,
     });
     this.serial = new SerialAccumulator();
   }
@@ -258,9 +283,11 @@ export class TestRunner {
     this.setStatus(test, "running");
     test.el.root.classList.add("expanded");
 
+    this.logging.clear();
     const ctx: TestContext = {
       connection: this.connection,
       serial: this.serial,
+      libraryLogs: this.logging.messages,
       log: (msg: string) => this.appendLog(test, msg, "info"),
       assert: (condition: boolean, msg: string) => {
         if (!condition) {
