@@ -123,6 +123,7 @@ const WAIT_DELAY = 100;
 export async function waitFor(
   fn: () => Promise<boolean>,
   timeout = 10_000,
+  delay = WAIT_DELAY,
 ): Promise<void> {
   const deadline = timeout > 0 ? Date.now() + timeout : 0;
   while (true) {
@@ -133,7 +134,7 @@ export async function waitFor(
         message: "Wait timed out",
       });
     }
-    await new Promise((resolve) => setTimeout(resolve, WAIT_DELAY));
+    await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }
 
