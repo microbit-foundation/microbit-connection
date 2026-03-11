@@ -1,7 +1,9 @@
 import { resolve } from "path";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  plugins: [basicSsl()],
   resolve: {
     alias: {
       "@microbit/microbit-connection/usb": resolve(

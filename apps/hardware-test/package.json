@@ -12,6 +12,7 @@
     "@microbit/microbit-connection": "*"
   },
   "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
     "typescript": "^5.2.2",
     "vite": "^6.3.5"
   }
