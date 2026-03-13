@@ -48,6 +48,7 @@ import {
   DeviceBondState,
 } from "./device-bond-state.js";
 import { TimeoutError } from "../async-util.js";
+import { withBleErrorMapping } from "./ble-error.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -432,72 +433,80 @@ class MicrobitBluetoothConnectionImpl
 
   async getAccelerometerData(): Promise<AccelerometerData> {
     assertConnected(this.device);
-    return this.device.accelerometer.getData();
+    return withBleErrorMapping(() => this.device!.accelerometer.getData());
   }
 
   async getAccelerometerPeriod(): Promise<number> {
     assertConnected(this.device);
-    return this.device.accelerometer.getPeriod();
+    return withBleErrorMapping(() => this.device!.accelerometer.getPeriod());
   }
 
   async setAccelerometerPeriod(value: number): Promise<void> {
     assertConnected(this.device);
-    return this.device.accelerometer.setPeriod(value);
+    return withBleErrorMapping(() =>
+      this.device!.accelerometer.setPeriod(value),
+    );
   }
 
   async setLedText(text: string): Promise<void> {
     assertConnected(this.device);
-    return this.device.led.setText(text);
+    return withBleErrorMapping(() => this.device!.led.setText(text));
   }
 
   async getLedScrollingDelay(): Promise<number> {
     assertConnected(this.device);
-    return this.device.led.getScrollingDelay();
+    return withBleErrorMapping(() => this.device!.led.getScrollingDelay());
   }
 
   async setLedScrollingDelay(delayInMillis: number): Promise<void> {
     assertConnected(this.device);
-    await this.device.led.setScrollingDelay(delayInMillis);
+    return withBleErrorMapping(() =>
+      this.device!.led.setScrollingDelay(delayInMillis),
+    );
   }
 
   async getLedMatrix(): Promise<LedMatrix> {
     assertConnected(this.device);
-    return await this.device.led.getLedMatrix();
+    return withBleErrorMapping(() => this.device!.led.getLedMatrix());
   }
 
   async setLedMatrix(matrix: LedMatrix): Promise<void> {
     assertConnected(this.device);
-    await this.device.led.setLedMatrix(matrix);
+    return withBleErrorMapping(() => this.device!.led.setLedMatrix(matrix));
   }
 
   async getMagnetometerData(): Promise<MagnetometerData> {
     assertConnected(this.device);
-    return this.device.magnetometer.getData();
+    return withBleErrorMapping(() => this.device!.magnetometer.getData());
   }
 
   async getMagnetometerPeriod(): Promise<number> {
     assertConnected(this.device);
-    return this.device.magnetometer.getPeriod();
+    return withBleErrorMapping(() => this.device!.magnetometer.getPeriod());
   }
 
   async setMagnetometerPeriod(value: number): Promise<void> {
     assertConnected(this.device);
-    return this.device.magnetometer.setPeriod(value);
+    return withBleErrorMapping(() =>
+      this.device!.magnetometer.setPeriod(value),
+    );
   }
 
   async getMagnetometerBearing(): Promise<number> {
     assertConnected(this.device);
-    return this.device.magnetometer.getBearing();
+    return withBleErrorMapping(() => this.device!.magnetometer.getBearing());
   }
 
   async triggerMagnetometerCalibration(): Promise<void> {
     assertConnected(this.device);
-    await this.device.magnetometer.triggerCalibration();
+    return withBleErrorMapping(() =>
+      this.device!.magnetometer.triggerCalibration(),
+    );
   }
 
   async uartWrite(data: Uint8Array): Promise<void> {
     assertConnected(this.device);
-    await this.device.uart.writeData(data);
+    return withBleErrorMapping(() => this.device!.uart.writeData(data));
   }
 
   /**
@@ -529,7 +538,7 @@ class MicrobitBluetoothConnectionImpl
         const boardVersion = connection.boardVersion;
         if (!boardVersion) {
           throw new DeviceError({
-            code: "device-disconnected",
+            code: "connection-error",
             message: "No board version found",
           });
         }
@@ -542,7 +551,7 @@ class MicrobitBluetoothConnectionImpl
 
         if (!this.bleDevice) {
           throw new DeviceError({
-            code: "device-disconnected",
+            code: "connection-error",
             message: "No device",
           });
         }

@@ -130,7 +130,7 @@ export async function waitFor(
     if (await fn()) return;
     if (deadline && Date.now() > deadline) {
       throw new DeviceError({
-        code: "timeout-error",
+        code: "timeout",
         message: "Wait timed out",
       });
     }

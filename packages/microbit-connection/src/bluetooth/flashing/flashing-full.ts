@@ -42,9 +42,10 @@ export async function fullFlash(
       } catch (e) {
         connection.error("Failed to request reboot to bootloader", e);
         throw new DeviceError({
-          code: "flash-full-failed",
+          code: "connection-error",
           message:
             e instanceof Error ? e.message : "Failed to reboot to bootloader",
+          cause: e,
         });
       }
 

@@ -5,6 +5,7 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../../service-events.js";
+import { mapBleError } from "../ble-error.js";
 
 export class UARTService implements Service {
   uuid = profile.uart.id;
@@ -33,8 +34,8 @@ export class UARTService implements Service {
         );
       } catch (e) {
         this.dispatchTypedEvent("backgrounderror", {
-          message: "Failed to start notifications",
-          error: e,
+          error: mapBleError(e),
+          event: type,
         });
       }
     }
@@ -42,11 +43,18 @@ export class UARTService implements Service {
 
   async stopNotifications(type: TypedServiceEvent): Promise<void> {
     if (type === "uartdata") {
-      await BleClient.stopNotifications(
-        this.deviceId,
-        profile.uart.id,
-        profile.uart.characteristics.tx.id,
-      );
+      try {
+        await BleClient.stopNotifications(
+          this.deviceId,
+          profile.uart.id,
+          profile.uart.characteristics.tx.id,
+        );
+      } catch (e) {
+        this.dispatchTypedEvent("backgrounderror", {
+          error: mapBleError(e),
+          event: type,
+        });
+      }
     }
   }
 

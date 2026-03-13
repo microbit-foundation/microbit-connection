@@ -66,7 +66,7 @@ export class UsbTransport implements Transport {
 
     if (!interfaces.length) {
       throw new DeviceError({
-        code: "update-req",
+        code: "firmware-update-required",
         message: "No valid interfaces found.",
       });
     }
@@ -103,7 +103,7 @@ export class UsbTransport implements Transport {
   async read(): Promise<DataView> {
     if (this.interfaceNumber === undefined) {
       throw new DeviceError({
-        code: "reconnect-microbit",
+        code: "connection-error",
         message: "No device opened",
       });
     }
@@ -129,7 +129,7 @@ export class UsbTransport implements Transport {
     }
     if (result.status !== "ok" || !result.data) {
       throw new DeviceError({
-        code: "reconnect-microbit",
+        code: "connection-error",
         message: "USB read failed",
       });
     }
@@ -139,7 +139,7 @@ export class UsbTransport implements Transport {
   async write(data: Uint8Array): Promise<void> {
     if (this.interfaceNumber === undefined) {
       throw new DeviceError({
-        code: "reconnect-microbit",
+        code: "connection-error",
         message: "No device opened",
       });
     }

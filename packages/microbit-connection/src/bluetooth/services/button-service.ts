@@ -6,6 +6,7 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../../service-events.js";
+import { mapBleError } from "../ble-error.js";
 
 export class ButtonService implements Service {
   uuid = profile.button.id;
@@ -38,8 +39,8 @@ export class ButtonService implements Service {
           );
         } catch (e) {
           this.dispatchTypedEvent("backgrounderror", {
-            message: "Failed to start notifications",
-            error: e,
+            error: mapBleError(e),
+            event: type,
           });
         }
       }
@@ -50,11 +51,18 @@ export class ButtonService implements Service {
     switch (type) {
       case "buttonachanged":
       case "buttonbchanged": {
-        await BleClient.stopNotifications(
-          this.deviceId,
-          profile.button.id,
-          this.characteristicForButtonEventType(type).id,
-        );
+        try {
+          await BleClient.stopNotifications(
+            this.deviceId,
+            profile.button.id,
+            this.characteristicForButtonEventType(type).id,
+          );
+        } catch (e) {
+          this.dispatchTypedEvent("backgrounderror", {
+            error: mapBleError(e),
+            event: type,
+          });
+        }
       }
     }
   }

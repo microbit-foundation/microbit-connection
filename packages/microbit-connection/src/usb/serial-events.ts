@@ -2,10 +2,6 @@ export interface SerialData {
   data: string;
 }
 
-export interface SerialErrorData {
-  error: unknown;
-}
-
 export interface SerialConnectionEventMap {
   /** Fired when serial data is received from the micro:bit. */
   serialdata: SerialData;
@@ -18,6 +14,4 @@ export interface SerialConnectionEventMap {
    * program continues running and serial resumes when the tab becomes visible.
    */
   serialreset: void;
-  /** Fired when a serial read error occurs. */
-  serialerror: SerialErrorData;
 }

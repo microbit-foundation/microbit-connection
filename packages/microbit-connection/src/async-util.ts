@@ -3,7 +3,13 @@
  *
  * SPDX-License-Identifier: MIT
  */
-export class TimeoutError extends Error {}
+import { DeviceError } from "./device.js";
+
+export class TimeoutError extends DeviceError {
+  constructor(message: string = "Timeout") {
+    super({ code: "timeout", message });
+  }
+}
 
 export class DisconnectError extends Error {
   constructor(message: string = "Disconnect") {
