@@ -7,15 +7,14 @@ TypeScript library for connecting to BBC micro:bit devices via USB and Bluetooth
 npm workspaces monorepo:
 
 - **`packages/microbit-connection/`** — The library. Dual ESM + CJS build.
-- **`apps/demo/`** — Vite demo app (vanilla TS). Deployed to https://microbit-connection.pages.dev/ (though the apps branch is not deployed yet, just main)
-- **`apps/capacitor/`** — Capacitor demo app (React). Has iOS and Android native projects.
+- **`apps/demo/`** — Vite + React demo app with Capacitor support for mobile.
 - **`third-party/`** — Vendored dependencies (patched dapjs).
 
 ## Commands
 
 ```
 npm run build:lib        # Build the library (ESM + CJS)
-npm run build            # Build everything (lib + demo + capacitor)
+npm run build            # Build everything (lib + demo)
 npm run dev              # Run demo app dev server
 npm test                 # Run tests (vitest)
 npm run format           # Prettier format

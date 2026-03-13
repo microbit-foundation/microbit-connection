@@ -9,7 +9,6 @@ import {
   ConnectionStatus,
   ConnectionStatusChange,
   DeviceConnection,
-  DeviceConnectionEventMap,
   DeviceError,
   DeviceErrorCode,
   FlashDataError,
@@ -19,7 +18,6 @@ import {
   ProgressStage,
   assertConnected,
 } from "./device.js";
-import { TypedEventTarget } from "./events.js";
 import { Logging, LoggingEvent } from "./logging.js";
 import {
   AccelerometerData,
@@ -28,7 +26,6 @@ import {
   ButtonState,
   LedMatrix,
   MagnetometerData,
-  ServiceConnectionEventMap,
   UartData,
 } from "./service-events.js";
 
@@ -39,7 +36,6 @@ export {
   FlashDataError,
   assertConnected,
   ProgressStage,
-  TypedEventTarget,
 };
 
 export type {
@@ -52,7 +48,6 @@ export type {
   ConnectionAvailabilityStatus,
   ConnectionStatusChange,
   DeviceConnection,
-  DeviceConnectionEventMap,
   DeviceErrorCode,
   FlashDataSource,
   FlashOptions,
@@ -61,6 +56,5 @@ export type {
   LoggingEvent,
   MagnetometerData,
   ProgressCallback,
-  ServiceConnectionEventMap,
   UartData,
 };

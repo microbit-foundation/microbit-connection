@@ -1,0 +1,496 @@
+/* Shared button styles */
+.btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  border-color: #aaa;
+}
+
+.btn:active:not(:disabled) {
+  background: #ddd;
+}
+
+.btn-primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1e40af;
+}
+
+.btn-primary:active:not(:disabled) {
+  background: #1e40af;
+}
+
+.btn-danger {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #991b1b;
+}
+
+.btn-toggle {
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #555;
+}
+
+.btn-toggle.active {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.btn-toggle:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.btn-toggle.active:hover:not(:disabled) {
+  background: #bfdbfe;
+}
+
+/* Input styles */
+.input {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* Select styles */
+.select {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.select:hover {
+  border-color: #999;
+}
+
+/* Tab content constraint */
+.tab-content {
+  flex: 1;
+  overflow: auto;
+  padding-bottom: 28px; /* space for collapsed log tab */
+  transition: padding-bottom 0.2s;
+}
+
+.tab-content.log-open {
+  padding-bottom: 228px; /* space for expanded log panel */
+}
+
+/* Tab page padding and max-width */
+.tab-page {
+  padding: 16px;
+  max-width: 640px;
+}
+
+/* Section card */
+.section {
+  margin-bottom: 24px;
+}
+
+.section h2 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: 0.02em;
+}
+
+.section h3 {
+  margin: 12px 0 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+/* Control row */
+.control-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Data display box (serial output, etc.) */
+.data-box {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #333;
+  margin-top: 8px;
+}
+
+/* Sensor data readout */
+.sensor-readout {
+  font-family: monospace;
+  font-size: 13px;
+  background: #f0f4ff;
+  border: 1px solid #d0daf0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  display: inline-flex;
+  gap: 16px;
+}
+
+.sensor-readout .axis {
+  display: flex;
+  gap: 4px;
+}
+
+.sensor-readout .axis-label {
+  color: #666;
+}
+
+.sensor-readout .axis-value {
+  color: #1d4ed8;
+  font-variant-numeric: tabular-nums;
+  min-width: 72px;
+  text-align: right;
+}
+
+/* Empty state placeholder */
+.empty-state {
+  color: #737373;
+  font-size: 13px;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  color: #1a1a1a;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+/* Status indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.version-badge {
+  font-size: 11px;
+  background: #e0e7ef;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #555;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  background: #f5f7fa;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: #555;
+}
+
+.tab-btn.active {
+  border-bottom-color: #2563eb;
+  color: #1a1a1a;
+}
+
+/* Log panel — expandable from bottom */
+.log-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  font-family: monospace;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  transition: height 0.2s ease;
+  height: 28px; /* collapsed: just the tab */
+  background: #fff;
+}
+
+.log-panel.open {
+  height: 228px; /* tab (28px) + content (200px) */
+}
+
+.log-panel-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 0;
+  background: #f5f7fa;
+  border-top: 1px solid #ddd;
+  flex-shrink: 0;
+  height: 28px;
+}
+
+.log-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: none;
+  border: none;
+  color: #666;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  height: 100%;
+  transition: color 0.15s;
+}
+
+.log-panel-toggle:hover {
+  color: #333;
+}
+
+.log-panel-chevron {
+  font-size: 10px;
+}
+
+/* Flash overlay dialog */
+.flash-dialog {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.flash-dialog h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
+}
+
+.flash-dialog p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #555;
+}
+
+.flash-dialog .dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.flash-dialog .btn-dialog-primary {
+  background-color: #2563eb;
+  color: #fff;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.flash-dialog .btn-dialog-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.flash-dialog .btn-dialog-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.flash-dialog .btn-dialog-secondary {
+  background: none;
+  color: #666;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  width: 100%;
+  transition: color 0.15s;
+}
+
+.flash-dialog .btn-dialog-secondary:hover {
+  color: #333;
+}
+
+/* Progress bar */
+.flash-progress-track {
+  width: 100%;
+  background: #e5e7eb;
+  border-radius: 6px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.flash-progress-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+/* Timings table */
+.flash-timings {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+  text-align: left;
+}
+
+.flash-timings th {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.flash-timings td {
+  padding: 6px 10px;
+  color: #444;
+}
+
+.flash-timings tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.flash-timings .timing-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.flash-timings .timing-total {
+  font-weight: 600;
+  color: #1a1a1a;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* LED grid (shared between pattern input and LED matrix) */
+.led-grid {
+  display: grid;
+  justify-content: center;
+}
+
+/* Bluetooth pattern input */
+.pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  grid-template-rows: repeat(6, 44px);
+  gap: 4px;
+  justify-content: center;
+}
+
+.pattern-cell {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.pattern-cell.lit {
+  background: #555;
+  border-color: #888;
+}
+
+.pattern-cell.unlit {
+  background: #fff;
+  border-color: #ddd;
+}
+
+.pattern-cell:hover {
+  border-color: #2563eb;
+}
+
+.pattern-char {
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+  color: #222;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

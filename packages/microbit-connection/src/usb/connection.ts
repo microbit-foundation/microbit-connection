@@ -6,10 +6,12 @@
 import { withTimeout } from "../async-util.js";
 import { throwIfUnavailable } from "../availability.js";
 import {
+  BackgroundErrorData,
   BoardVersion,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
+  ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
@@ -23,7 +25,7 @@ import {
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import { PromiseQueue } from "./promise-queue.js";
-import { SerialConnectionEventMap } from "./serial-events.js";
+import { SerialConnectionEventMap, type SerialData } from "./serial-events.js";
 import { BoardSerialInfo } from "./board-serial-info.js";
 import {
   USBDeviceWrapper,
@@ -74,8 +76,43 @@ export interface MicrobitUSBConnectionOptions {
   pauseOnHidden?: boolean;
 }
 
-export interface MicrobitUSBConnection
-  extends DeviceConnection<SerialConnectionEventMap> {
+export interface MicrobitUSBConnection extends DeviceConnection {
+  // -- DeviceConnectionEventMap overloads (redeclared from base) --
+  addEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  addEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  addEventListener(type: "beforerequestdevice", listener: () => void): void;
+  addEventListener(type: "afterrequestdevice", listener: () => void): void;
+  addEventListener(type: "flash", listener: () => void): void;
+  // -- SerialConnectionEventMap overloads --
+  addEventListener(
+    type: "serialdata",
+    listener: (data: SerialData) => void,
+  ): void;
+  addEventListener(type: "serialreset", listener: () => void): void;
+
+  removeEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  removeEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  removeEventListener(type: "beforerequestdevice", listener: () => void): void;
+  removeEventListener(type: "afterrequestdevice", listener: () => void): void;
+  removeEventListener(type: "flash", listener: () => void): void;
+  removeEventListener(
+    type: "serialdata",
+    listener: (data: SerialData) => void,
+  ): void;
+  removeEventListener(type: "serialreset", listener: () => void): void;
+
   /**
    * Write serial data to the device.
    *

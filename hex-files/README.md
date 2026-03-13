@@ -6,8 +6,8 @@ Example `.hex` files for manual testing and the hardware test app.
 
 | File | Description |
 |------|-------------|
-| `incremental-makecode.hex` | MakeCode program that outputs sequential numbers (0, 1, 2, ...) over serial. Used to verify serial data integrity. |
-| `incremental-python.hex` | Same sequential output but as a MicroPython program. Flash after the MakeCode version to force a full flash (different runtime). |
+| `serial-counter-makecode.hex` | MakeCode program that outputs sequential numbers (0, 1, 2, ...) over serial. Used to verify serial data integrity. |
+| `serial-counter-python.hex` | Same sequential output but as a MicroPython program. Flash after the MakeCode version to force a full flash (different runtime). |
 
 ## Bluetooth hex files
 

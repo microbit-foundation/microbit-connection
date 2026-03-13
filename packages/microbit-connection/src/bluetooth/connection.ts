@@ -13,10 +13,12 @@ import {
 } from "./device-wrapper.js";
 import { profile } from "./profile.js";
 import {
+  BackgroundErrorData,
   BoardVersion,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
+  ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
   DeviceError,
@@ -35,10 +37,12 @@ import partialFlash, {
 } from "./flashing/flashing-partial.js";
 import {
   AccelerometerData,
+  ButtonData,
   LedMatrix,
   MagnetometerData,
   ServiceConnectionEventMap,
   TypedServiceEvent,
+  UartData,
 } from "../service-events.js";
 
 import { throwIfUnavailable } from "../availability.js";
@@ -59,8 +63,70 @@ export interface MicrobitBluetoothConnectionOptions {
   deviceBondState?: DeviceBondState;
 }
 
-export interface MicrobitBluetoothConnection
-  extends DeviceConnection<ServiceConnectionEventMap> {
+export interface MicrobitBluetoothConnection extends DeviceConnection {
+  // -- DeviceConnectionEventMap overloads (redeclared from base) --
+  addEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  addEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  addEventListener(type: "beforerequestdevice", listener: () => void): void;
+  addEventListener(type: "afterrequestdevice", listener: () => void): void;
+  addEventListener(type: "flash", listener: () => void): void;
+  // -- ServiceConnectionEventMap overloads --
+  addEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  addEventListener(
+    type: "magnetometerdatachanged",
+    listener: (data: MagnetometerData) => void,
+  ): void;
+  addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
+
+  removeEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  removeEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  removeEventListener(type: "beforerequestdevice", listener: () => void): void;
+  removeEventListener(type: "afterrequestdevice", listener: () => void): void;
+  removeEventListener(type: "flash", listener: () => void): void;
+  removeEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  removeEventListener(
+    type: "magnetometerdatachanged",
+    listener: (data: MagnetometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "uartdata",
+    listener: (data: UartData) => void,
+  ): void;
+
   /**
    * Sets micro:bit name filter for device requesting.
    *
@@ -341,14 +407,16 @@ class MicrobitBluetoothConnectionImpl
         () => this.getActiveEvents() as Array<keyof ServiceConnectionEventMap>,
         {
           onConnecting: () => this.setStatus(ConnectionStatus.Connecting),
-          onSuccess: () => this.setStatus(ConnectionStatus.Connected),
+          onSuccess: () => {
+            this.cachedBoardVersion = this.device!.boardVersion;
+            this.setStatus(ConnectionStatus.Connected);
+          },
           onDisconnect: () => this.setStatus(ConnectionStatus.Disconnected),
         },
       );
     }
 
     await this.device.connect(options);
-    this.cachedBoardVersion = this.device.boardVersion;
   }
 
   async disconnect(): Promise<void> {

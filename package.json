@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo && npm run build -w @microbit/microbit-connection-capacitor",
+    "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo",
     "build:lib": "npm run build -w @microbit/microbit-connection",
     "dev": "npm run dev -w @microbit/microbit-connection-demo",
     "test": "npm run test -w @microbit/microbit-connection",

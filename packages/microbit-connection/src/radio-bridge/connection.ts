@@ -16,9 +16,13 @@ import {
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import {
+  AccelerometerData,
+  ButtonData,
   ButtonState,
+  MagnetometerData,
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
+  UartData,
 } from "../service-events.js";
 import { SerialData } from "../usb/serial-events.js";
 import * as protocol from "./serial-protocol.js";
@@ -53,8 +57,70 @@ interface ConnectCallbacks {
  *   {@link ServiceConnectionEventMap} but are not currently emitted.
  * - `flash` is not supported.
  */
-export interface MicrobitRadioBridgeConnection
-  extends DeviceConnection<ServiceConnectionEventMap> {
+export interface MicrobitRadioBridgeConnection extends DeviceConnection {
+  // -- DeviceConnectionEventMap overloads (redeclared from base) --
+  addEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  addEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  addEventListener(type: "beforerequestdevice", listener: () => void): void;
+  addEventListener(type: "afterrequestdevice", listener: () => void): void;
+  addEventListener(type: "flash", listener: () => void): void;
+  // -- ServiceConnectionEventMap overloads --
+  addEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  addEventListener(
+    type: "magnetometerdatachanged",
+    listener: (data: MagnetometerData) => void,
+  ): void;
+  addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
+
+  removeEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  removeEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  removeEventListener(type: "beforerequestdevice", listener: () => void): void;
+  removeEventListener(type: "afterrequestdevice", listener: () => void): void;
+  removeEventListener(type: "flash", listener: () => void): void;
+  removeEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  removeEventListener(
+    type: "magnetometerdatachanged",
+    listener: (data: MagnetometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "uartdata",
+    listener: (data: UartData) => void,
+  ): void;
+
   /**
    * Sets remote device.
    *
