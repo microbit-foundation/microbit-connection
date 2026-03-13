@@ -448,7 +448,6 @@
 /* LED grid (shared between pattern input and LED matrix) */
 .led-grid {
   display: grid;
-  justify-content: center;
 }
 
 /* Bluetooth pattern input */

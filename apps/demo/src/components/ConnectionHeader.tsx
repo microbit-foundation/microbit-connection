@@ -86,6 +86,13 @@ const ConnectionHeader = () => {
           Reset
         </button>
       )}
+      <button
+        onClick={() => typed.connection.clearDevice()}
+        disabled={status === ConnectionStatus.NoAuthorizedDevice}
+        className="btn"
+      >
+        Clear device
+      </button>
 
       <div className="status-indicator" role="status" aria-label="Connection status">
         <span

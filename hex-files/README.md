@@ -24,6 +24,12 @@ Example `.hex` files for manual testing and the hardware test app.
 | `microbit-micropython-v2.hex` | MicroPython for V2 (similar banner) |
 | `python-editor-default.hex` | Universal hex with MicroPython default program from the Python Editor (no serial output) |
 
+## Radio bridge
+
+| File | Description |
+|------|-------------|
+| `local-sensors-radio-bridge.hex` | Radio bridge protocol using local sensors (single micro:bit, no second device needed). From [sensor-radio-bridge v0.3.0](https://github.com/microbit-foundation/sensor-radio-bridge/releases/tag/v0.3.0). |
+
 ## Data collection / CreateAI
 
 | File | Description |

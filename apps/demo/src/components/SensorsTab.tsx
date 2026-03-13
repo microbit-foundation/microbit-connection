@@ -38,13 +38,13 @@ const SensorsTab = () => {
   const [bearing, setBearing] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!magListening || !serviceConn) return;
+    if (!magListening || typed.type !== "bluetooth") return;
     const listener = (data: MagnetometerData) => setMagData(data);
-    serviceConn.addEventListener("magnetometerdatachanged", listener);
+    typed.connection.addEventListener("magnetometerdatachanged", listener);
     return () => {
-      serviceConn.removeEventListener("magnetometerdatachanged", listener);
+      typed.connection.removeEventListener("magnetometerdatachanged", listener);
     };
-  }, [serviceConn, magListening]);
+  }, [typed, magListening]);
 
   // Buttons
   const [buttonA, setButtonA] = useState<string>("-");
@@ -181,53 +181,50 @@ const SensorsTab = () => {
         )}
       </div>
 
-      {/* Magnetometer */}
-      <div className="section">
-        <h2>Magnetometer</h2>
-        <div className="control-row">
-          <button
-            onClick={() => setMagListening(!magListening)}
-            className={`btn${magListening ? " btn-toggle active" : ""}`}
-
-          >
-            {magListening ? "Stop" : "Listen"}
-          </button>
+      {/* Magnetometer (Bluetooth only) */}
+      {isBluetooth && (
+        <div className="section">
+          <h2>Magnetometer</h2>
+          <div className="control-row">
+            <button
+              onClick={() => setMagListening(!magListening)}
+              className={`btn${magListening ? " btn-toggle active" : ""}`}
+            >
+              {magListening ? "Stop" : "Listen"}
+            </button>
+          </div>
+          {magData ? renderAxisData(magData) : (
+            <p className="empty-state">
+              {magListening ? "Waiting for data..." : "Press Listen to start receiving magnetometer data."}
+            </p>
+          )}
+          <div className="control-row" style={{ marginTop: 8 }}>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+              Period (ms):
+              <input
+                type="number"
+                value={magPeriod}
+                onChange={(e) => setMagPeriod(e.target.value)}
+                className="input"
+                style={{ width: 80 }}
+              />
+            </label>
+            <button onClick={getMagPeriod} className="btn">Get</button>
+            <button onClick={setMagPeriodValue} className="btn">Set</button>
+          </div>
+          <div className="control-row" style={{ marginTop: 8 }}>
+            <button onClick={triggerCalibration} className="btn">
+              Calibrate
+            </button>
+            <button onClick={getBearing} className="btn">
+              Get bearing
+            </button>
+          </div>
+          {bearing !== null && (
+            <p style={{ fontSize: 13, margin: "8px 0 0" }}>Bearing: {bearing} degrees</p>
+          )}
         </div>
-        {magData ? renderAxisData(magData) : (
-          <p className="empty-state">
-            {magListening ? "Waiting for data..." : "Press Listen to start receiving magnetometer data."}
-          </p>
-        )}
-        {isBluetooth && (
-          <>
-            <div className="control-row" style={{ marginTop: 8 }}>
-              <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
-                Period (ms):
-                <input
-                  type="number"
-                  value={magPeriod}
-                  onChange={(e) => setMagPeriod(e.target.value)}
-                  className="input"
-                  style={{ width: 80 }}
-                />
-              </label>
-              <button onClick={getMagPeriod} className="btn">Get</button>
-              <button onClick={setMagPeriodValue} className="btn">Set</button>
-            </div>
-            <div className="control-row" style={{ marginTop: 8 }}>
-              <button onClick={triggerCalibration} className="btn">
-                Calibrate
-              </button>
-              <button onClick={getBearing} className="btn">
-                Get bearing
-              </button>
-            </div>
-            {bearing !== null && (
-              <p style={{ fontSize: 13, margin: "8px 0 0" }}>Bearing: {bearing} degrees</p>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       {/* Buttons */}
       <div className="section">

@@ -19,10 +19,8 @@ import {
   AccelerometerData,
   ButtonData,
   ButtonState,
-  MagnetometerData,
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
-  UartData,
 } from "../service-events.js";
 import { SerialData } from "../usb/serial-events.js";
 import * as protocol from "./serial-protocol.js";
@@ -53,8 +51,6 @@ interface ConnectCallbacks {
  *
  * - `accelerometerdatachanged`, `buttonachanged`, `buttonbchanged` events
  *   are supported.
- * - `magnetometerdatachanged` and `uartdata` events are declared on
- *   {@link ServiceConnectionEventMap} but are not currently emitted.
  * - `flash` is not supported.
  */
 export interface MicrobitRadioBridgeConnection extends DeviceConnection {
@@ -70,7 +66,7 @@ export interface MicrobitRadioBridgeConnection extends DeviceConnection {
   addEventListener(type: "beforerequestdevice", listener: () => void): void;
   addEventListener(type: "afterrequestdevice", listener: () => void): void;
   addEventListener(type: "flash", listener: () => void): void;
-  // -- ServiceConnectionEventMap overloads --
+  // -- Supported service events --
   addEventListener(
     type: "accelerometerdatachanged",
     listener: (data: AccelerometerData) => void,
@@ -83,11 +79,6 @@ export interface MicrobitRadioBridgeConnection extends DeviceConnection {
     type: "buttonbchanged",
     listener: (data: ButtonData) => void,
   ): void;
-  addEventListener(
-    type: "magnetometerdatachanged",
-    listener: (data: MagnetometerData) => void,
-  ): void;
-  addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
 
   removeEventListener(
     type: "status",
@@ -111,14 +102,6 @@ export interface MicrobitRadioBridgeConnection extends DeviceConnection {
   removeEventListener(
     type: "buttonbchanged",
     listener: (data: ButtonData) => void,
-  ): void;
-  removeEventListener(
-    type: "magnetometerdatachanged",
-    listener: (data: MagnetometerData) => void,
-  ): void;
-  removeEventListener(
-    type: "uartdata",
-    listener: (data: UartData) => void,
   ): void;
 
   /**

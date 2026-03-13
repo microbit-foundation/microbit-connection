@@ -17,6 +17,7 @@ const cannedHexFiles: CannedHexFile[] = [
   { name: "serial-counter-python.hex", path: "/hex-files/serial-counter-python.hex", label: "Serial Counter (Python)" },
   { name: "microbit-data-collection-just-works-universal.hex", path: "/hex-files/microbit-data-collection-just-works-universal.hex", label: "Data Collection (new, just works)" },
   { name: "microbit-data-collection-no-pairing-universal.hex", path: "/hex-files/microbit-data-collection-no-pairing-universal.hex", label: "Data Collection (new, no pairing)" },
+  { name: "local-sensors-radio-bridge.hex", path: "/hex-files/local-sensors-radio-bridge.hex", label: "Local Sensors Radio Bridge" },
   { name: "createai-project.hex", path: "/hex-files/createai-project.hex", label: "CreateAI project" },
   { name: "meet-the-microbit.hex", path: "/hex-files/meet-the-microbit.hex", label: "Meet the micro:bit" },
   { name: "microbit-beating-heart.hex", path: "/hex-files/microbit-beating-heart.hex", label: "Beating Heart" },
