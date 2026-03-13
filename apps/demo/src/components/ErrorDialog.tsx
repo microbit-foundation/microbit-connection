@@ -11,6 +11,11 @@ const ErrorDialog = () => {
       titleId="error-dialog-title"
       titleStyle={{ color: "#dc2626" }}
     >
+      {error.code && (
+        <p style={{ fontFamily: "monospace", fontSize: 13, color: "#666", margin: "0 0 8px" }}>
+          {error.code}
+        </p>
+      )}
       <p>{error.message}</p>
       <div className="dialog-actions">
         <button onClick={clearError} className="btn-dialog-primary">

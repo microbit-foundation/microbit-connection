@@ -5,6 +5,7 @@ import { DeviceError } from "@microbit/microbit-connection";
 const silentCodes = new Set(["no-device-selected", "aborted"]);
 
 interface ErrorDialogState {
+  code: string | undefined;
   message: string;
 }
 
@@ -25,9 +26,10 @@ export const useErrorDialogState = (): ErrorDialogContextValue => {
     if (err instanceof DeviceError && silentCodes.has(err.code)) {
       return;
     }
+    const code = err instanceof DeviceError ? err.code : undefined;
     const message =
       err instanceof Error ? err.message : String(err);
-    setError({ message });
+    setError({ code, message });
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

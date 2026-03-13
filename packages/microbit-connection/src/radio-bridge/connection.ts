@@ -12,6 +12,7 @@ import {
   ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
+  DeviceError,
 } from "../device.js";
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
@@ -27,9 +28,6 @@ import * as protocol from "./serial-protocol.js";
 import { MicrobitUSBConnection } from "../usb/connection.js";
 
 const connectTimeoutDuration: number = 10_000;
-
-class BridgeError extends Error {}
-class RemoteError extends Error {}
 
 export interface MicrobitRadioBridgeConnectionOptions {
   logging?: Logging;
@@ -215,7 +213,10 @@ class MicrobitRadioBridgeConnectionImpl
     // can we... just not do that? or wait?
 
     if (this.remoteDeviceId === undefined) {
-      throw new BridgeError(`Missing remote micro:bit ID`);
+      throw new DeviceError({
+        code: "connection-error",
+        message: "Missing remote micro:bit ID",
+      });
     }
 
     this.logging.event({
@@ -401,9 +402,10 @@ class RadioBridgeSerialSession {
         remoteMbIdResponse.type === protocol.ResponseTypes.Error ||
         remoteMbIdResponse.value !== this.remoteDeviceId
       ) {
-        throw new BridgeError(
-          `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`,
-        );
+        throw new DeviceError({
+          code: "connection-error",
+          message: `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`,
+        });
       }
 
       // Request the micro:bit to start sending the periodic messages
@@ -421,9 +423,10 @@ class RadioBridgeSerialSession {
 
       const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
       if (startCmdResponse.type === protocol.ResponseTypes.Error) {
-        throw new RemoteError(
-          `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
-        );
+        throw new DeviceError({
+          code: "connection-error",
+          message: `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
+        });
       }
 
       // TODO: in the first-time connection case we used to move the error/disconnect to the background here, why? timing?
@@ -435,6 +438,7 @@ class RadioBridgeSerialSession {
       this.callbacks.onFailPreDispose();
       await this.dispose();
       this.callbacks.onFailPostDispose();
+      throw e;
     }
   }
 
@@ -544,7 +548,12 @@ class RadioBridgeSerialSession {
               // We expect some to time out, likely well after the handshake is completed.
               if (!resolved) {
                 if (++failureCounter === attempts) {
-                  reject(new BridgeError("Handshake not completed"));
+                  reject(
+                    new DeviceError({
+                      code: "timeout",
+                      message: "Handshake not completed",
+                    }),
+                  );
                 }
               }
             });
@@ -553,9 +562,10 @@ class RadioBridgeSerialSession {
       },
     );
     if (handshakeResult.value !== protocol.version) {
-      throw new BridgeError(
-        `Handshake failed. Unexpected protocol version ${protocol.version}`,
-      );
+      throw new DeviceError({
+        code: "connection-error",
+        message: `Handshake failed. Unexpected protocol version ${protocol.version}`,
+      });
     }
   }
 }
