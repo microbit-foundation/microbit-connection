@@ -17,91 +17,109 @@ export type ConnectionAvailabilityStatus =
   | "location-disabled";
 
 /**
- * Specific identified error types.
+ * Error codes identifying specific failure modes.
  *
- * New members may be added over time.
+ * Each code represents a distinct category of failure that apps can
+ * match on to decide what message to show or what recovery to attempt.
+ * New codes may be added in future minor releases.
+ *
+ * Codes are annotated with **USB**, **BLE**, or **USB, BLE** to indicate
+ * which connection types can produce them. USB-only apps can ignore
+ * BLE-only codes.
  */
 export type DeviceErrorCode =
+  // -- User cancelled (no error UI needed) --
+
   /**
-   * Operation was aborted via an AbortSignal.
+   * **BLE.** The operation was cancelled via an {@link AbortSignal}
+   * supplied by the caller. No user-facing error is needed.
    */
   | "aborted"
   /**
-   * Device not selected, e.g. because the user cancelled the dialog.
+   * **USB, BLE.** The user dismissed the device-picker dialog without
+   * selecting a device. Typically no error message is needed — the user
+   * chose not to proceed.
    */
   | "no-device-selected"
+
+  // -- Pre-connection / availability --
+
   /**
-   * Device not found, perhaps because it doesn't have new enough firmware (for V1).
-   */
-  | "update-req"
-  /**
-   * Unable to claim the interface, usually because it's in use in another tab/window.
-   */
-  | "clear-connect"
-  /**
-   * The device was found to be disconnected.
-   */
-  | "device-disconnected"
-  /**
-   * A communication timeout occurred.
-   */
-  | "timeout-error"
-  /**
-   * This is the fallback error case suggesting that the user physically reconnects their device.
-   */
-  | "reconnect-microbit"
-  /**
-   * An operation was attempted that requires an active connection.
-   */
-  | "not-connected"
-  /**
-   * Error occured during serial or bluetooth communication.
-   */
-  | "background-comms-error"
-  /**
-   * Bluetooth service is missing on device.
-   */
-  | "service-missing"
-  /**
-   * Failed to establish Bluetooth connection.
-   */
-  | "bluetooth-connection-failed"
-  /**
-   * Pairing information lost on micro:bit.
-   */
-  | "pairing-information-lost"
-  /**
-   * Partial flash operation failed.
-   */
-  | "flash-partial-failed"
-  /**
-   * Full flash operation failed.
-   */
-  | "flash-full-failed"
-  /**
-   * Flash operation was cancelled.
-   */
-  | "flash-cancelled"
-  /**
-   * Connection type is not supported on this platform/browser.
-   * Aligns with ConnectionAvailabilityStatus "unsupported".
+   * **USB, BLE.** The connection type is not supported on this platform
+   * or browser. Corresponds to {@link ConnectionAvailabilityStatus}
+   * `"unsupported"`.
    */
   | "unsupported"
   /**
-   * Connection is disabled (e.g., Bluetooth turned off).
-   * Aligns with ConnectionAvailabilityStatus "disabled".
+   * **BLE.** Bluetooth is turned off at the OS level. Prompt the user
+   * to enable it in system settings. Corresponds to
+   * {@link ConnectionAvailabilityStatus} `"disabled"`.
    */
   | "disabled"
   /**
-   * Required permissions were denied.
-   * Aligns with ConnectionAvailabilityStatus "permission-denied".
+   * **BLE.** The app does not have the required Bluetooth permissions
+   * (iOS/Android). Prompt the user to grant permission in system
+   * settings. Corresponds to {@link ConnectionAvailabilityStatus}
+   * `"permission-denied"`.
    */
   | "permission-denied"
   /**
-   * Location services are disabled (Android < 12 only).
-   * Aligns with ConnectionAvailabilityStatus "location-disabled".
+   * **BLE.** Location services are disabled. Required on Android
+   * versions before 12 for Bluetooth scanning. Prompt the user to
+   * enable location in system settings. Corresponds to
+   * {@link ConnectionAvailabilityStatus} `"location-disabled"`.
    */
-  | "location-disabled";
+  | "location-disabled"
+
+  // -- Connection state --
+
+  /**
+   * **USB, BLE.** A method was called that requires an active
+   * connection, but no connection is currently open. Call
+   * {@link DeviceConnection.connect} first.
+   */
+  | "not-connected"
+  /**
+   * **USB.** The USB interface could not be claimed, usually because
+   * another browser tab or application already has an open connection
+   * to the device.
+   */
+  | "device-in-use"
+
+  // -- Runtime communication failures --
+
+  /**
+   * **USB, BLE.** The device disconnected during an operation.
+   * The physical USB or Bluetooth connection was lost.
+   */
+  | "device-disconnected"
+  /**
+   * **USB, BLE.** A communication timeout — the device did not respond
+   * within the expected time. This may indicate the device is busy,
+   * hung, or that the connection is degraded.
+   */
+  | "timeout"
+  /**
+   * **USB, BLE.** A communication failure that does not match any more
+   * specific code. Typical handling: prompt the user to physically
+   * disconnect and reconnect the device, then retry.
+   */
+  | "connection-error"
+
+  // -- Device-specific --
+
+  /**
+   * **USB.** The USB device was found but lacks the expected CMSIS-DAP
+   * interface. On micro:bit V1 this indicates the DAPLink firmware is
+   * too old and needs updating.
+   */
+  | "firmware-update-required"
+  /**
+   * **BLE.** The micro:bit's Bluetooth pairing/bonding information has
+   * been lost (e.g. after a firmware reflash). The user needs to
+   * re-pair the device. Currently only detected on iOS.
+   */
+  | "pairing-information-lost";
 
 /**
  * Stages reported by the progress callback during connection and flashing.
@@ -159,8 +177,16 @@ export type ProgressCallback = (
  */
 export class DeviceError extends Error {
   code: DeviceErrorCode;
-  constructor({ code, message }: { code: DeviceErrorCode; message?: string }) {
-    super(message);
+  constructor({
+    code,
+    message,
+    cause,
+  }: {
+    code: DeviceErrorCode;
+    message?: string;
+    cause?: unknown;
+  }) {
+    super(message, { cause });
     this.code = code;
   }
 }
@@ -269,8 +295,8 @@ export interface ConnectionStatusChange {
 }
 
 export interface BackgroundErrorData {
-  message: string;
-  error?: unknown;
+  error: DeviceError;
+  event?: string;
 }
 
 export interface DeviceConnectionEventMap {

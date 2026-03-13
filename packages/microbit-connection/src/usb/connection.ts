@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TimeoutError, withTimeout } from "../async-util.js";
+import { withTimeout } from "../async-util.js";
 import { throwIfUnavailable } from "../availability.js";
 import {
   BoardVersion,
@@ -344,7 +344,7 @@ class MicrobitUSBConnectionImpl
     await this.connectInternal(progress);
     if (!this.device) {
       throw new DeviceError({
-        code: "device-disconnected",
+        code: "connection-error",
         message: "Must be connected now",
       });
     }
@@ -447,7 +447,10 @@ class MicrobitUSBConnectionImpl
           this.log("Finished listening for serial data");
         })
         .catch((e) => {
-          this.dispatchEvent("serialerror", { error: e });
+          this.dispatchEvent("backgrounderror", {
+            error: enrichedError(e),
+            event: "serialdata",
+          });
         })
         .finally(() => {
           this.serialState = false;
@@ -792,12 +795,6 @@ const enrichedError = (err: any): DeviceError => {
   if (err instanceof DeviceError) {
     return err;
   }
-  if (err instanceof TimeoutError) {
-    return new DeviceError({
-      code: "timeout-error",
-      message: err.message,
-    });
-  }
 
   if (err instanceof Error) {
     // Match Chromium WebUSB DOMException messages for user-friendly error codes.
@@ -807,25 +804,29 @@ const enrichedError = (err: any): DeviceError => {
       return new DeviceError({
         code: "no-device-selected",
         message: err.message,
+        cause: err,
       });
     }
     // https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webusb/usb_device.cc
     if (/Unable to claim interface/.test(err.message)) {
       return new DeviceError({
-        code: "clear-connect",
+        code: "device-in-use",
         message: err.message,
+        cause: err,
       });
     }
     if (/The device was disconnected/.test(err.message)) {
       return new DeviceError({
         code: "device-disconnected",
         message: err.message,
+        cause: err,
       });
     }
   }
   return new DeviceError({
-    code: "reconnect-microbit",
+    code: "connection-error",
     message: err.message,
+    cause: err,
   });
 };
 

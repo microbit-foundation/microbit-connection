@@ -108,7 +108,7 @@ export interface DapOperation {
  */
 export class DapError extends DeviceError {
   constructor(message: string) {
-    super({ code: "reconnect-microbit", message });
+    super({ code: "connection-error", message });
   }
 }
 

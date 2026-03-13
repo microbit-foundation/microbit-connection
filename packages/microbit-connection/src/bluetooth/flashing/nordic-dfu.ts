@@ -103,7 +103,7 @@ export async function flashDfu(
             case DfuState.DFU_ABORTED: {
               reject(
                 new DeviceError({
-                  code: "flash-cancelled",
+                  code: "aborted",
                   message: "Flash operation was cancelled",
                 }),
               );
@@ -118,7 +118,7 @@ export async function flashDfu(
             case DfuState.DFU_FAILED: {
               reject(
                 new DeviceError({
-                  code: "flash-full-failed",
+                  code: "connection-error",
                   message: "Full flash via DFU failed",
                 }),
               );
@@ -167,8 +167,9 @@ export async function flashDfu(
         connection.error(`DFU Error: ${error.message}`, error);
         reject(
           new DeviceError({
-            code: "flash-full-failed",
+            code: "connection-error",
             message: error.message || "Full flash via DFU failed",
+            cause: error,
           }),
         );
       }

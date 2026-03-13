@@ -196,12 +196,6 @@ export class BluetoothDeviceWrapper implements Logging {
       if (e instanceof DeviceError) {
         throw e;
       }
-      if (e instanceof TimeoutError) {
-        throw new DeviceError({
-          code: "timeout-error",
-          message: e instanceof Error ? e.message : String(e),
-        });
-      }
       this.setBonded(false);
       if (
         // Error thrown in iOS only.
@@ -211,11 +205,13 @@ export class BluetoothDeviceWrapper implements Logging {
         throw new DeviceError({
           code: "pairing-information-lost",
           message: e.message,
+          cause: e,
         });
       }
       throw new DeviceError({
-        code: "bluetooth-connection-failed",
+        code: "connection-error",
         message: e instanceof Error ? e.message : String(e),
+        cause: e,
       });
     }
   }

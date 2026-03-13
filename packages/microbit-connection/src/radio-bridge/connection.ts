@@ -5,6 +5,7 @@
  */
 
 import {
+  BackgroundErrorData,
   BoardVersion,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
@@ -19,7 +20,7 @@ import {
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
 } from "../service-events.js";
-import { SerialData, SerialErrorData } from "../usb/serial-events.js";
+import { SerialData } from "../usb/serial-events.js";
 import * as protocol from "./serial-protocol.js";
 import { MicrobitUSBConnection } from "../usb/connection.js";
 
@@ -259,7 +260,7 @@ class RadioBridgeSerialSession {
   private lastReceivedMessageTimestamp: number | undefined;
   private connectionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
 
-  private serialErrorListener = (event: SerialErrorData) => {
+  private backgroundErrorListener = (event: BackgroundErrorData) => {
     this.logging.error("Serial error", event.error);
     void this.dispose();
   };
@@ -331,7 +332,10 @@ class RadioBridgeSerialSession {
 
   async connect() {
     this.delegate.addEventListener("serialdata", this.serialDataListener);
-    this.delegate.addEventListener("serialerror", this.serialErrorListener);
+    this.delegate.addEventListener(
+      "backgrounderror",
+      this.backgroundErrorListener,
+    );
     try {
       this.callbacks.onConnecting();
       await this.handshake();
@@ -392,7 +396,10 @@ class RadioBridgeSerialSession {
     }
     this.responseMap.clear();
     this.delegate.removeEventListener("serialdata", this.serialDataListener);
-    this.delegate.removeEventListener("serialerror", this.serialErrorListener);
+    this.delegate.removeEventListener(
+      "backgrounderror",
+      this.backgroundErrorListener,
+    );
     if (disconnect) {
       await this.delegate.disconnect();
     }

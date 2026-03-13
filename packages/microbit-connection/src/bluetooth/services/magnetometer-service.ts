@@ -6,6 +6,7 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../../service-events.js";
+import { mapBleError } from "../ble-error.js";
 
 export class MagnetometerService implements Service {
   uuid = profile.magnetometer.id;
@@ -98,8 +99,8 @@ export class MagnetometerService implements Service {
         );
       } catch (e) {
         this.dispatchTypedEvent("backgrounderror", {
-          message: "Failed to start notifications",
-          error: e,
+          error: mapBleError(e),
+          event: type,
         });
       }
     }
@@ -115,8 +116,8 @@ export class MagnetometerService implements Service {
         );
       } catch (e) {
         this.dispatchTypedEvent("backgrounderror", {
-          message: "Failed to stop notifications",
-          error: e,
+          error: mapBleError(e),
+          event: type,
         });
       }
     }

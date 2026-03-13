@@ -6,6 +6,7 @@ import {
   TypedServiceEventDispatcher,
 } from "../../service-events.js";
 import { profile } from "../profile.js";
+import { mapBleError } from "../ble-error.js";
 
 export class AccelerometerService implements Service {
   uuid = profile.accelerometer.id;
@@ -87,8 +88,8 @@ export class AccelerometerService implements Service {
         );
       } catch (e) {
         this.dispatchTypedEvent("backgrounderror", {
-          message: "Failed to start notifications",
-          error: e,
+          error: mapBleError(e),
+          event: type,
         });
       }
     }
@@ -106,8 +107,8 @@ export class AccelerometerService implements Service {
         );
       } catch (e) {
         this.dispatchTypedEvent("backgrounderror", {
-          message: "Failed to stop notifications",
-          error: e,
+          error: mapBleError(e),
+          event: type,
         });
       }
     }

@@ -64,8 +64,9 @@ const partialFlash = async (
       throw e;
     }
     throw new DeviceError({
-      code: "flash-partial-failed",
+      code: "connection-error",
       message: e instanceof Error ? e.message : String(e),
+      cause: e,
     });
   }
 

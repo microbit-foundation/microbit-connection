@@ -216,7 +216,7 @@ const createConnectSection = (): Section => {
     displayStatus(event.status);
   };
   const backgroundErrorListener = (event: BackgroundErrorData) => {
-    console.error("Handled error:", event.message);
+    console.error("Handled error:", event.error.code, event.error.message, event.event);
   };
   (connection as any).addEventListener("status", handleDisplayStatusChange);
   (connection as any).addEventListener(
