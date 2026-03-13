@@ -2,8 +2,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 import { networkInterfaces } from "os";
 
 const config: CapacitorConfig = {
-  appId: "org.microbit.connection.kitchensink",
-  appName: "kitchen-sink",
+  appId: "org.microbit.connection.demo",
+  appName: "micro:bit connection demo",
   webDir: "dist",
   plugins: {
     BluetoothLe: {
