@@ -32,6 +32,9 @@ export class LedService implements Service {
   }
 
   async setLedMatrix(value: LedMatrix): Promise<void> {
+    if (value.length !== 5 || value.some((row) => row.length !== 5)) {
+      throw new Error("LED matrix must be 5x5");
+    }
     const dataView = this.ledMatrixToDataView(value);
     await BleClient.write(
       this.deviceId,

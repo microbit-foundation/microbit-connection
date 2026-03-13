@@ -331,6 +331,8 @@ export interface DeviceConnection {
   removeEventListener(type: "afterrequestdevice", listener: () => void): void;
   removeEventListener(type: "flash", listener: () => void): void;
 
+  readonly type: string;
+
   status: ConnectionStatus;
 
   /**

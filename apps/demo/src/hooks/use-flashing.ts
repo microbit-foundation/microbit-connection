@@ -33,7 +33,7 @@ export const useFlashing = () => {
   const [step, setStep] = useState<Step>({ name: "initial" });
   const [hex, setHex] = useState<null | { name: string; hex: string }>(null);
   const timingsRef = useRef<{ stage: string; timestamp: number }[]>([]);
-  const { typed, connectionType } = useConnection();
+  const { connection } = useConnection();
   const { log } = useLog();
 
   const handleClose = useCallback(() => {
@@ -88,14 +88,14 @@ export const useFlashing = () => {
       throw new Error("No hex file to flash!");
     }
     // For BLE, we need a device name; for USB we don't
-    if (connectionType === "bluetooth" && !deviceName) {
+    if (connection.type === "bluetooth" && !deviceName) {
       throw new Error("Device name not set!");
     }
 
     timingsRef.current = [];
     log("flash", `Starting flash: ${hex.name}`);
     try {
-      await flash(typed, deviceName, hex.hex, updateStep);
+      await flash(connection, deviceName, hex.hex, updateStep);
       const timings = buildTimings();
       const total = timings.reduce((s, t) => s + t.durationMs, 0);
       log("flash", `Flash complete in ${(total / 1000).toFixed(1)}s`);
@@ -105,21 +105,21 @@ export const useFlashing = () => {
       log("flash", `Flash failed: ${msg}`, "error");
       setStep({ name: "flash-error", children: msg });
     }
-  }, [hex, deviceName, typed, connectionType, updateStep, buildTimings, log]);
+  }, [hex, deviceName, connection, updateStep, buildTimings, log]);
 
   const startFlashing = useCallback(
     (download: { name: string; hex: string }) => {
       setOpen(true);
       setHex(download);
       // For USB, skip straight to flashing (no pattern input needed)
-      if (connectionType === "usb") {
+      if (connection.type === "usb") {
         setStep({ name: "flashing", message: "Starting..." });
         // Trigger flash after state update
         setTimeout(async () => {
           timingsRef.current = [];
           log("flash", `Starting flash: ${download.name}`);
           try {
-            await flash(typed, null, download.hex, updateStep);
+            await flash(connection, null, download.hex, updateStep);
             const timings = buildTimings();
             const total = timings.reduce((s, t) => s + t.durationMs, 0);
             log("flash", `Flash complete in ${(total / 1000).toFixed(1)}s`);
@@ -132,7 +132,7 @@ export const useFlashing = () => {
         }, 0);
       }
     },
-    [connectionType, typed, log, updateStep, buildTimings],
+    [connection, log, updateStep, buildTimings],
   );
 
   return {
@@ -144,6 +144,6 @@ export const useFlashing = () => {
     open,
     deviceName,
     setDeviceName,
-    connectionType,
+    connectionType: connection.type,
   };
 };

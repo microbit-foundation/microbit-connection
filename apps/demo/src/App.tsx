@@ -22,7 +22,7 @@ type Tab = "flash" | "sensors" | "io" | "serial" | "uart";
 
 const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "flash", label: "Flash", availableFor: ["usb", "bluetooth"] },
-  { id: "sensors", label: "Sensors", availableFor: ["bluetooth", "radio"] },
+  { id: "sensors", label: "Sensors", availableFor: ["bluetooth", "radio-bridge"] },
   { id: "io", label: "LEDs", availableFor: ["bluetooth"] },
   { id: "serial", label: "Serial", availableFor: ["usb"] },
   { id: "uart", label: "UART", availableFor: ["bluetooth"] },
@@ -46,7 +46,7 @@ const AppContent = () => {
   }
 
   const visibleTabs = tabDefs.filter((t) =>
-    t.availableFor.includes(connState.connectionType),
+    t.availableFor.includes(connState.connection.type),
   );
 
   // If current tab isn't visible for this connection type, switch to first available

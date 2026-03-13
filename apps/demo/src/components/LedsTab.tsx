@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import type { MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 import { useConnection } from "../hooks/use-connection.ts";
 import { useLog } from "../hooks/use-log.ts";
 import { useErrorDialog } from "../hooks/use-error-dialog.ts";
@@ -7,62 +8,94 @@ import LedGrid from "./LedGrid.tsx";
 const emptyMatrix = (): boolean[][] =>
   Array.from({ length: 5 }, () => Array(5).fill(false));
 
-const LedsTab = () => {
-  const { typed } = useConnection();
+const TextSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
-  const isBluetooth = typed.type === "bluetooth";
-
-  const [ledText, setLedText] = useState("");
-  const [scrollDelay, setScrollDelay] = useState("");
-  const [matrix, setMatrix] = useState<boolean[][]>(emptyMatrix);
+  const [text, setText] = useState("");
 
   const sendText = useCallback(async () => {
     try {
-      if (isBluetooth) {
-        await typed.connection.setLedText(ledText);
-        log("led", `Text set: "${ledText}"`);
-      }
+      await connection.setLedText(text);
+      log("led", `Text set: "${text}"`);
     } catch (e) { showError(e); }
-  }, [typed, isBluetooth, ledText, log, showError]);
+  }, [connection, text, log, showError]);
 
-  const getScrollDelay = useCallback(async () => {
-    try {
-      if (isBluetooth) {
-        const delay = await typed.connection.getLedScrollingDelay();
-        if (delay !== undefined) {
-          setScrollDelay(String(delay));
-        }
-      }
-    } catch (e) { showError(e); }
-  }, [typed, isBluetooth, showError]);
+  return (
+    <div className="section">
+      <h2>Text</h2>
+      <div className="control-row">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Text to display"
+          className="input"
+          style={{ width: 200 }}
+        />
+        <button onClick={sendText} className="btn btn-primary">Set text</button>
+      </div>
+    </div>
+  );
+};
 
-  const setScrollDelayValue = useCallback(async () => {
+const ScrollingDelaySection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+  const { log } = useLog();
+  const { showError } = useErrorDialog();
+  const [delay, setDelay] = useState("");
+
+  const getDelay = useCallback(async () => {
     try {
-      if (isBluetooth) {
-        await typed.connection.setLedScrollingDelay(parseInt(scrollDelay, 10));
-        log("led", `Scrolling delay set to ${scrollDelay}ms`);
+      const d = await connection.getLedScrollingDelay();
+      if (d !== undefined) {
+        setDelay(String(d));
       }
     } catch (e) { showError(e); }
-  }, [typed, isBluetooth, scrollDelay, log, showError]);
+  }, [connection, showError]);
+
+  const setDelayValue = useCallback(async () => {
+    try {
+      await connection.setLedScrollingDelay(parseInt(delay, 10));
+      log("led", `Scrolling delay set to ${delay}ms`);
+    } catch (e) { showError(e); }
+  }, [connection, delay, log, showError]);
+
+  return (
+    <div className="section">
+      <h2>Scrolling Delay</h2>
+      <div className="control-row">
+        <input
+          type="number"
+          value={delay}
+          onChange={(e) => setDelay(e.target.value)}
+          placeholder="ms"
+          className="input"
+          style={{ width: 100 }}
+        />
+        <button onClick={getDelay} className="btn">Get</button>
+        <button onClick={setDelayValue} className="btn">Set</button>
+      </div>
+    </div>
+  );
+};
+
+const MatrixSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+  const { log } = useLog();
+  const { showError } = useErrorDialog();
+  const [matrix, setMatrix] = useState<boolean[][]>(emptyMatrix);
 
   const getMatrix = useCallback(async () => {
     try {
-      if (isBluetooth) {
-        const m = await typed.connection.getLedMatrix();
-        setMatrix(m);
-      }
+      const m = await connection.getLedMatrix();
+      setMatrix(m);
     } catch (e) { showError(e); }
-  }, [typed, isBluetooth, showError]);
+  }, [connection, showError]);
 
   const sendMatrix = useCallback(async () => {
     try {
-      if (isBluetooth) {
-        await typed.connection.setLedMatrix(matrix as Parameters<typeof typed.connection.setLedMatrix>[0]);
-        log("led", "Matrix updated");
-      }
+      await connection.setLedMatrix(matrix);
+      log("led", "Matrix updated");
     } catch (e) { showError(e); }
-  }, [typed, isBluetooth, matrix, log, showError]);
+  }, [connection, matrix, log, showError]);
 
   const handleToggle = useCallback((row: number, col: number) => {
     setMatrix((prev) => {
@@ -72,7 +105,28 @@ const LedsTab = () => {
     });
   }, []);
 
-  if (!isBluetooth) {
+  return (
+    <div className="section">
+      <h2>Matrix</h2>
+      <LedGrid
+        grid={matrix}
+        onToggle={handleToggle}
+        cellSize={32}
+        gap={3}
+      />
+      <div className="control-row" style={{ marginTop: 8 }}>
+        <button onClick={getMatrix} className="btn">Get matrix</button>
+        <button onClick={sendMatrix} className="btn">Set matrix</button>
+        <button onClick={() => setMatrix(emptyMatrix())} className="btn">Clear</button>
+      </div>
+    </div>
+  );
+};
+
+const LedsTab = () => {
+  const { connection } = useConnection();
+
+  if (connection.type !== "bluetooth") {
     return (
       <div className="tab-page">
         <div className="section">
@@ -84,51 +138,9 @@ const LedsTab = () => {
 
   return (
     <div className="tab-page">
-      <div className="section">
-        <h2>Text</h2>
-        <div className="control-row">
-          <input
-            type="text"
-            value={ledText}
-            onChange={(e) => setLedText(e.target.value)}
-            placeholder="Text to display"
-            className="input"
-            style={{ width: 200 }}
-          />
-          <button onClick={sendText} className="btn btn-primary">Set text</button>
-        </div>
-      </div>
-
-      <div className="section">
-        <h2>Scrolling Delay</h2>
-        <div className="control-row">
-          <input
-            type="number"
-            value={scrollDelay}
-            onChange={(e) => setScrollDelay(e.target.value)}
-            placeholder="ms"
-            className="input"
-            style={{ width: 100 }}
-          />
-          <button onClick={getScrollDelay} className="btn">Get</button>
-          <button onClick={setScrollDelayValue} className="btn">Set</button>
-        </div>
-      </div>
-
-      <div className="section">
-        <h2>Matrix</h2>
-        <LedGrid
-          grid={matrix}
-          onToggle={handleToggle}
-          cellSize={32}
-          gap={3}
-        />
-        <div className="control-row" style={{ marginTop: 8 }}>
-          <button onClick={getMatrix} className="btn">Get matrix</button>
-          <button onClick={sendMatrix} className="btn">Set matrix</button>
-          <button onClick={() => setMatrix(emptyMatrix())} className="btn">Clear</button>
-        </div>
-      </div>
+      <TextSection connection={connection} />
+      <ScrollingDelaySection connection={connection} />
+      <MatrixSection connection={connection} />
     </div>
   );
 };

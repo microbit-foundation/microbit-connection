@@ -54,6 +54,7 @@ interface ConnectCallbacks {
  * - `flash` is not supported.
  */
 export interface MicrobitRadioBridgeConnection extends DeviceConnection {
+  readonly type: "radio-bridge";
   // -- DeviceConnectionEventMap overloads (redeclared from base) --
   addEventListener(
     type: "status",
@@ -132,6 +133,7 @@ class MicrobitRadioBridgeConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitRadioBridgeConnection
 {
+  readonly type = "radio-bridge" as const;
   status: ConnectionStatus;
   private logging: Logging;
   private serialSession: RadioBridgeSerialSession | undefined;

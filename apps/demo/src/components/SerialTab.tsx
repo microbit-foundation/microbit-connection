@@ -4,9 +4,8 @@ import { useConnection } from "../hooks/use-connection.ts";
 import { useLog } from "../hooks/use-log.ts";
 
 const SerialTab = () => {
-  const { typed } = useConnection();
+  const { connection } = useConnection();
   const { log } = useLog();
-  const isUsb = typed.type === "usb";
 
   const [serialLines, setSerialLines] = useState<string[]>([]);
   const [serialListening, setSerialListening] = useState(false);
@@ -14,7 +13,7 @@ const SerialTab = () => {
   const serialEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isUsb || !serialListening) return;
+    if (connection.type !== "usb" || !serialListening) return;
 
     const resetListener = () => {
       serialBufferRef.current = "";
@@ -36,14 +35,13 @@ const SerialTab = () => {
       }
     };
 
-    if (typed.type !== "usb") return;
-    typed.connection.addEventListener("serialreset", resetListener);
-    typed.connection.addEventListener("serialdata", dataListener);
+    connection.addEventListener("serialreset", resetListener);
+    connection.addEventListener("serialdata", dataListener);
     return () => {
-      typed.connection.removeEventListener("serialreset", resetListener);
-      typed.connection.removeEventListener("serialdata", dataListener);
+      connection.removeEventListener("serialreset", resetListener);
+      connection.removeEventListener("serialdata", dataListener);
     };
-  }, [typed, isUsb, serialListening, log]);
+  }, [connection, serialListening, log]);
 
   useEffect(() => {
     serialEndRef.current?.scrollIntoView({ behavior: "smooth" });

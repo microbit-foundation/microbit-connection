@@ -77,6 +77,7 @@ export interface MicrobitUSBConnectionOptions {
 }
 
 export interface MicrobitUSBConnection extends DeviceConnection {
+  readonly type: "usb";
   // -- DeviceConnectionEventMap overloads (redeclared from base) --
   addEventListener(
     type: "status",
@@ -167,6 +168,7 @@ class MicrobitUSBConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
   implements MicrobitUSBConnection
 {
+  readonly type = "usb" as const;
   status: ConnectionStatus = ConnectionStatus.NoAuthorizedDevice;
 
   private exclusionFilters: USBDeviceFilter[] | undefined;

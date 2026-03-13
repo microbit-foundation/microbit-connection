@@ -1,25 +1,21 @@
 import { type ProgressCallback } from "@microbit/microbit-connection";
 import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection/universal-hex";
-import { type MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
-import { type MicrobitUSBConnection } from "@microbit/microbit-connection/usb";
-import type { TypedConnection } from "../hooks/use-connection.ts";
+import type { AnyConnection } from "../hooks/use-connection.ts";
 
 export async function flash(
-  typed: TypedConnection,
+  connection: AnyConnection,
   deviceName: string | null,
   hexStr: string,
   progress: ProgressCallback,
 ): Promise<void> {
   const dataSource = createUniversalHexFlashDataSource(hexStr);
 
-  if (typed.type === "usb") {
-    const connection: MicrobitUSBConnection = typed.connection;
+  if (connection.type === "usb") {
     await connection.flash(dataSource, {
       progress,
       partial: true,
     });
-  } else if (typed.type === "bluetooth") {
-    const connection: MicrobitBluetoothConnection = typed.connection;
+  } else if (connection.type === "bluetooth") {
     if (deviceName) {
       connection.setNameFilter(deviceName);
     }

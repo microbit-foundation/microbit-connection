@@ -1,6 +1,6 @@
 import { ConnectionStatus } from "@microbit/microbit-connection";
 import { Capacitor } from "@capacitor/core";
-import { useConnection, type ConnectionType } from "../hooks/use-connection.ts";
+import { useConnection, type AnyConnection } from "../hooks/use-connection.ts";
 import { useErrorDialog } from "../hooks/use-error-dialog.ts";
 
 const statusDot: Record<ConnectionStatus, string> = {
@@ -21,10 +21,9 @@ const statusLabel: Record<ConnectionStatus, string> = {
 
 const ConnectionHeader = () => {
   const {
-    typed,
+    connection,
     status,
     boardVersion,
-    connectionType,
     setConnectionType,
     pauseOnHidden,
     setPauseOnHidden,
@@ -32,20 +31,20 @@ const ConnectionHeader = () => {
   const { showError } = useErrorDialog();
   const isNative = Capacitor.isNativePlatform();
 
-  const connectionOptions: { value: ConnectionType; label: string }[] = isNative
+  const connectionOptions: { value: AnyConnection["type"]; label: string }[] = isNative
     ? [{ value: "bluetooth", label: "Bluetooth" }]
     : [
         { value: "usb", label: "WebUSB" },
         { value: "bluetooth", label: "Web Bluetooth" },
-        { value: "radio", label: "Radio Bridge" },
+        { value: "radio-bridge", label: "Radio Bridge" },
       ];
 
   return (
     <header className="app-header">
       <select
-        value={connectionType}
+        value={connection.type}
         onChange={(e) =>
-          setConnectionType(e.target.value as ConnectionType)
+          setConnectionType(e.target.value as AnyConnection["type"])
         }
         className="select"
         aria-label="Connection type"
@@ -59,26 +58,24 @@ const ConnectionHeader = () => {
 
       {status === ConnectionStatus.Connected ? (
         <button
-          onClick={() => typed.connection.disconnect().catch(showError)}
+          onClick={() => connection.disconnect().catch(showError)}
           className="btn btn-danger"
         >
           Disconnect
         </button>
       ) : (
         <button
-          onClick={() => typed.connection.connect().catch(showError)}
+          onClick={() => connection.connect().catch(showError)}
           disabled={status === ConnectionStatus.Connecting}
           className="btn btn-primary"
         >
           {status === ConnectionStatus.Connecting ? "Connecting..." : "Connect"}
         </button>
       )}
-      {connectionType === "usb" && (
+      {connection.type === "usb" && (
         <button
           onClick={() => {
-            if (typed.type === "usb") {
-              typed.connection.softwareReset().catch(showError);
-            }
+            connection.softwareReset().catch(showError);
           }}
           disabled={status !== ConnectionStatus.Connected}
           className="btn"
@@ -87,7 +84,7 @@ const ConnectionHeader = () => {
         </button>
       )}
       <button
-        onClick={() => typed.connection.clearDevice()}
+        onClick={() => connection.clearDevice()}
         disabled={status === ConnectionStatus.NoAuthorizedDevice}
         className="btn"
       >
@@ -106,7 +103,7 @@ const ConnectionHeader = () => {
         )}
       </div>
 
-      {(connectionType === "usb" || connectionType === "radio") && (
+      {(connection.type === "usb" || connection.type === "radio-bridge") && (
         <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
           <input
             type="checkbox"

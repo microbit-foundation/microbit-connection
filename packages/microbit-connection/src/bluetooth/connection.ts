@@ -64,6 +64,7 @@ export interface MicrobitBluetoothConnectionOptions {
 }
 
 export interface MicrobitBluetoothConnection extends DeviceConnection {
+  readonly type: "bluetooth";
   // -- DeviceConnectionEventMap overloads (redeclared from base) --
   addEventListener(
     type: "status",
@@ -262,6 +263,7 @@ class MicrobitBluetoothConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitBluetoothConnection
 {
+  readonly type = "bluetooth" as const;
   status: ConnectionStatus = ConnectionStatus.NoAuthorizedDevice;
 
   /**
