@@ -93,8 +93,8 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
               style={{ width: 80 }}
             />
           </label>
-          <button onClick={getPeriod} className="btn">Get</button>
-          <button onClick={setPeriodValue} className="btn">Set</button>
+          <button onClick={getPeriod} className="btn">Read</button>
+          <button onClick={setPeriodValue} className="btn">Write</button>
         </div>
       )}
     </div>
@@ -174,15 +174,15 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
             style={{ width: 80 }}
           />
         </label>
-        <button onClick={getPeriod} className="btn">Get</button>
-        <button onClick={setPeriodValue} className="btn">Set</button>
+        <button onClick={getPeriod} className="btn">Read</button>
+        <button onClick={setPeriodValue} className="btn">Write</button>
       </div>
       <div className="control-row" style={{ marginTop: 8 }}>
         <button onClick={handleCalibrate} className="btn">
           Calibrate
         </button>
         <button onClick={handleGetBearing} className="btn">
-          Get bearing
+          Read bearing
         </button>
       </div>
       {bearing !== null && (

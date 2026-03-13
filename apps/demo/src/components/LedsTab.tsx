@@ -32,7 +32,7 @@ const TextSection = ({ connection }: { connection: MicrobitBluetoothConnection }
           className="input"
           style={{ width: 200 }}
         />
-        <button onClick={sendText} className="btn btn-primary">Set text</button>
+        <button onClick={sendText} className="btn btn-primary">Write</button>
       </div>
     </div>
   );
@@ -71,8 +71,8 @@ const ScrollingDelaySection = ({ connection }: { connection: MicrobitBluetoothCo
           className="input"
           style={{ width: 100 }}
         />
-        <button onClick={getDelay} className="btn">Get</button>
-        <button onClick={setDelayValue} className="btn">Set</button>
+        <button onClick={getDelay} className="btn">Read</button>
+        <button onClick={setDelayValue} className="btn">Write</button>
       </div>
     </div>
   );
@@ -115,9 +115,9 @@ const MatrixSection = ({ connection }: { connection: MicrobitBluetoothConnection
         gap={3}
       />
       <div className="control-row" style={{ marginTop: 8 }}>
-        <button onClick={getMatrix} className="btn">Get matrix</button>
-        <button onClick={sendMatrix} className="btn">Set matrix</button>
-        <button onClick={() => setMatrix(emptyMatrix())} className="btn">Clear</button>
+        <button onClick={getMatrix} className="btn">Read</button>
+        <button onClick={sendMatrix} className="btn">Write</button>
+        <button onClick={() => setMatrix(emptyMatrix())} className="btn">Reset grid</button>
       </div>
     </div>
   );
