@@ -8,8 +8,7 @@ A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. 
 
 ### Demo apps
 
-- [Web demo](https://microbit-connection.pages.dev/) ([source](apps/demo/)) — WebUSB and Web Bluetooth in the browser
-- [Capacitor demo](apps/capacitor/) — Bluetooth on iOS and Android via Capacitor
+- [Demo app](https://microbit-connection.pages.dev/) ([source](apps/demo/)) — WebUSB, Web Bluetooth, and Capacitor for native mobile
 
 ### Projects using this library
 
@@ -113,7 +112,7 @@ To disable this behaviour, pass `pauseOnHidden: false`:
 const usb = createUSBConnection({ pauseOnHidden: false });
 ```
 
-For more examples see the [web demo source](apps/demo/src/demo.ts) and the [Capacitor demo source](apps/capacitor/src/).
+For more examples see the [demo app source](apps/demo/src/).
 
 ### Connect via Bluetooth
 
@@ -130,7 +129,7 @@ await bluetooth.connect();
 console.log("Connection status: ", bluetooth.status); // "Connected"
 ```
 
-For more examples see the [web demo source](apps/demo/src/demo.ts) and the [Capacitor demo source](apps/capacitor/src/).
+For more examples see the [demo app source](apps/demo/src/).
 
 ### Error handling
 

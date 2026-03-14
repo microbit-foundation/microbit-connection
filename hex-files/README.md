@@ -6,8 +6,8 @@ Example `.hex` files for manual testing and the hardware test app.
 
 | File | Description |
 |------|-------------|
-| `incremental-makecode.hex` | MakeCode program that outputs sequential numbers (0, 1, 2, ...) over serial. Used to verify serial data integrity. |
-| `incremental-python.hex` | Same sequential output but as a MicroPython program. Flash after the MakeCode version to force a full flash (different runtime). |
+| `serial-counter-makecode.hex` | MakeCode program that outputs sequential numbers (0, 1, 2, ...) over serial. Used to verify serial data integrity. |
+| `serial-counter-python.hex` | Same sequential output but as a MicroPython program. Flash after the MakeCode version to force a full flash (different runtime). |
 
 ## Bluetooth hex files
 
@@ -23,6 +23,12 @@ Example `.hex` files for manual testing and the hardware test app.
 | `microbit-micropython-v1.hex` | MicroPython for V1 (prints banner at startup over serial) |
 | `microbit-micropython-v2.hex` | MicroPython for V2 (similar banner) |
 | `python-editor-default.hex` | Universal hex with MicroPython default program from the Python Editor (no serial output) |
+
+## Radio bridge
+
+| File | Description |
+|------|-------------|
+| `local-sensors-radio-bridge.hex` | Radio bridge protocol using local sensors (single micro:bit, no second device needed). From [sensor-radio-bridge v0.3.0](https://github.com/microbit-foundation/sensor-radio-bridge/releases/tag/v0.3.0). |
 
 ## Data collection / CreateAI
 

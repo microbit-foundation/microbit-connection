@@ -1,7 +1,7 @@
-type Listener<T> = (data: T) => void;
+export type Listener<T> = (data: T) => void;
 
 export class TypedEventTarget<M> {
-  private listeners = new Map<keyof M, Set<Listener<any>>>();
+  private listeners = new Map<string, Set<Listener<any>>>();
 
   addEventListener<K extends keyof M & string>(
     type: K,

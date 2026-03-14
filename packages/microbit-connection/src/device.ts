@@ -3,7 +3,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import { TypedEventTarget } from "./events.js";
 
 /**
  * Connection availability status returned by checkAvailability().
@@ -307,8 +306,33 @@ export interface DeviceConnectionEventMap {
   flash: void;
 }
 
-export interface DeviceConnection<M>
-  extends TypedEventTarget<DeviceConnectionEventMap & M> {
+export interface DeviceConnection {
+  addEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  addEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  addEventListener(type: "beforerequestdevice", listener: () => void): void;
+  addEventListener(type: "afterrequestdevice", listener: () => void): void;
+  addEventListener(type: "flash", listener: () => void): void;
+
+  removeEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  removeEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  removeEventListener(type: "beforerequestdevice", listener: () => void): void;
+  removeEventListener(type: "afterrequestdevice", listener: () => void): void;
+  removeEventListener(type: "flash", listener: () => void): void;
+
+  readonly type: string;
+
   status: ConnectionStatus;
 
   /**

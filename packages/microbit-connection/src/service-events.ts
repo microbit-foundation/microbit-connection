@@ -21,9 +21,12 @@ export interface ButtonData {
   state: ButtonState;
 }
 
-type FixedArray<T, L extends number> = T[] & { length: L };
-type LedRow = FixedArray<boolean, 5>;
-export type LedMatrix = FixedArray<LedRow, 5>;
+/**
+ * A 5x5 boolean matrix representing the micro:bit LED display.
+ * Each inner array is a row of 5 booleans (left to right),
+ * and there are 5 rows (top to bottom).
+ */
+export type LedMatrix = boolean[][];
 
 export interface MagnetometerData {
   x: number;

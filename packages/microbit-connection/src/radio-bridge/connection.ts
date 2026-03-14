@@ -12,10 +12,13 @@ import {
   ConnectionStatusChange,
   DeviceConnection,
   DeviceConnectionEventMap,
+  DeviceError,
 } from "../device.js";
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import {
+  AccelerometerData,
+  ButtonData,
   ButtonState,
   ServiceConnectionEventMap,
   TypedServiceEventDispatcher,
@@ -25,9 +28,6 @@ import * as protocol from "./serial-protocol.js";
 import { MicrobitUSBConnection } from "../usb/connection.js";
 
 const connectTimeoutDuration: number = 10_000;
-
-class BridgeError extends Error {}
-class RemoteError extends Error {}
 
 export interface MicrobitRadioBridgeConnectionOptions {
   logging?: Logging;
@@ -49,12 +49,60 @@ interface ConnectCallbacks {
  *
  * - `accelerometerdatachanged`, `buttonachanged`, `buttonbchanged` events
  *   are supported.
- * - `magnetometerdatachanged` and `uartdata` events are declared on
- *   {@link ServiceConnectionEventMap} but are not currently emitted.
  * - `flash` is not supported.
  */
-export interface MicrobitRadioBridgeConnection
-  extends DeviceConnection<ServiceConnectionEventMap> {
+export interface MicrobitRadioBridgeConnection extends DeviceConnection {
+  readonly type: "radio-bridge";
+  // -- DeviceConnectionEventMap overloads (redeclared from base) --
+  addEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  addEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  addEventListener(type: "beforerequestdevice", listener: () => void): void;
+  addEventListener(type: "afterrequestdevice", listener: () => void): void;
+  addEventListener(type: "flash", listener: () => void): void;
+  // -- Supported service events --
+  addEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  addEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+
+  removeEventListener(
+    type: "status",
+    listener: (data: ConnectionStatusChange) => void,
+  ): void;
+  removeEventListener(
+    type: "backgrounderror",
+    listener: (data: BackgroundErrorData) => void,
+  ): void;
+  removeEventListener(type: "beforerequestdevice", listener: () => void): void;
+  removeEventListener(type: "afterrequestdevice", listener: () => void): void;
+  removeEventListener(type: "flash", listener: () => void): void;
+  removeEventListener(
+    type: "accelerometerdatachanged",
+    listener: (data: AccelerometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonachanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonbchanged",
+    listener: (data: ButtonData) => void,
+  ): void;
+
   /**
    * Sets remote device.
    *
@@ -83,6 +131,7 @@ class MicrobitRadioBridgeConnectionImpl
   extends TypedEventTarget<DeviceConnectionEventMap & ServiceConnectionEventMap>
   implements MicrobitRadioBridgeConnection
 {
+  readonly type = "radio-bridge" as const;
   status: ConnectionStatus;
   private logging: Logging;
   private serialSession: RadioBridgeSerialSession | undefined;
@@ -164,7 +213,10 @@ class MicrobitRadioBridgeConnectionImpl
     // can we... just not do that? or wait?
 
     if (this.remoteDeviceId === undefined) {
-      throw new BridgeError(`Missing remote micro:bit ID`);
+      throw new DeviceError({
+        code: "connection-error",
+        message: "Missing remote micro:bit ID",
+      });
     }
 
     this.logging.event({
@@ -350,9 +402,10 @@ class RadioBridgeSerialSession {
         remoteMbIdResponse.type === protocol.ResponseTypes.Error ||
         remoteMbIdResponse.value !== this.remoteDeviceId
       ) {
-        throw new BridgeError(
-          `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`,
-        );
+        throw new DeviceError({
+          code: "connection-error",
+          message: `Failed to set remote micro:bit ID. Expected ${this.remoteDeviceId}, got ${remoteMbIdResponse.value}`,
+        });
       }
 
       // Request the micro:bit to start sending the periodic messages
@@ -370,9 +423,10 @@ class RadioBridgeSerialSession {
 
       const startCmdResponse = await this.sendCmdWaitResponse(startCmd);
       if (startCmdResponse.type === protocol.ResponseTypes.Error) {
-        throw new RemoteError(
-          `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
-        );
+        throw new DeviceError({
+          code: "connection-error",
+          message: `Failed to start streaming sensors data. Error response received: ${startCmdResponse.message}`,
+        });
       }
 
       // TODO: in the first-time connection case we used to move the error/disconnect to the background here, why? timing?
@@ -384,6 +438,7 @@ class RadioBridgeSerialSession {
       this.callbacks.onFailPreDispose();
       await this.dispose();
       this.callbacks.onFailPostDispose();
+      throw e;
     }
   }
 
@@ -493,7 +548,12 @@ class RadioBridgeSerialSession {
               // We expect some to time out, likely well after the handshake is completed.
               if (!resolved) {
                 if (++failureCounter === attempts) {
-                  reject(new BridgeError("Handshake not completed"));
+                  reject(
+                    new DeviceError({
+                      code: "timeout",
+                      message: "Handshake not completed",
+                    }),
+                  );
                 }
               }
             });
@@ -502,9 +562,10 @@ class RadioBridgeSerialSession {
       },
     );
     if (handshakeResult.value !== protocol.version) {
-      throw new BridgeError(
-        `Handshake failed. Unexpected protocol version ${protocol.version}`,
-      );
+      throw new DeviceError({
+        code: "connection-error",
+        message: `Handshake failed. Unexpected protocol version ${protocol.version}`,
+      });
     }
   }
 }

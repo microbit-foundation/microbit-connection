@@ -478,7 +478,7 @@ export class TestRunner {
     const el = document.createElement("div");
     el.className = "summary";
     el.textContent = summaryText;
-    el.style.borderColor = failed > 0 ? "#ef4444" : "#22c55e";
+    el.style.borderColor = failed > 0 ? "#dc2626" : "#16a34a";
     this.container.appendChild(el);
   }
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">micro:bit connection demo</string>
+    <string name="title_activity_main">micro:bit connection demo</string>
+    <string name="package_name">org.microbit.connection.demo</string>
+    <string name="custom_url_scheme">org.microbit.connection.demo</string>
+</resources>

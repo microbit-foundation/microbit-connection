@@ -53,8 +53,8 @@ function createUSBSuite({
         name: "Partial flash, serial from zero",
         run: async (ctx) => {
           assertConnected(ctx);
-          ctx.log("Fetching incremental-makecode.hex...");
-          const hex = await ctx.fetchHex("incremental-makecode.hex");
+          ctx.log("Fetching serial-counter-makecode.hex...");
+          const hex = await ctx.fetchHex("serial-counter-makecode.hex");
           ctx.log("Flashing (partial expected, same MakeCode runtime)...");
           const stages = await flashWithProgress(ctx, hex);
           assertFlashType(ctx, stages, "PartialFlashing");
@@ -76,7 +76,7 @@ function createUSBSuite({
           );
           const resetsBefore = ctx.serial.resetCount;
           ctx.log("Flashing same hex on fresh USB connection...");
-          const hex = await ctx.fetchHex("incremental-makecode.hex");
+          const hex = await ctx.fetchHex("serial-counter-makecode.hex");
           const stages = await flashWithProgress(ctx, hex);
           assertFlashType(ctx, stages, "PartialFlashing");
           ctx.assert(
@@ -101,7 +101,7 @@ function createUSBSuite({
           );
           const resetsBefore = ctx.serial.resetCount;
           ctx.log("Flashing Python on fresh USB connection (runtime change)...");
-          const hex = await ctx.fetchHex("incremental-python.hex");
+          const hex = await ctx.fetchHex("serial-counter-python.hex");
           const stages = await flashWithProgress(ctx, hex);
           assertFlashType(ctx, stages, "FullFlashing");
           ctx.assert(
@@ -121,7 +121,7 @@ function createUSBSuite({
           await flashWithProgress(ctx, baseline);
 
           ctx.log("Flashing MakeCode with fault injection during partial...");
-          const hex = await ctx.fetchHex("incremental-makecode.hex");
+          const hex = await ctx.fetchHex("serial-counter-makecode.hex");
           const stages = await flashWithFault(ctx, hex, "PartialFlashing");
           ctx.assert(
             stages.includes("PartialFlashing") &&
@@ -151,8 +151,8 @@ function createUSBSuite({
             "UICR repair complete",
             "Library repaired UICR",
           );
-          ctx.log("Flashing incremental Python to verify device boots...");
-          const verifyHex = await ctx.fetchHex("incremental-python.hex");
+          ctx.log("Flashing serial-counter-python.hex to verify device boots...");
+          const verifyHex = await ctx.fetchHex("serial-counter-python.hex");
           await flashWithProgress(ctx, verifyHex);
           ctx.log("Checking device boots after UICR recovery...");
           await assertSerialFromZero(ctx, 5, 15_000);
