@@ -18,8 +18,13 @@ import {
   createRadioBridgeConnection,
   type MicrobitRadioBridgeConnection,
 } from "@microbit/microbit-connection/radio-bridge";
+import { Capacitor } from "@capacitor/core";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLog, createLoggingAdapter } from "./use-log.ts";
+
+const defaultConnectionType: AnyConnection["type"] = Capacitor.isNativePlatform()
+  ? "bluetooth"
+  : "usb";
 
 export type AnyConnection =
   | MicrobitUSBConnection
@@ -41,7 +46,7 @@ export const ConnectionContext = createContext<
 
 export const useConnectionState = (): ConnectionContextValue | undefined => {
   const { log } = useLog();
-  const [connectionType, setConnectionType] = useState<AnyConnection["type"]>("usb");
+  const [connectionType, setConnectionType] = useState<AnyConnection["type"]>(defaultConnectionType);
   const [pauseOnHidden, setPauseOnHidden] = useState(true);
   const [status, setStatus] = useState<ConnectionStatus>(
     ConnectionStatus.NoAuthorizedDevice,
