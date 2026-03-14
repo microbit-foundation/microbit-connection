@@ -71,11 +71,7 @@ export interface MicrobitRadioBridgeConnection extends DeviceConnection {
     listener: (data: AccelerometerData) => void,
   ): void;
   addEventListener(
-    type: "buttonachanged",
-    listener: (data: ButtonData) => void,
-  ): void;
-  addEventListener(
-    type: "buttonbchanged",
+    type: "buttonachanged" | "buttonbchanged",
     listener: (data: ButtonData) => void,
   ): void;
 
@@ -95,11 +91,7 @@ export interface MicrobitRadioBridgeConnection extends DeviceConnection {
     listener: (data: AccelerometerData) => void,
   ): void;
   removeEventListener(
-    type: "buttonachanged",
-    listener: (data: ButtonData) => void,
-  ): void;
-  removeEventListener(
-    type: "buttonbchanged",
+    type: "buttonachanged" | "buttonbchanged",
     listener: (data: ButtonData) => void,
   ): void;
 
