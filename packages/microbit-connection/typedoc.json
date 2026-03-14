@@ -6,10 +6,10 @@
   },
   "entryPoints": [
     "./src/index.ts",
-    "./src/bluetooth-entrypoint.ts",
+    "./src/bluetooth/index.ts",
     "./src/usb/index.ts",
-    "./src/universal-hex-entrypoint.ts",
-    "./src/radio-bridge-entrypoint.ts"
+    "./src/universal-hex/index.ts",
+    "./src/radio-bridge/index.ts"
   ],
   "out": "./docs/build",
   "readme": "../../README.md",
