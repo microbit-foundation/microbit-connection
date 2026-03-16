@@ -10,6 +10,8 @@ export class ServiceConnectionEventMap {
   "buttonbchanged": ButtonEvent;
   "magnetometerdatachanged": MagnetometerDataEvent;
   "uartdata": UARTDataEvent;
+  "microbitevents": any;
+  "clientevents": any;
 }
 
 export type CharacteristicDataTarget = EventTarget & {

@@ -137,6 +137,16 @@ export interface MicrobitWebBluetoothConnection
    * @param data UART message.
    */
   uartWrite(data: Uint8Array): Promise<void>;
+
+  /**
+   * Write events data.
+   */
+  eventWrite(): Promise<void>;
+
+    /**
+   * Read events data.
+   */
+  eventRead(): Promise<void>;
 }
 
 /**
@@ -417,5 +427,15 @@ class MicrobitWebBluetoothConnectionImpl
   async uartWrite(data: Uint8Array): Promise<void> {
     const uartService = await this.connection?.getUARTService();
     uartService?.writeData(data);
+  }
+
+  async eventWrite(): Promise<void> {
+    const eventService = await this.connection?.getEventService();
+    eventService?.writeClientRequirements();
+  }
+
+  async eventRead(): Promise<void> {
+    const eventService = await this.connection?.getEventService();
+    return eventService?.read();
   }
 }

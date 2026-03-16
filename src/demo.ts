@@ -89,6 +89,7 @@ const recreateUi = async (type: ConnectionType) => {
     createUARTSection(),
     createButtonSection("A", "buttonachanged"),
     createButtonSection("B", "buttonbchanged"),
+    createEventsSection(),
     createAccelerometerSection(),
     createMagnetometerSection(),
     createLedSection(),
@@ -617,6 +618,73 @@ const createButtonSection = (
     dom,
     cleanup: () => {
       buttonConnection.removeEventListener(type, buttonStateListener);
+    },
+  };
+};
+
+const createEventsSection = (): Section => {
+  const { type: connType, connection: eventsConnection } = typedConnection;
+  if (connType !== "bluetooth") {
+    return {};
+  }
+  const statusParagraph = crelt("p");
+  const eventsStateListener = (e: any) => {
+    console.log("eventStateListener", e);
+  };
+  const dom = crelt(
+    "section",
+    crelt("h2", "Events"),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          eventsConnection?.eventWrite();
+        },
+      },
+      "Write requirements",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          eventsConnection?.eventRead();
+        },
+      },
+      "Read",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          eventsConnection.addEventListener(
+            "microbitevents",
+            eventsStateListener,
+          );
+        },
+      },
+      "Listen",
+    ),
+    crelt(
+      "button",
+      {
+        onclick: () => {
+          eventsConnection.removeEventListener(
+            "microbitevents",
+            eventsStateListener,
+          );
+        },
+      },
+      "Stop listening",
+    ),
+    statusParagraph,
+  );
+  return {
+    dom,
+    cleanup: () => {
+      eventsConnection.removeEventListener(
+        "microbitevents",
+        eventsStateListener,
+      );
     },
   };
 };

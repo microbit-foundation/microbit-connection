@@ -8,6 +8,7 @@ import { AccelerometerService } from "./accelerometer-service.js";
 import { profile } from "./bluetooth-profile.js";
 import { ButtonService } from "./button-service.js";
 import { BoardVersion, DeviceError } from "./device.js";
+import { EventService } from "./event-service.js";
 import { LedService } from "./led-service.js";
 import { Logging, NullLogging } from "./logging.js";
 import { MagnetometerService } from "./magnetometer-service.js";
@@ -117,6 +118,7 @@ export class BluetoothDeviceWrapper {
     "buttonachanged",
     "buttonbchanged",
   ]);
+  private events = new ServiceInfo(EventService.createService, ["microbitevents"]);
   private led = new ServiceInfo(LedService.createService, []);
   private magnetometer = new ServiceInfo(MagnetometerService.createService, [
     "magnetometerdatachanged",
@@ -129,6 +131,7 @@ export class BluetoothDeviceWrapper {
     this.led,
     this.magnetometer,
     this.uart,
+    this.events,
   ];
 
   boardVersion: BoardVersion | undefined;
@@ -403,6 +406,10 @@ export class BluetoothDeviceWrapper {
 
   async getUARTService(): Promise<UARTService | undefined> {
     return this.createIfNeeded(this.uart, false);
+  }
+
+  async getEventService(): Promise<EventService | undefined> {
+    return this.createIfNeeded(this.events, false);
   }
 
   async startNotifications(type: TypedServiceEvent) {
