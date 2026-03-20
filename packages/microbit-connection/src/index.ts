@@ -26,6 +26,7 @@ import {
   ButtonState,
   LedMatrix,
   MagnetometerData,
+  MicrobitEvent,
   UartData,
 } from "./service-events.js";
 
@@ -37,6 +38,15 @@ export {
   assertConnected,
   ProgressStage,
 };
+
+export {
+  Any,
+  V1Source,
+  V2Source,
+  ButtonValue,
+  GestureValue,
+  PinValue,
+} from "./microbit-events.js";
 
 export type {
   AccelerometerData,
@@ -55,6 +65,7 @@ export type {
   Logging,
   LoggingEvent,
   MagnetometerData,
+  MicrobitEvent,
   ProgressCallback,
   UartData,
 };

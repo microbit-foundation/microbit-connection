@@ -16,9 +16,10 @@ import SensorsTab from "./components/SensorsTab.tsx";
 import LedsTab from "./components/LedsTab.tsx";
 import SerialTab from "./components/SerialTab.tsx";
 import UartTab from "./components/UartTab.tsx";
+import EventsTab from "./components/EventsTab.tsx";
 import "./App.css";
 
-type Tab = "flash" | "sensors" | "io" | "serial" | "uart";
+type Tab = "flash" | "sensors" | "io" | "serial" | "uart" | "events";
 
 const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "flash", label: "Flash", availableFor: ["usb", "bluetooth"] },
@@ -26,6 +27,7 @@ const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "io", label: "LEDs", availableFor: ["bluetooth"] },
   { id: "serial", label: "Serial", availableFor: ["usb"] },
   { id: "uart", label: "UART", availableFor: ["bluetooth"] },
+  { id: "events", label: "Events", availableFor: ["bluetooth"] },
 ];
 
 const tabComponents: Record<Tab, React.ComponentType> = {
@@ -34,6 +36,7 @@ const tabComponents: Record<Tab, React.ComponentType> = {
   io: LedsTab,
   serial: SerialTab,
   uart: UartTab,
+  events: EventsTab,
 };
 
 const AppContent = () => {

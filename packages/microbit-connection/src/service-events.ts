@@ -1,5 +1,16 @@
 import { DeviceConnectionEventMap } from "./device.js";
 
+/**
+ * An event from the micro:bit's message bus, received via the BLE
+ * Event Service.
+ */
+export interface MicrobitEvent {
+  /** Event source ID (e.g. 1 for button A, 4 for accelerometer). */
+  source: number;
+  /** Event value (e.g. 3 for click). 0 is used as a wildcard when registering. */
+  value: number;
+}
+
 export interface AccelerometerData {
   x: number;
   y: number;
@@ -47,6 +58,7 @@ export interface ServiceConnectionEventMap {
   buttonachanged: ButtonData;
   buttonbchanged: ButtonData;
   magnetometerdatachanged: MagnetometerData;
+  microbitevent: MicrobitEvent;
   uartdata: UartData;
 }
 

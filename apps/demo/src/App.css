@@ -493,3 +493,19 @@
   align-items: center;
   justify-content: center;
 }
+
+.filter-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  background: #e0e7ff;
+  border: 1px solid #a5b4fc;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.filter-tag:hover {
+  background: #fecaca;
+  border-color: #f87171;
+}

@@ -29,7 +29,7 @@ import {
   ProgressCallback,
   ProgressStage,
 } from "../device.js";
-import { TypedEventTarget } from "../events.js";
+import { Listener, TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import { fullFlash } from "./flashing/flashing-full.js";
 import partialFlash, {
@@ -40,6 +40,7 @@ import {
   ButtonData,
   LedMatrix,
   MagnetometerData,
+  MicrobitEvent,
   ServiceConnectionEventMap,
   TypedServiceEvent,
   UartData,
@@ -91,6 +92,23 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
     listener: (data: MagnetometerData) => void,
   ): void;
   addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
+  /**
+   * Listen for events from the micro:bit's message bus.
+   *
+   * On first call for a given (source, value) pair, writes a filter to the
+   * micro:bit's Client Requirements characteristic so the device knows to
+   * forward matching events. Use value=0 as a wildcard for all events
+   * from a given source.
+   *
+   * @param source Event source ID (e.g. 1 for button A, 4 for accelerometer).
+   * @param value Event value filter (e.g. 0 for all, 3 for click).
+   * @param listener Called with {source, value} for each matching event.
+   */
+  addEventListener(
+    source: number,
+    value: number,
+    listener: (data: MicrobitEvent) => void,
+  ): void;
 
   removeEventListener(
     type: "status",
@@ -118,6 +136,11 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   removeEventListener(
     type: "uartdata",
     listener: (data: UartData) => void,
+  ): void;
+  removeEventListener(
+    source: number,
+    value: number,
+    listener: (data: MicrobitEvent) => void,
   ): void;
 
   /**
@@ -238,6 +261,14 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    */
   uartWrite(data: Uint8Array): Promise<void>;
 
+  /**
+   * Send events to the micro:bit's message bus.
+   *
+   * @param events Array of {source, value} pairs to fire on the micro:bit.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  sendMicrobitEvents(events: MicrobitEvent[]): Promise<void>;
+
   flash(dataSource: FlashDataSource, options: FlashOptions): Promise<void>;
 }
 
@@ -280,11 +311,126 @@ class MicrobitBluetoothConnectionImpl
   private deferredUpdatesPreviousStatus: ConnectionStatus | undefined;
   private waitForPostFlashDisconnectPromise: Promise<void> | undefined;
 
+  /**
+   * Listeners registered via the numeric addEventListener(source, value, listener)
+   * overload. Keyed by "source:value".
+   */
+  private microbitEventListeners = new Map<
+    string,
+    Set<Listener<MicrobitEvent>>
+  >();
+
+  /** Whether the internal "microbitevent" dispatcher is registered. */
+  private dispatcherRegistered = false;
+
+  /**
+   * Internal listener that dispatches incoming micro:bit events to
+   * the numeric event listeners.
+   */
+  private microbitEventDispatcher = (event: MicrobitEvent) => {
+    console.log(
+      `[Connection] microbitEventDispatcher: source=${event.source}, value=${event.value}, listener keys: [${[...this.microbitEventListeners.keys()].join(", ")}]`,
+    );
+    let matched = 0;
+    for (const [key, listeners] of this.microbitEventListeners) {
+      const [source, value] = key.split(":").map(Number);
+      if (
+        (source === 0 || source === event.source) &&
+        (value === 0 || value === event.value)
+      ) {
+        matched += listeners.size;
+        for (const listener of listeners) {
+          listener(event);
+        }
+      }
+    }
+    console.log(
+      `[Connection] microbitEventDispatcher: matched ${matched} listener(s)`,
+    );
+  };
+
   constructor(options: MicrobitBluetoothConnectionOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
     this.deviceBondState =
       options.deviceBondState || new DefaultDeviceBondState();
+  }
+
+  addEventListener(
+    type: string | number,
+    listenerOrValue: Listener<any> | number,
+    maybeListener?: Listener<MicrobitEvent>,
+  ): void {
+    if (typeof type === "number") {
+      const source = type;
+      const value = listenerOrValue as number;
+      const listener = maybeListener!;
+      const key = `${source}:${value}`;
+
+      let set = this.microbitEventListeners.get(key);
+      const isFirst = !set || set.size === 0;
+      if (!set) {
+        set = new Set();
+        this.microbitEventListeners.set(key, set);
+      }
+      if (set.has(listener)) {
+        return;
+      }
+      set.add(listener);
+
+      // Start the internal "microbitevent" plumbing on first numeric listener
+      if (!this.dispatcherRegistered) {
+        console.log(
+          `[Connection] addEventListener: registering internal microbitevent dispatcher`,
+        );
+        super.addEventListener("microbitevent", this.microbitEventDispatcher);
+        this.dispatcherRegistered = true;
+      }
+
+      // Register the filter with the micro:bit if connected
+      console.log(
+        `[Connection] addEventListener: source=${source}, value=${value}, isFirst=${isFirst}, hasDevice=${!!this.device}`,
+      );
+      if (isFirst && this.device) {
+        this.device.eventService.registerFilters([{ source, value }]);
+      }
+    } else {
+      super.addEventListener(
+        type as keyof (DeviceConnectionEventMap & ServiceConnectionEventMap),
+        listenerOrValue as Listener<any>,
+      );
+    }
+  }
+
+  removeEventListener(
+    type: string | number,
+    listenerOrValue: Listener<any> | number,
+    maybeListener?: Listener<MicrobitEvent>,
+  ): void {
+    if (typeof type === "number") {
+      const eventValue = listenerOrValue as number;
+      const listener = maybeListener!;
+      const key = `${type}:${eventValue}`;
+
+      const set = this.microbitEventListeners.get(key);
+      if (set?.delete(listener) && set.size === 0) {
+        this.microbitEventListeners.delete(key);
+      }
+
+      // Remove internal plumbing when no numeric listeners remain
+      if (this.dispatcherRegistered && this.microbitEventListeners.size === 0) {
+        super.removeEventListener(
+          "microbitevent",
+          this.microbitEventDispatcher,
+        );
+        this.dispatcherRegistered = false;
+      }
+    } else {
+      super.removeEventListener(
+        type as keyof (DeviceConnectionEventMap & ServiceConnectionEventMap),
+        listenerOrValue as Listener<any>,
+      );
+    }
   }
 
   protected eventActivated(type: string): void {
@@ -293,6 +439,21 @@ class MicrobitBluetoothConnectionImpl
 
   protected eventDeactivated(type: string): void {
     this.device?.stopNotifications(type as TypedServiceEvent);
+  }
+
+  private replayEventFilters(): void {
+    const filters: MicrobitEvent[] = [];
+    for (const key of this.microbitEventListeners.keys()) {
+      const [source, value] = key.split(":").map(Number);
+      filters.push({ source, value });
+    }
+    console.log(
+      `[Connection] replayEventFilters: ${filters.length} filter(s) to replay`,
+      filters,
+    );
+    if (filters.length > 0 && this.device) {
+      this.device.eventService.registerFilters(filters);
+    }
   }
 
   private log(v: any) {
@@ -403,6 +564,7 @@ class MicrobitBluetoothConnectionImpl
           onConnecting: () => this.setStatus(ConnectionStatus.Connecting),
           onSuccess: () => {
             this.cachedBoardVersion = this.device!.boardVersion;
+            this.replayEventFilters();
             this.setStatus(ConnectionStatus.Connected);
           },
           onDisconnect: () => this.setStatus(ConnectionStatus.Disconnected),
@@ -569,6 +731,13 @@ class MicrobitBluetoothConnectionImpl
   async uartWrite(data: Uint8Array): Promise<void> {
     assertConnected(this.device);
     return withBleErrorMapping(() => this.device!.uart.writeData(data));
+  }
+
+  async sendMicrobitEvents(events: MicrobitEvent[]): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() =>
+      this.device!.eventService.sendEvents(events),
+    );
   }
 
   /**
