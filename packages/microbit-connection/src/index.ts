@@ -24,8 +24,11 @@ import {
   ButtonData,
   ButtonEventType,
   ButtonState,
+  PinValue,
+  PinData,
   LedMatrix,
   MagnetometerData,
+  TemperatureData,
   UartData,
 } from "./service-events.js";
 
@@ -51,10 +54,13 @@ export type {
   DeviceErrorCode,
   FlashDataSource,
   FlashOptions,
+  PinValue,
+  PinData,
   LedMatrix,
   Logging,
   LoggingEvent,
   MagnetometerData,
   ProgressCallback,
+  TemperatureData,
   UartData,
 };

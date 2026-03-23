@@ -38,6 +38,8 @@ import {
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../service-events.js";
+import { TemperatureService } from "./services/temperature-service.js";
+import { IoPinService } from "./services/io-pin-service.js";
 import { UARTService } from "./services/uart-service.js";
 import {
   DefaultDeviceBondState,
@@ -102,8 +104,10 @@ export class BluetoothDeviceWrapper implements Logging {
   accelerometer: AccelerometerService;
   buttons: ButtonService;
   deviceInformation: DeviceInformationService;
+  ioPin: IoPinService;
   led: LedService;
   magnetometer: MagnetometerService;
+  temperature: TemperatureService;
   uart: UARTService;
 
   /**
@@ -133,8 +137,13 @@ export class BluetoothDeviceWrapper implements Logging {
     );
     this.buttons = new ButtonService(bleDevice.deviceId, dispatchTypedEvent);
     this.deviceInformation = new DeviceInformationService(bleDevice.deviceId);
+    this.ioPin = new IoPinService(bleDevice.deviceId, dispatchTypedEvent);
     this.led = new LedService(bleDevice.deviceId);
     this.magnetometer = new MagnetometerService(
+      bleDevice.deviceId,
+      dispatchTypedEvent,
+    );
+    this.temperature = new TemperatureService(
       bleDevice.deviceId,
       dispatchTypedEvent,
     );
@@ -142,8 +151,10 @@ export class BluetoothDeviceWrapper implements Logging {
     this.services = [
       this.accelerometer,
       this.buttons,
+      this.ioPin,
       this.led,
       this.magnetometer,
+      this.temperature,
       this.uart,
     ];
   }

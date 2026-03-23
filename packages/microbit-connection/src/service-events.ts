@@ -34,6 +34,32 @@ export interface MagnetometerData {
   z: number;
 }
 
+export interface TemperatureData {
+  celsius: number;
+}
+
+export interface PinValue {
+  /** Pin number (0-18). */
+  pin: number;
+  /**
+   * Pin value. For digital pins: 0 or 1.
+   * For analog pins: 0-255 (the 10-bit analog reading scaled to 8 bits).
+   */
+  value: number;
+}
+
+/**
+ * Data from a `pinchanged` event.
+ *
+ * Contains only the input pins whose values changed since the last
+ * notification, up to a firmware limit of 10 pins per event
+ * (lowest-numbered first). Use {@link MicrobitBluetoothConnection.readPins}
+ * to read all input pins on demand.
+ */
+export interface PinData {
+  data: PinValue[];
+}
+
 export interface UartData {
   value: Uint8Array;
 }
@@ -47,6 +73,8 @@ export interface ServiceConnectionEventMap {
   buttonachanged: ButtonData;
   buttonbchanged: ButtonData;
   magnetometerdatachanged: MagnetometerData;
+  temperaturechanged: TemperatureData;
+  pinchanged: PinData;
   uartdata: UartData;
 }
 
