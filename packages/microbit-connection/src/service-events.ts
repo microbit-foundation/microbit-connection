@@ -1,4 +1,5 @@
 import { DeviceConnectionEventMap } from "./device.js";
+import type { GestureEvent, ButtonAction } from "./microbit-events.js";
 
 export interface AccelerometerData {
   x: number;
@@ -14,7 +15,7 @@ export const ButtonState = {
 
 export type ButtonState = (typeof ButtonState)[keyof typeof ButtonState];
 
-export type ButtonEventType = "buttonachanged" | "buttonbchanged";
+export type ButtonActionType = "buttonachanged" | "buttonbchanged";
 
 export interface ButtonData {
   button: "A" | "B";
@@ -60,6 +61,25 @@ export interface PinData {
   data: PinValue[];
 }
 
+export interface GestureData {
+  gesture: GestureEvent;
+}
+
+export interface ButtonActionData {
+  button: "A" | "B" | "AB" | "Logo";
+  action: ButtonAction;
+}
+
+/**
+ * A raw event from the micro:bit's message bus, received via the
+ * BLE Event Service. Use {@link MicrobitBluetoothConnection.subscribeToEvent}
+ * to register which events the micro:bit should forward.
+ */
+export interface MicrobitEventData {
+  source: number;
+  value: number;
+}
+
 export interface UartData {
   value: Uint8Array;
 }
@@ -75,6 +95,12 @@ export interface ServiceConnectionEventMap {
   magnetometerdatachanged: MagnetometerData;
   temperaturechanged: TemperatureData;
   pinchanged: PinData;
+  gesturechanged: GestureData;
+  buttonaaction: ButtonActionData;
+  buttonbaction: ButtonActionData;
+  buttonabaction: ButtonActionData;
+  logoaction: ButtonActionData;
+  microbitevent: MicrobitEventData;
   uartdata: UartData;
 }
 

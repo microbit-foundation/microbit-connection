@@ -68,7 +68,7 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
 
   return (
     <div className="section">
-      <h2>Accelerometer</h2>
+      <h2>Accelerometer Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -150,7 +150,7 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
 
   return (
     <div className="section">
-      <h2>Magnetometer</h2>
+      <h2>Magnetometer Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -233,7 +233,7 @@ const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConne
 
   return (
     <div className="section">
-      <h2>Temperature</h2>
+      <h2>Temperature Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -298,7 +298,7 @@ const ButtonsSection = ({ connection }: { connection: ServiceConnection }) => {
 
   return (
     <div className="section">
-      <h2>Buttons</h2>
+      <h2>Button Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}

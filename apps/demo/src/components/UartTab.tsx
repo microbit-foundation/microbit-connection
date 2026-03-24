@@ -106,6 +106,7 @@ const UartTab = () => {
 
   return (
     <div className="tab-page">
+      <p className="service-note">Requires: UART Service</p>
       <ReceiveSection connection={connection} />
       <WriteSection connection={connection} />
     </div>

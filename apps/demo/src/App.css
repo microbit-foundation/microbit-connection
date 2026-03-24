@@ -203,6 +203,12 @@
   padding: 8px 0;
 }
 
+.service-note {
+  color: #737373;
+  font-size: 12px;
+  margin: 0 0 4px;
+}
+
 /* Header */
 .app-header {
   display: flex;

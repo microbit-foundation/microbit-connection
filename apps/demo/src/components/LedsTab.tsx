@@ -138,6 +138,7 @@ const LedsTab = () => {
 
   return (
     <div className="tab-page">
+      <p className="service-note">Requires: LED Service</p>
       <TextSection connection={connection} />
       <ScrollingDelaySection connection={connection} />
       <MatrixSection connection={connection} />
