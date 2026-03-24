@@ -38,9 +38,12 @@ import partialFlash, {
 import {
   AccelerometerData,
   ButtonData,
+  PinValue,
+  PinData,
   LedMatrix,
   MagnetometerData,
   ServiceConnectionEventMap,
+  TemperatureData,
   TypedServiceEvent,
   UartData,
 } from "../service-events.js";
@@ -90,6 +93,11 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
     type: "magnetometerdatachanged",
     listener: (data: MagnetometerData) => void,
   ): void;
+  addEventListener(
+    type: "temperaturechanged",
+    listener: (data: TemperatureData) => void,
+  ): void;
+  addEventListener(type: "pinchanged", listener: (data: PinData) => void): void;
   addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
 
   removeEventListener(
@@ -114,6 +122,14 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   removeEventListener(
     type: "magnetometerdatachanged",
     listener: (data: MagnetometerData) => void,
+  ): void;
+  removeEventListener(
+    type: "temperaturechanged",
+    listener: (data: TemperatureData) => void,
+  ): void;
+  removeEventListener(
+    type: "pinchanged",
+    listener: (data: PinData) => void,
   ): void;
   removeEventListener(
     type: "uartdata",
@@ -229,6 +245,105 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   triggerMagnetometerCalibration(): Promise<void>;
+
+  /**
+   * Gets the micro:bit temperature in degrees Celsius.
+   *
+   * @returns temperature in degrees Celsius.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  getTemperature(): Promise<number>;
+
+  /**
+   * Gets the micro:bit temperature sensor period.
+   *
+   * @returns temperature period in milliseconds.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  getTemperaturePeriod(): Promise<number>;
+
+  /**
+   * Sets the micro:bit temperature sensor period.
+   *
+   * @param value period in milliseconds.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  setTemperaturePeriod(value: number): Promise<void>;
+
+  /**
+   * Gets which pins are configured as analog.
+   * All other pins are digital (the default).
+   *
+   * @returns array of pin numbers (0-18) configured as analog.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  getAnalogPins(): Promise<number[]>;
+
+  /**
+   * Sets which pins are configured as analog.
+   * All other pins become digital (the default).
+   *
+   * @param pins array of pin numbers (0-18) to configure as analog.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  setAnalogPins(pins: number[]): Promise<void>;
+
+  /**
+   * Gets which pins are configured as inputs.
+   * Input pins are monitored and their values reported via notifications.
+   * All other pins are outputs (the default).
+   *
+   * @returns array of pin numbers (0-18) configured as inputs.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  getInputPins(): Promise<number[]>;
+
+  /**
+   * Sets which pins are configured as inputs.
+   * Input pins are monitored and their values reported via notifications.
+   * All other pins become outputs (the default).
+   *
+   * Note: configuring a pin as input overrides any existing pin mode
+   * (e.g. touch sensing used by MakeCode "on pin pressed" blocks).
+   * The two cannot be used on the same pin simultaneously.
+   *
+   * @param pins array of pin numbers (0-18) to configure as inputs.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  setInputPins(pins: number[]): Promise<void>;
+
+  /**
+   * Reads current values of input pins. Unlike the `pinchanged` event
+   * (which only includes pins whose values changed), this returns every
+   * pin configured as an input, up to a firmware limit of 10 pins
+   * (lowest-numbered first).
+   *
+   * @returns array of pin/value pairs.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  readPins(): Promise<PinValue[]>;
+
+  /**
+   * Writes pin data for output pins.
+   *
+   * @param data array of pin/value pairs.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  writePins(data: PinValue[]): Promise<void>;
+
+  /**
+   * Sets PWM output on a pin.
+   *
+   * @param pin Pin number (0-18).
+   * @param options PWM configuration.
+   * @param options.value Analog value (0-1024).
+   * @param options.period Period in microseconds.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  writePinPwm(
+    pin: number,
+    options: { value: number; period: number },
+  ): Promise<void>;
 
   /**
    * Write UART messages.
@@ -563,6 +678,61 @@ class MicrobitBluetoothConnectionImpl
     assertConnected(this.device);
     return withBleErrorMapping(() =>
       this.device!.magnetometer.triggerCalibration(),
+    );
+  }
+
+  async getTemperature(): Promise<number> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.temperature.getData());
+  }
+
+  async getTemperaturePeriod(): Promise<number> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.temperature.getPeriod());
+  }
+
+  async setTemperaturePeriod(value: number): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.temperature.setPeriod(value));
+  }
+
+  async getAnalogPins(): Promise<number[]> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.getAnalogPins());
+  }
+
+  async setAnalogPins(pins: number[]): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.setAnalogPins(pins));
+  }
+
+  async getInputPins(): Promise<number[]> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.getInputPins());
+  }
+
+  async setInputPins(pins: number[]): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.setInputPins(pins));
+  }
+
+  async readPins(): Promise<PinValue[]> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.readPins());
+  }
+
+  async writePins(data: PinValue[]): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() => this.device!.ioPin.writePins(data));
+  }
+
+  async writePinPwm(
+    pin: number,
+    options: { value: number; period: number },
+  ): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() =>
+      this.device!.ioPin.setPwm(pin, options.value, options.period),
     );
   }
 
