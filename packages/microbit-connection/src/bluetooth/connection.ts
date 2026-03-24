@@ -303,6 +303,10 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * Input pins are monitored and their values reported via notifications.
    * All other pins become outputs (the default).
    *
+   * Note: configuring a pin as input overrides any existing pin mode
+   * (e.g. touch sensing used by MakeCode "on pin pressed" blocks).
+   * The two cannot be used on the same pin simultaneously.
+   *
    * @param pins array of pin numbers (0-18) to configure as inputs.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
