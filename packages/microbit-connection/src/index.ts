@@ -4,6 +4,7 @@
 import {
   BackgroundErrorData,
   BoardVersion,
+  BondMode,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatus,
@@ -42,6 +43,7 @@ export type {
   AccelerometerData,
   BackgroundErrorData,
   BoardVersion,
+  BondMode,
   ButtonData,
   ButtonEventType,
   ConnectOptions,

@@ -1,4 +1,4 @@
-import { ConnectionStatus } from "@microbit/microbit-connection";
+import { ConnectionStatus, type BondMode } from "@microbit/microbit-connection";
 import { Capacitor } from "@capacitor/core";
 import { useConnection, type AnyConnection } from "../hooks/use-connection.ts";
 import { useErrorDialog } from "../hooks/use-error-dialog.ts";
@@ -27,6 +27,8 @@ const ConnectionHeader = () => {
     setConnectionType,
     pauseOnHidden,
     setPauseOnHidden,
+    bondMode,
+    setBondMode,
   } = useConnection();
   const { showError } = useErrorDialog();
   const isNative = Capacitor.isNativePlatform();
@@ -65,7 +67,7 @@ const ConnectionHeader = () => {
         </button>
       ) : (
         <button
-          onClick={() => connection.connect().catch(showError)}
+          onClick={() => connection.connect({ bondMode }).catch(showError)}
           disabled={status === ConnectionStatus.Connecting}
           className="btn btn-primary"
         >
@@ -102,6 +104,22 @@ const ConnectionHeader = () => {
           <span className="version-badge">{boardVersion}</span>
         )}
       </div>
+
+      {connection.type === "bluetooth" && isNative && (
+        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+          Bond:
+          <select
+            value={bondMode}
+            onChange={(e) => setBondMode(e.target.value as BondMode)}
+            className="select"
+            style={{ fontSize: 12 }}
+          >
+            <option value="application">Application</option>
+            <option value="pairing">Pairing</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+      )}
 
       {(connection.type === "usb" || connection.type === "radio-bridge") && (
         <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
