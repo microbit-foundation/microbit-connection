@@ -21,9 +21,12 @@ import {
 import { Logging, LoggingEvent } from "./logging.js";
 import {
   AccelerometerData,
+  ButtonActionData,
   ButtonData,
-  ButtonEventType,
+  ButtonActionType,
   ButtonState,
+  GestureData,
+  MicrobitEventData,
   PinValue,
   PinData,
   LedMatrix,
@@ -31,12 +34,15 @@ import {
   TemperatureData,
   UartData,
 } from "./service-events.js";
+import { ButtonAction, GestureEvent } from "./microbit-events.js";
 
 export {
+  ButtonAction,
   ButtonState,
   ConnectionStatus,
   DeviceError,
   FlashDataError,
+  GestureEvent,
   assertConnected,
   ProgressStage,
 };
@@ -45,8 +51,9 @@ export type {
   AccelerometerData,
   BackgroundErrorData,
   BoardVersion,
+  ButtonActionData,
   ButtonData,
-  ButtonEventType,
+  ButtonActionType,
   ConnectOptions,
   ConnectionAvailabilityStatus,
   ConnectionStatusChange,
@@ -54,6 +61,8 @@ export type {
   DeviceErrorCode,
   FlashDataSource,
   FlashOptions,
+  GestureData,
+  MicrobitEventData,
   PinValue,
   PinData,
   LedMatrix,

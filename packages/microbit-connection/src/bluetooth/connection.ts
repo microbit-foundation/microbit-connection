@@ -7,12 +7,6 @@ import { BleClient, BleDevice } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
 import MemoryMap from "nrf-intel-hex";
 import {
-  BluetoothDeviceWrapper,
-  isAndroid,
-  scanningTimeoutInMs,
-} from "./device-wrapper.js";
-import { profile } from "./profile.js";
-import {
   BackgroundErrorData,
   BoardVersion,
   ConnectOptions,
@@ -23,39 +17,48 @@ import {
   DeviceConnectionEventMap,
   DeviceError,
   FlashDataError,
-  assertConnected,
   FlashDataSource,
   FlashOptions,
   ProgressCallback,
   ProgressStage,
+  assertConnected,
 } from "../device.js";
 import { TypedEventTarget } from "../events.js";
-import { Logging, ConsoleLogging } from "../logging.js";
-import { fullFlash } from "./flashing/flashing-full.js";
-import partialFlash, {
-  PartialFlashResult,
-} from "./flashing/flashing-partial.js";
+import { ConsoleLogging, Logging } from "../logging.js";
 import {
   AccelerometerData,
+  ButtonActionData,
   ButtonData,
-  PinValue,
-  PinData,
+  GestureData,
   LedMatrix,
   MagnetometerData,
+  MicrobitEventData,
+  PinData,
+  PinValue,
   ServiceConnectionEventMap,
   TemperatureData,
   TypedServiceEvent,
   UartData,
 } from "../service-events.js";
+import {
+  BluetoothDeviceWrapper,
+  isAndroid,
+  scanningTimeoutInMs,
+} from "./device-wrapper.js";
+import { fullFlash } from "./flashing/flashing-full.js";
+import partialFlash, {
+  PartialFlashResult,
+} from "./flashing/flashing-partial.js";
+import { profile } from "./profile.js";
 
+import { TimeoutError } from "../async-util.js";
 import { throwIfUnavailable } from "../availability.js";
 import { truncateHexAfterEof } from "../hex-util.js";
+import { withBleErrorMapping } from "./ble-error.js";
 import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
-import { TimeoutError } from "../async-util.js";
-import { withBleErrorMapping } from "./ble-error.js";
 
 type BleClientError = { message: string; errorMessage: string };
 
@@ -66,6 +69,57 @@ export interface MicrobitBluetoothConnectionOptions {
   deviceBondState?: DeviceBondState;
 }
 
+/**
+ * A Bluetooth connection to a micro:bit device.
+ *
+ * Events and methods rely on specific BLE services being present in the
+ * micro:bit's firmware. Which services are available depends on the firmware
+ * build for C++ and for a MakeCode program depends on the service blocks added
+ * from the Bluetooth extension.
+ *
+ * The table below maps each event and method to the BLE service it requires.
+ * If a service is not present, the event will silently not fire (no error is
+ * raised) and methods that depend on it will throw.
+ *
+ * ### Accelerometer Service
+ * - `accelerometerdatachanged` event
+ * - {@link getAccelerometerData}, {@link getAccelerometerPeriod}, {@link setAccelerometerPeriod}
+ *
+ * ### Button Service
+ * - `buttonachanged`, `buttonbchanged` events
+ *
+ * ### Event Service
+ * - `gesturechanged` event — also requires the accelerometer hardware to be
+ *   active; this happens automatically if the Accelerometer Service is present
+ * - `buttonaaction`, `buttonbaction`, `buttonabaction` events
+ * - `logoaction` event (V2 only)
+ * - `microbitevent` event
+ * - {@link subscribeToEvent}, {@link sendEvent}
+ *
+ * ### IO Pin Service
+ * - `pinchanged` event
+ * - {@link getAnalogPins}, {@link setAnalogPins}
+ * - {@link getInputPins}, {@link setInputPins}
+ * - {@link readPins}, {@link writePins}, {@link writePinPwm}
+ *
+ * ### LED Service
+ * - {@link setLedText}, {@link getLedScrollingDelay}, {@link setLedScrollingDelay}
+ * - {@link getLedMatrix}, {@link setLedMatrix}
+ *
+ * ### Magnetometer Service
+ * - `magnetometerdatachanged` event
+ * - {@link getMagnetometerData}, {@link getMagnetometerBearing}
+ * - {@link getMagnetometerPeriod}, {@link setMagnetometerPeriod}
+ * - {@link triggerMagnetometerCalibration}
+ *
+ * ### Temperature Service
+ * - `temperaturechanged` event
+ * - {@link getTemperature}, {@link getTemperaturePeriod}, {@link setTemperaturePeriod}
+ *
+ * ### UART Service
+ * - `uartdata` event
+ * - {@link uartWrite}
+ */
 export interface MicrobitBluetoothConnection extends DeviceConnection {
   readonly type: "bluetooth";
   // -- DeviceConnectionEventMap overloads (redeclared from base) --
@@ -81,23 +135,54 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   addEventListener(type: "afterrequestdevice", listener: () => void): void;
   addEventListener(type: "flash", listener: () => void): void;
   // -- ServiceConnectionEventMap overloads --
+  /** Requires: Accelerometer Service. */
   addEventListener(
     type: "accelerometerdatachanged",
     listener: (data: AccelerometerData) => void,
   ): void;
+  /** Requires: Button Service. */
   addEventListener(
     type: "buttonachanged" | "buttonbchanged",
     listener: (data: ButtonData) => void,
   ): void;
+  /** Requires: Magnetometer Service. */
   addEventListener(
     type: "magnetometerdatachanged",
     listener: (data: MagnetometerData) => void,
   ): void;
+  /** Requires: Temperature Service. */
   addEventListener(
     type: "temperaturechanged",
     listener: (data: TemperatureData) => void,
   ): void;
+  /** Requires: IO Pin Service. */
   addEventListener(type: "pinchanged", listener: (data: PinData) => void): void;
+  /** Requires: Event Service. The accelerometer hardware must also be active (automatic if the Accelerometer Service is present). */
+  addEventListener(
+    type: "gesturechanged",
+    listener: (data: GestureData) => void,
+  ): void;
+  /** Requires: Event Service. */
+  addEventListener(
+    type: "buttonaaction" | "buttonbaction" | "buttonabaction",
+    listener: (data: ButtonActionData) => void,
+  ): void;
+  /** Requires: Event Service. V2 only. */
+  addEventListener(
+    type: "logoaction",
+    listener: (data: ButtonActionData) => void,
+  ): void;
+  /**
+   * Requires: Event Service. Receives raw micro:bit message bus events
+   * registered via {@link subscribeToEvent}. Higher-level events supported
+   * by the event service, like `gesturechanged` and button actions, are not
+   * included here unless you subscribe to them using {@link subscribeToEvent}.
+   */
+  addEventListener(
+    type: "microbitevent",
+    listener: (data: MicrobitEventData) => void,
+  ): void;
+  /** Requires: UART Service. */
   addEventListener(type: "uartdata", listener: (data: UartData) => void): void;
 
   removeEventListener(
@@ -132,6 +217,22 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
     listener: (data: PinData) => void,
   ): void;
   removeEventListener(
+    type: "gesturechanged",
+    listener: (data: GestureData) => void,
+  ): void;
+  removeEventListener(
+    type: "buttonaaction" | "buttonbaction" | "buttonabaction",
+    listener: (data: ButtonActionData) => void,
+  ): void;
+  removeEventListener(
+    type: "logoaction",
+    listener: (data: ButtonActionData) => void,
+  ): void;
+  removeEventListener(
+    type: "microbitevent",
+    listener: (data: MicrobitEventData) => void,
+  ): void;
+  removeEventListener(
     type: "uartdata",
     listener: (data: UartData) => void,
   ): void;
@@ -146,6 +247,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets micro:bit accelerometer data.
    *
+   * Requires: Accelerometer Service.
+   *
    * @returns accelerometer data.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -153,6 +256,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Gets micro:bit accelerometer period.
+   *
+   * Requires: Accelerometer Service.
    *
    * @returns accelerometer period.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -162,6 +267,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Sets micro:bit accelerometer period.
    *
+   * Requires: Accelerometer Service.
+   *
    * @param value The accelerometer period.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -169,6 +276,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets micro:bit LED text.
+   *
+   * Requires: LED Service.
    *
    * @param text The text displayed on micro:bit LED.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -178,6 +287,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets micro:bit LED scrolling delay.
    *
+   * Requires: LED Service.
+   *
    * @returns LED scrolling delay in milliseconds.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -185,6 +296,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets micro:bit LED scrolling delay.
+   *
+   * Requires: LED Service.
    *
    * @param delayInMillis LED scrolling delay in milliseconds.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -194,6 +307,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets micro:bit LED matrix.
    *
+   * Requires: LED Service.
+   *
    * @returns a boolean matrix representing the micro:bit LED display.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -201,6 +316,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets micro:bit LED matrix.
+   *
+   * Requires: LED Service.
    *
    * @param matrix an boolean matrix representing the micro:bit LED display.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -210,6 +327,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets micro:bit magnetometer data.
    *
+   * Requires: Magnetometer Service.
+   *
    * @returns magnetometer data.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -217,6 +336,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Gets micro:bit magnetometer bearing.
+   *
+   * Requires: Magnetometer Service.
    *
    * @returns magnetometer bearing.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -226,6 +347,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets micro:bit magnetometer period.
    *
+   * Requires: Magnetometer Service.
+   *
    * @returns magnetometer period.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -233,6 +356,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets micro:bit magnetometer period.
+   *
+   * Requires: Magnetometer Service.
    *
    * @param value magnetometer period.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -242,12 +367,16 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Triggers micro:bit magnetometer calibration.
    *
+   * Requires: Magnetometer Service.
+   *
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
   triggerMagnetometerCalibration(): Promise<void>;
 
   /**
    * Gets the micro:bit temperature in degrees Celsius.
+   *
+   * Requires: Temperature Service.
    *
    * @returns temperature in degrees Celsius.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -257,6 +386,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Gets the micro:bit temperature sensor period.
    *
+   * Requires: Temperature Service.
+   *
    * @returns temperature period in milliseconds.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -264,6 +395,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets the micro:bit temperature sensor period.
+   *
+   * Requires: Temperature Service.
    *
    * @param value period in milliseconds.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -274,6 +407,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * Gets which pins are configured as analog.
    * All other pins are digital (the default).
    *
+   * Requires: IO Pin Service.
+   *
    * @returns array of pin numbers (0-18) configured as analog.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -282,6 +417,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Sets which pins are configured as analog.
    * All other pins become digital (the default).
+   *
+   * Requires: IO Pin Service.
    *
    * @param pins array of pin numbers (0-18) to configure as analog.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -292,6 +429,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * Gets which pins are configured as inputs.
    * Input pins are monitored and their values reported via notifications.
    * All other pins are outputs (the default).
+   *
+   * Requires: IO Pin Service.
    *
    * @returns array of pin numbers (0-18) configured as inputs.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -307,6 +446,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * (e.g. touch sensing used by MakeCode "on pin pressed" blocks).
    * The two cannot be used on the same pin simultaneously.
    *
+   * Requires: IO Pin Service.
+   *
    * @param pins array of pin numbers (0-18) to configure as inputs.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -318,6 +459,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
    * pin configured as an input, up to a firmware limit of 10 pins
    * (lowest-numbered first).
    *
+   * Requires: IO Pin Service.
+   *
    * @returns array of pin/value pairs.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -326,6 +469,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   /**
    * Writes pin data for output pins.
    *
+   * Requires: IO Pin Service.
+   *
    * @param data array of pin/value pairs.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
    */
@@ -333,6 +478,8 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
 
   /**
    * Sets PWM output on a pin.
+   *
+   * Requires: IO Pin Service.
    *
    * @param pin Pin number (0-18).
    * @param options PWM configuration.
@@ -346,7 +493,37 @@ export interface MicrobitBluetoothConnection extends DeviceConnection {
   ): Promise<void>;
 
   /**
+   * Register interest in a specific micro:bit message bus event.
+   * Tells the micro:bit to forward matching message bus traffic over BLE.
+   * Matching events are dispatched as `microbitevent`.
+   * Use 0 as the value to match all events from a source.
+   *
+   * For common message bus events, consider the higher-level alternatives:
+   * `gesturechanged`, `buttonaaction`, `buttonbaction`, `buttonabaction`.
+   *
+   * Requires: Event Service.
+   *
+   * @param source Event source ID.
+   * @param value Event value to match, or 0 for any.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  subscribeToEvent(source: number, value: number): Promise<void>;
+
+  /**
+   * Send an event to the micro:bit's message bus.
+   *
+   * Requires: Event Service.
+   *
+   * @param source Event source ID.
+   * @param value Event value.
+   * @throws {DeviceError} with code `not-connected` if there is no connection.
+   */
+  sendEvent(source: number, value: number): Promise<void>;
+
+  /**
    * Write UART messages.
+   *
+   * Requires: UART Service.
    *
    * @param data UART message.
    * @throws {DeviceError} with code `not-connected` if there is no connection.
@@ -733,6 +910,20 @@ class MicrobitBluetoothConnectionImpl
     assertConnected(this.device);
     return withBleErrorMapping(() =>
       this.device!.ioPin.setPwm(pin, options.value, options.period),
+    );
+  }
+
+  async subscribeToEvent(source: number, value: number): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() =>
+      this.device!.events.subscribeToEvent(source, value),
+    );
+  }
+
+  async sendEvent(source: number, value: number): Promise<void> {
+    assertConnected(this.device);
+    return withBleErrorMapping(() =>
+      this.device!.events.sendEvent(source, value),
     );
   }
 

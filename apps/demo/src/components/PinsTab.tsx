@@ -285,6 +285,7 @@ const PinsTab = () => {
 
   return (
     <div className="tab-page">
+      <p className="service-note">Requires: IO Pin Service</p>
       <PinConfigSection connection={connection} />
       <PinDataSection connection={connection} />
       <PwmSection connection={connection} />
