@@ -263,9 +263,16 @@ The following are no longer exported from the package:
 - `ServiceConnectionEventMap` — replaced by typed overloads on connection interfaces
 - `NullLogging` — not part of public API
 
-## `MicrobitUSBConnectionOptions` — new `pauseOnHidden` option
+## Tab visibility handling (`pauseOnHidden`)
 
-A new `pauseOnHidden` option (default `true`) controls whether the USB connection auto-pauses when the browser tab is hidden.
+In v0, the USB connection unconditionally disconnected when the browser tab became hidden and reconnected when the tab became visible again. The status transitioned to `DISCONNECTED` during this time, making it indistinguishable from a real disconnection.
+
+In v1, this behaviour is now:
+
+- **Controllable** — the new `pauseOnHidden` option (default `true`) can be set to `false` to keep the connection open while the tab is hidden. Use this with care: holding the USB interface while the tab is hidden prevents other tabs or applications from connecting to the micro:bit, which can be confusing for users.
+- **Observable** — when the connection is paused, the status transitions to `ConnectionStatus.Paused` instead of `Disconnected`, so the UI can distinguish between a temporary pause and a real disconnection.
+
+Reconnection is still automatic when the tab becomes visible again. If reconnection fails (e.g. another process claimed the USB interface), the status transitions to `Disconnected`.
 
 ## `MicrobitRadioBridgeConnectionOptions.logging` now optional
 
