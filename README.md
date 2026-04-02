@@ -4,7 +4,7 @@
 
 A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. Works in browsers (via WebUSB and Web Bluetooth) and in native iOS/Android apps (Bluetooth only, via [Capacitor](https://capacitorjs.com/)).
 
-[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection).
+[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/apps/MIGRATION.md).
 
 ### Demo apps
 
