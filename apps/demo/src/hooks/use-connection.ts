@@ -1,5 +1,6 @@
 import {
   ConnectionStatus,
+  type BondMode,
   type ConnectionStatusChange,
   type BackgroundErrorData,
   type BoardVersion,
@@ -38,6 +39,8 @@ interface ConnectionContextValue {
   setConnectionType: (type: AnyConnection["type"]) => void;
   pauseOnHidden: boolean;
   setPauseOnHidden: (v: boolean) => void;
+  bondMode: BondMode;
+  setBondMode: (v: BondMode) => void;
 }
 
 export const ConnectionContext = createContext<
@@ -48,6 +51,7 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
   const { log } = useLog();
   const [connectionType, setConnectionType] = useState<AnyConnection["type"]>(defaultConnectionType);
   const [pauseOnHidden, setPauseOnHidden] = useState(true);
+  const [bondMode, setBondMode] = useState<BondMode>("pairing");
   const [status, setStatus] = useState<ConnectionStatus>(
     ConnectionStatus.NoAuthorizedDevice,
   );
@@ -134,6 +138,8 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
     setConnectionType,
     pauseOnHidden,
     setPauseOnHidden,
+    bondMode,
+    setBondMode,
   };
 };
 

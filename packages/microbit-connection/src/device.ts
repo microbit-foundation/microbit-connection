@@ -233,6 +233,21 @@ export const ConnectionStatus = {
 export type ConnectionStatus =
   (typeof ConnectionStatus)[keyof typeof ConnectionStatus];
 
+/**
+ * Controls bonding behaviour and post-bond device mode on native platforms.
+ *
+ * - `"pairing"` — Bond if needed, then reset the device into pairing mode.
+ *   Use when you intend to flash immediately after connecting.
+ * - `"application"` — Bond if needed, then reset the device into application
+ *   mode. Use when you want to interact with BLE services (sensors, UART, …)
+ *   on firmware that has BLE enabled in application mode.
+ * - `"none"` — Skip bonding entirely and just connect. Use for open-link
+ *   firmware where no bonding is required.
+ *
+ * Ignored on web platforms where the browser manages pairing transparently.
+ */
+export type BondMode = "pairing" | "application" | "none";
+
 export interface ConnectOptions {
   /**
    * Optional progress callback for tracking connection stages.
@@ -248,6 +263,13 @@ export interface ConnectOptions {
    * aborted programmatically.
    */
   signal?: AbortSignal;
+  /**
+   * Controls bonding and post-bond device mode on native platforms.
+   * Ignored on web. Default: `"pairing"`.
+   *
+   * @see {@link BondMode}
+   */
+  bondMode?: BondMode;
 }
 
 export interface FlashOptions {

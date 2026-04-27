@@ -953,7 +953,11 @@ class MicrobitBluetoothConnectionImpl
       this.deferredUpdatesPreviousStatus = this.status;
 
       if (this.status !== ConnectionStatus.Connected) {
-        await this.connect({ progress, signal: options.signal });
+        await this.connect({
+          progress,
+          signal: options.signal,
+          bondMode: "pairing",
+        });
       }
 
       const connection = this.device!;

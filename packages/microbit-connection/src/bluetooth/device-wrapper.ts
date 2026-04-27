@@ -20,6 +20,7 @@ import {
 import { ButtonService } from "./services/button-service.js";
 import { DeviceInformationService } from "./services/device-information-service.js";
 import {
+  BondMode,
   BoardVersion,
   ConnectOptions,
   DeviceError,
@@ -179,10 +180,11 @@ export class BluetoothDeviceWrapper implements Logging {
     });
     this.callbacks.onConnecting();
 
+    const bondMode: BondMode = options?.bondMode ?? "pairing";
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.isNativePlatform() && bondMode !== "none") {
         const isBonded = this.deviceBondState.isBonded(this.bleDevice.deviceId);
-        await this.connectHandlingBond(progress, isBonded ?? false);
+        await this.connectHandlingBond(progress, isBonded ?? false, bondMode);
         this.setBonded(true);
         // We need this on Android for reconnecting after DFU.
         await BleClient.discoverServices(this.bleDevice.deviceId);
@@ -474,6 +476,7 @@ export class BluetoothDeviceWrapper implements Logging {
   private async connectHandlingBond(
     progress: ProgressCallback,
     isAlreadyIosBonded: boolean,
+    bondMode: "pairing" | "application",
   ): Promise<void> {
     progress(ProgressStage.CheckingBond);
     const startTime = Date.now();
@@ -507,10 +510,14 @@ export class BluetoothDeviceWrapper implements Logging {
       await this.connectInternal();
 
       try {
+        const targetMode =
+          bondMode === "pairing"
+            ? MicroBitMode.Pairing
+            : MicroBitMode.Application;
         progress(ProgressStage.ResettingDevice);
-        this.log("Resetting to pairing mode");
+        this.log(`Resetting to ${bondMode} mode`);
         const pf = new PartialFlashingService(this);
-        await pf.resetToMode(MicroBitMode.Pairing);
+        await pf.resetToMode(targetMode);
         await this.waitForDisconnect(10_000);
 
         progress(ProgressStage.Connecting);
