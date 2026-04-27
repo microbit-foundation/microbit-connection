@@ -3,6 +3,7 @@ import type {
   AccelerometerData,
   MagnetometerData,
   ButtonData,
+  TemperatureData,
 } from "@microbit/microbit-connection";
 import type { MicrobitBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 import type { MicrobitRadioBridgeConnection } from "@microbit/microbit-connection/radio-bridge";
@@ -67,7 +68,7 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
 
   return (
     <div className="section">
-      <h2>Accelerometer</h2>
+      <h2>Accelerometer Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -149,7 +150,7 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
 
   return (
     <div className="section">
-      <h2>Magnetometer</h2>
+      <h2>Magnetometer Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -192,6 +193,85 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
   );
 };
 
+const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+  const { log } = useLog();
+  const { showError } = useErrorDialog();
+  const [celsius, setCelsius] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
+  const [period, setPeriod] = useState("");
+
+  useEffect(() => {
+    if (!listening) return;
+    const listener = (d: TemperatureData) => setCelsius(d.celsius);
+    connection.addEventListener("temperaturechanged", listener);
+    return () => {
+      connection.removeEventListener("temperaturechanged", listener);
+    };
+  }, [connection, listening]);
+
+  const readTemperature = useCallback(async () => {
+    try {
+      const t = await connection.getTemperature();
+      setCelsius(t);
+      log("temp", `Temperature: ${t} °C`);
+    } catch (e) { showError(e); }
+  }, [connection, log, showError]);
+
+  const getPeriod = useCallback(async () => {
+    try {
+      const p = await connection.getTemperaturePeriod();
+      setPeriod(String(p));
+    } catch (e) { showError(e); }
+  }, [connection, showError]);
+
+  const setPeriodValue = useCallback(async () => {
+    try {
+      await connection.setTemperaturePeriod(parseInt(period, 10));
+      log("temp", `Period set to ${period}ms`);
+    } catch (e) { showError(e); }
+  }, [connection, period, log, showError]);
+
+  return (
+    <div className="section">
+      <h2>Temperature Service</h2>
+      <div className="control-row">
+        <button
+          onClick={() => setListening(!listening)}
+          className={`btn${listening ? " btn-toggle active" : ""}`}
+        >
+          {listening ? "Stop" : "Listen"}
+        </button>
+        <button onClick={readTemperature} className="btn">Read</button>
+      </div>
+      {celsius !== null ? (
+        <div className="sensor-readout">
+          <span className="axis">
+            <span className="axis-value" style={{ minWidth: 40 }}>{celsius} °C</span>
+          </span>
+        </div>
+      ) : (
+        <p className="empty-state">
+          {listening ? "Waiting for data..." : "Press Listen or Read to get temperature."}
+        </p>
+      )}
+      <div className="control-row" style={{ marginTop: 8 }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+          Period (ms):
+          <input
+            type="number"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="input"
+            style={{ width: 80 }}
+          />
+        </label>
+        <button onClick={getPeriod} className="btn">Read</button>
+        <button onClick={setPeriodValue} className="btn">Write</button>
+      </div>
+    </div>
+  );
+};
+
 const ButtonsSection = ({ connection }: { connection: ServiceConnection }) => {
   const { log } = useLog();
   const [buttonA, setButtonA] = useState<string>("-");
@@ -218,7 +298,7 @@ const ButtonsSection = ({ connection }: { connection: ServiceConnection }) => {
 
   return (
     <div className="section">
-      <h2>Buttons</h2>
+      <h2>Button Service</h2>
       <div className="control-row">
         <button
           onClick={() => setListening(!listening)}
@@ -250,7 +330,10 @@ const SensorsTab = () => {
     <div className="tab-page">
       <AccelerometerSection connection={connection} />
       {connection.type === "bluetooth" && (
-        <MagnetometerSection connection={connection} />
+        <>
+          <MagnetometerSection connection={connection} />
+          <TemperatureSection connection={connection} />
+        </>
       )}
       <ButtonsSection connection={connection} />
     </div>

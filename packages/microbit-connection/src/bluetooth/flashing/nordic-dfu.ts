@@ -250,9 +250,19 @@ const createInitPacketV2 = async (appBin: Uint8Array): Promise<Uint8Array> => {
   const appSize = appBin.length;
   const magic = "microbit_app";
   const version = 1;
-  const hashSize = 32;
-  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", appBin));
-  hash.reverse(); // Bootloader reverses bytes before comparing (see nrf_dfu_validation_hash_ok)
+  // crypto.subtle requires a secure context (HTTPS). When unavailable (e.g.
+  // Capacitor dev server over plain HTTP) we skip the hash: the bootloader
+  // bypasses its integrity check when hash_size is 0.
+  let hash: Uint8Array;
+  let hashSize: number;
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    hash = new Uint8Array(await crypto.subtle.digest("SHA-256", appBin));
+    hash.reverse(); // Bootloader reverses bytes before comparing (see nrf_dfu_validation_hash_ok)
+    hashSize = 32;
+  } else {
+    hash = new Uint8Array(32);
+    hashSize = 0; // Tells the bootloader to skip the integrity check
+  }
 
   const buffer = new ArrayBuffer(12 + 4 + 4 + 4 + 32); // total: 56 bytes
   const view = new DataView(buffer);
