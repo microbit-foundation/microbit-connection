@@ -265,7 +265,7 @@ export interface ConnectOptions {
   signal?: AbortSignal;
   /**
    * Controls bonding and post-bond device mode on native platforms.
-   * Ignored on web. Default: `"application"`.
+   * Ignored on web. Default: `"pairing"`.
    *
    * @see {@link BondMode}
    */
