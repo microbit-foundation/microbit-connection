@@ -180,7 +180,7 @@ export class BluetoothDeviceWrapper implements Logging {
     });
     this.callbacks.onConnecting();
 
-    const bondMode: BondMode = options?.bondMode ?? "application";
+    const bondMode: BondMode = options?.bondMode ?? "pairing";
     try {
       if (Capacitor.isNativePlatform() && bondMode !== "none") {
         const isBonded = this.deviceBondState.isBonded(this.bleDevice.deviceId);
