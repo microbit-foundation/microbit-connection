@@ -178,7 +178,7 @@ The tests prompt you for physical actions (plugging/unplugging) and verify the r
 
 This software is under the MIT open source license.
 
-[SPDX-License-Identifier: MIT](LICENSE.md)
+[SPDX-License-Identifier: MIT](https://github.com/microbit-foundation/microbit-connection/blob/main/LICENSE.md)
 
 We use dependencies via the NPM registry as specified by the package.json file under common Open Source licenses.
 
