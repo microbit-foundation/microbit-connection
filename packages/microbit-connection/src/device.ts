@@ -30,7 +30,7 @@ export type DeviceErrorCode =
   // -- User cancelled (no error UI needed) --
 
   /**
-   * **BLE.** The operation was cancelled via an {@link AbortSignal}
+   * **BLE.** The operation was cancelled via an `AbortSignal`
    * supplied by the caller. No user-facing error is needed.
    */
   | "aborted"

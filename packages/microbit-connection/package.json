@@ -5,7 +5,9 @@
   "module": "./build/esm/index.js",
   "types": "./build/esm/index.d.ts",
   "files": [
-    "build"
+    "build",
+    "README.md",
+    "LICENSE.md"
   ],
   "sideEffects": false,
   "exports": {
@@ -67,7 +69,9 @@
     "build": "npm run build:lib",
     "docs": "typedoc",
     "ci": "npm run build:lib && npm run test",
-    "test": "vitest"
+    "test": "vitest",
+    "prepack": "cp ../../README.md ../../LICENSE.md .",
+    "postpack": "rm -f README.md LICENSE.md"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
