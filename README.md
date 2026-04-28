@@ -4,11 +4,11 @@
 
 A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. Works in browsers (via WebUSB and Web Bluetooth) and in native iOS/Android apps (Bluetooth only, via [Capacitor](https://capacitorjs.com/)).
 
-[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/apps/MIGRATION.md).
+[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/main/MIGRATION.md).
 
 ### Demo apps
 
-- [Demo app](https://microbit-connection.pages.dev/) ([source](apps/demo/)) — WebUSB, Web Bluetooth, and Capacitor for native mobile
+- [Demo app](https://microbit-connection.pages.dev/) ([source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo)) — WebUSB, Web Bluetooth, and Capacitor for native mobile
 
 ### Projects using this library
 
@@ -112,7 +112,7 @@ To disable this behaviour, pass `pauseOnHidden: false`:
 const usb = createUSBConnection({ pauseOnHidden: false });
 ```
 
-For more examples see the [demo app source](apps/demo/src/).
+For more examples see the [demo app source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo).
 
 ### Connect via Bluetooth
 
@@ -129,7 +129,7 @@ await bluetooth.connect();
 console.log("Connection status: ", bluetooth.status); // "Connected"
 ```
 
-For more examples see the [demo app source](apps/demo/src/).
+For more examples see the [demo app source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo).
 
 ### Error handling
 
@@ -165,7 +165,7 @@ Open link hex files are not common. The most common source is the micro:bit Crea
 
 ## Hardware testing
 
-The [hardware test app](apps/hardware-test/) is a human-in-the-loop test runner for USB flashing. It covers partial and full flash, flash fallback paths, serial data integrity after flash, and reconnection after unplug. Run it with:
+The [hardware test app](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/hardware-test) is a human-in-the-loop test runner for USB flashing. It covers partial and full flash, flash fallback paths, serial data integrity after flash, and reconnection after unplug. Run it with:
 
 ```bash
 cd apps/hardware-test
@@ -178,7 +178,7 @@ The tests prompt you for physical actions (plugging/unplugging) and verify the r
 
 This software is under the MIT open source license.
 
-[SPDX-License-Identifier: MIT](LICENSE)
+[SPDX-License-Identifier: MIT](https://github.com/microbit-foundation/microbit-connection/blob/main/LICENSE.md)
 
 We use dependencies via the NPM registry as specified by the package.json file under common Open Source licenses.
 

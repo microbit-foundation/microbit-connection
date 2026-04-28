@@ -54,7 +54,7 @@ export interface PinValue {
  *
  * Contains only the input pins whose values changed since the last
  * notification, up to a firmware limit of 10 pins per event
- * (lowest-numbered first). Use {@link MicrobitBluetoothConnection.readPins}
+ * (lowest-numbered first). Use {@link @microbit/microbit-connection/bluetooth!MicrobitBluetoothConnection.readPins | readPins}
  * to read all input pins on demand.
  */
 export interface PinData {
@@ -72,7 +72,7 @@ export interface ButtonActionData {
 
 /**
  * A raw event from the micro:bit's message bus, received via the
- * BLE Event Service. Use {@link MicrobitBluetoothConnection.subscribeToEvent}
+ * BLE Event Service. Use {@link @microbit/microbit-connection/bluetooth!MicrobitBluetoothConnection.subscribeToEvent | subscribeToEvent}
  * to register which events the micro:bit should forward.
  */
 export interface MicrobitEventData {
