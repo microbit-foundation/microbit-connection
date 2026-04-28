@@ -1,6 +1,6 @@
 # microbit-connection
 
-TypeScript library for connecting to BBC micro:bit devices via USB and Bluetooth (BLE), including partial and full (DFU) flashing. Published as `@microbit/microbit-connection` on NPM. This branch is based off the "apps" branch where we've added Capacitor support for use in a mobile app and are making various other breaking changes that will end up as a v1.0.0 when the app is stable.
+TypeScript library for connecting to BBC micro:bit devices via USB and Bluetooth (BLE), including partial and full (DFU) flashing. Published as `@microbit/microbit-connection` on NPM.
 
 ## Monorepo structure
 
