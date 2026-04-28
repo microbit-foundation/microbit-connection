@@ -4,7 +4,7 @@
 
 A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. Works in browsers (via WebUSB and Web Bluetooth) and in native iOS/Android apps (Bluetooth only, via [Capacitor](https://capacitorjs.com/)).
 
-[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/apps/MIGRATION.md).
+[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/main/MIGRATION.md).
 
 ### Demo apps
 
@@ -161,7 +161,7 @@ Open link hex files are not common. The most common source is the micro:bit Crea
 
 ### No suitable services on the micro:bit to flash
 
-- **Hex with no partial flashing or DFU control service (V1)**: This is currently the case for CreateAI data collection hex files for micro:bit V1. There's nothing that can be done via Bluetooth. When the apps branch of CreateAI is released this will eventually resolve itself (or at least, we'll stop creating more such micro:bits). Workaround: flash via WebUSB or drag and drop from a computer. The equivalent V2 hex does have the Secure DFU service (but not partial flashing) which we support.
+- **Hex with no partial flashing or DFU control service (V1)**: Some older CreateAI data-collection hex files for micro:bit V1 fall into this category. There's nothing that can be done via Bluetooth. Workaround: flash via WebUSB or drag and drop from a computer. The equivalent V2 hex does have the Secure DFU service (but not partial flashing) which we support.
 
 ## Hardware testing
 
@@ -178,7 +178,7 @@ The tests prompt you for physical actions (plugging/unplugging) and verify the r
 
 This software is under the MIT open source license.
 
-[SPDX-License-Identifier: MIT](LICENSE)
+[SPDX-License-Identifier: MIT](LICENSE.md)
 
 We use dependencies via the NPM registry as specified by the package.json file under common Open Source licenses.
 

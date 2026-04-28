@@ -1,6 +1,6 @@
 # Migration guide (v0 → v1)
 
-These breaking changes are currently available as `0.9.0-apps.alpha.N` pre-releases on npm. Once testing is complete they will be published as `1.0.0`.
+This guide covers the breaking changes between `0.x` and `1.0`.
 
 ## Subpath exports
 
