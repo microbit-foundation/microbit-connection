@@ -28,7 +28,7 @@ jobs:
           path: ./packages/microbit-connection/docs/build
 
   deploy:
-    if: false
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
     permissions:
       pages: write
       id-token: write
