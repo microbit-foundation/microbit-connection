@@ -100,7 +100,9 @@ function createUSBSuite({
             `Serial active before flash (got ${ctx.serial.numbers.length} numbers)`,
           );
           const resetsBefore = ctx.serial.resetCount;
-          ctx.log("Flashing Python on fresh USB connection (runtime change)...");
+          ctx.log(
+            "Flashing Python on fresh USB connection (runtime change)...",
+          );
           const hex = await ctx.fetchHex("serial-counter-python.hex");
           const stages = await flashWithProgress(ctx, hex);
           assertFlashType(ctx, stages, "FullFlashing");
@@ -147,11 +149,10 @@ function createUSBSuite({
           // partial flashing skips addresses >= 0x10000000. ensureUicr()
           // should have detected the blank UICR and repaired it.
           ctx.assertLogged("UICR mismatch", "Library detected UICR mismatch");
-          ctx.assertLogged(
-            "UICR repair complete",
-            "Library repaired UICR",
+          ctx.assertLogged("UICR repair complete", "Library repaired UICR");
+          ctx.log(
+            "Flashing serial-counter-python.hex to verify device boots...",
           );
-          ctx.log("Flashing serial-counter-python.hex to verify device boots...");
           const verifyHex = await ctx.fetchHex("serial-counter-python.hex");
           await flashWithProgress(ctx, verifyHex);
           ctx.log("Checking device boots after UICR recovery...");
@@ -186,9 +187,7 @@ async function replugAndReconnect(
     ctx.connection.status === ConnectionStatus.NoAuthorizedDevice,
     "Device lost after unplug",
   );
-  await ctx.waitForUser(
-    "Plug the micro:bit back in, then click Continue.",
-  );
+  await ctx.waitForUser("Plug the micro:bit back in, then click Continue.");
   ctx.log("Reconnecting...");
   await ctx.connection.connect();
   await ctx.waitForStatus(ConnectionStatus.Connected, 15_000);
@@ -203,10 +202,7 @@ async function replugAndReconnect(
 }
 
 function assertConnected(ctx: TestContext): void {
-  ctx.assert(
-    ctx.connection.status === ConnectionStatus.Connected,
-    "Connected",
-  );
+  ctx.assert(ctx.connection.status === ConnectionStatus.Connected, "Connected");
 }
 
 async function flashWithProgress(
@@ -281,7 +277,10 @@ async function assertSerialFromZero(
 ): Promise<void> {
   const numbers = await ctx.serial.waitForNumbers(count, timeoutMs);
   ctx.log(`Received: ${numbers.join(", ")}`);
-  ctx.assert(numbers.length >= count, `Got ${numbers.length} numbers (need ${count})`);
+  ctx.assert(
+    numbers.length >= count,
+    `Got ${numbers.length} numbers (need ${count})`,
+  );
   ctx.assert(numbers[0] === 0, `First number is 0 (got ${numbers[0]})`);
   for (let i = 1; i < numbers.length; i++) {
     ctx.assert(

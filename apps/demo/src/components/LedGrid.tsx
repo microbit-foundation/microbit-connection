@@ -9,12 +9,7 @@ interface LedGridProps {
   gap?: number;
 }
 
-const LedGrid = ({
-  grid,
-  onToggle,
-  cellSize = 44,
-  gap = 4,
-}: LedGridProps) => {
+const LedGrid = ({ grid, onToggle, cellSize = 44, gap = 4 }: LedGridProps) => {
   return (
     <div
       className="led-grid"

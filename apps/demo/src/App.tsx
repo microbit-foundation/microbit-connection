@@ -24,7 +24,11 @@ type Tab = "flash" | "sensors" | "io" | "pins" | "events" | "serial" | "uart";
 
 const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "flash", label: "Flash", availableFor: ["usb", "bluetooth"] },
-  { id: "sensors", label: "Sensors", availableFor: ["bluetooth", "radio-bridge"] },
+  {
+    id: "sensors",
+    label: "Sensors",
+    availableFor: ["bluetooth", "radio-bridge"],
+  },
   { id: "io", label: "LEDs", availableFor: ["bluetooth"] },
   { id: "pins", label: "Pins", availableFor: ["bluetooth"] },
   { id: "events", label: "Events", availableFor: ["bluetooth"] },

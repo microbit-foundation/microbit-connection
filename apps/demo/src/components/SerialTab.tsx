@@ -71,7 +71,9 @@ const SerialTab = () => {
           </div>
         ) : (
           <p className="empty-state">
-            {serialListening ? "Waiting for serial data..." : "Press Listen to start receiving serial data."}
+            {serialListening
+              ? "Waiting for serial data..."
+              : "Press Listen to start receiving serial data."}
           </p>
         )}
       </div>

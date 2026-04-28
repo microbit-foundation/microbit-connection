@@ -27,8 +27,7 @@ export const useErrorDialogState = (): ErrorDialogContextValue => {
       return;
     }
     const code = err instanceof DeviceError ? err.code : undefined;
-    const message =
-      err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
     setError({ code, message });
   }, []);
 

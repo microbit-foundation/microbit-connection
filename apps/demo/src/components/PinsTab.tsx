@@ -35,7 +35,10 @@ const PinConfigSection = ({
     try {
       await connection.setAnalogPins([...analogPins]);
       await connection.setInputPins([...inputPins]);
-      log("pins", `Config written — analog: [${[...analogPins]}], input: [${[...inputPins]}]`);
+      log(
+        "pins",
+        `Config written — analog: [${[...analogPins]}], input: [${[...inputPins]}]`,
+      );
     } catch (e) {
       showError(e);
     }
@@ -60,10 +63,14 @@ const PinConfigSection = ({
   return (
     <div className="section">
       <h2>Pin Configuration</h2>
-      <table style={{ fontSize: 13, borderCollapse: "collapse", marginBottom: 8 }}>
+      <table
+        style={{ fontSize: 13, borderCollapse: "collapse", marginBottom: 8 }}
+      >
         <thead>
           <tr>
-            <th style={{ padding: "4px 12px 4px 0", textAlign: "left" }}>Pin</th>
+            <th style={{ padding: "4px 12px 4px 0", textAlign: "left" }}>
+              Pin
+            </th>
             <th style={{ padding: "4px 12px" }}>Analog</th>
             <th style={{ padding: "4px 12px" }}>Input</th>
           </tr>
@@ -71,7 +78,9 @@ const PinConfigSection = ({
         <tbody>
           {PINS.map((pin) => (
             <tr key={pin}>
-              <td style={{ padding: "4px 12px 4px 0", fontWeight: 600 }}>P{pin}</td>
+              <td style={{ padding: "4px 12px 4px 0", fontWeight: 600 }}>
+                P{pin}
+              </td>
               <td style={{ padding: "4px 12px", textAlign: "center" }}>
                 <input
                   type="checkbox"
@@ -91,8 +100,12 @@ const PinConfigSection = ({
         </tbody>
       </table>
       <div className="control-row">
-        <button onClick={readConfig} className="btn">Read</button>
-        <button onClick={writeConfig} className="btn">Write</button>
+        <button onClick={readConfig} className="btn">
+          Read
+        </button>
+        <button onClick={writeConfig} className="btn">
+          Write
+        </button>
       </div>
     </div>
   );
@@ -135,7 +148,10 @@ const PinDataSection = ({
         next.set(pv.pin, pv.value);
       }
       setPinValues(next);
-      log("pins", `Read: ${data.map((d) => `P${d.pin}=${d.value}`).join(", ") || "(none)"}`);
+      log(
+        "pins",
+        `Read: ${data.map((d) => `P${d.pin}=${d.value}`).join(", ") || "(none)"}`,
+      );
     } catch (e) {
       showError(e);
     }
@@ -163,7 +179,9 @@ const PinDataSection = ({
         >
           {listening ? "Stop" : "Listen"}
         </button>
-        <button onClick={readAll} className="btn">Read</button>
+        <button onClick={readAll} className="btn">
+          Read
+        </button>
       </div>
       {displayPins.length > 0 ? (
         <div className="sensor-readout">
@@ -191,7 +209,9 @@ const PinDataSection = ({
           onChange={(e) => setWritePin(parseInt(e.target.value, 10))}
         >
           {PINS.map((p) => (
-            <option key={p} value={p}>P{p}</option>
+            <option key={p} value={p}>
+              P{p}
+            </option>
           ))}
         </select>
         <input
@@ -202,7 +222,9 @@ const PinDataSection = ({
           className="input"
           style={{ width: 60 }}
         />
-        <button onClick={writePin_} className="btn">Write</button>
+        <button onClick={writePin_} className="btn">
+          Write
+        </button>
       </div>
     </div>
   );
@@ -240,10 +262,19 @@ const PwmSection = ({
           onChange={(e) => setPin(parseInt(e.target.value, 10))}
         >
           {PINS.map((p) => (
-            <option key={p} value={p}>P{p}</option>
+            <option key={p} value={p}>
+              P{p}
+            </option>
           ))}
         </select>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Value:
           <input
             type="number"
@@ -254,7 +285,14 @@ const PwmSection = ({
             placeholder="0-1024"
           />
         </label>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Period (us):
           <input
             type="number"
@@ -264,7 +302,9 @@ const PwmSection = ({
             style={{ width: 80 }}
           />
         </label>
-        <button onClick={writePwm} className="btn">Write</button>
+        <button onClick={writePwm} className="btn">
+          Write
+        </button>
       </div>
     </div>
   );

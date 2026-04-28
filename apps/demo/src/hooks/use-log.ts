@@ -58,9 +58,7 @@ export const useLog = (): LogContextValue => {
  * Creates a Logging implementation that bridges library internal logs
  * to our LogContext.
  */
-export const createLoggingAdapter = (
-  log: LogContextValue["log"],
-): Logging => ({
+export const createLoggingAdapter = (log: LogContextValue["log"]): Logging => ({
   event(event: LoggingEvent) {
     const parts = [event.type];
     if (event.message) parts.push(event.message);

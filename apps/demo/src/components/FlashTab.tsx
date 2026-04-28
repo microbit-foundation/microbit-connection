@@ -10,22 +10,86 @@ interface CannedHexFile {
 }
 
 const cannedHexFiles: CannedHexFile[] = [
-  { name: "bluetooth-v1-no-magnetometer.hex", path: "/hex-files/bluetooth-v1-no-magnetometer.hex", label: "Bluetooth V1 (No Magnetometer)" },
-  { name: "bluetooth-v2.hex", path: "/hex-files/bluetooth-v2.hex", label: "Bluetooth V2" },
-  { name: "data-collection-program.hex", path: "/hex-files/data-collection-program.hex", label: "Data Collection Program" },
-  { name: "serial-counter-makecode.hex", path: "/hex-files/serial-counter-makecode.hex", label: "Serial Counter (MakeCode)" },
-  { name: "serial-counter-python.hex", path: "/hex-files/serial-counter-python.hex", label: "Serial Counter (Python)" },
-  { name: "microbit-data-collection-just-works-universal.hex", path: "/hex-files/microbit-data-collection-just-works-universal.hex", label: "Data Collection (new, just works)" },
-  { name: "microbit-data-collection-no-pairing-universal.hex", path: "/hex-files/microbit-data-collection-no-pairing-universal.hex", label: "Data Collection (new, no pairing)" },
-  { name: "local-sensors-radio-bridge.hex", path: "/hex-files/local-sensors-radio-bridge.hex", label: "Local Sensors Radio Bridge" },
-  { name: "createai-project.hex", path: "/hex-files/createai-project.hex", label: "CreateAI project" },
-  { name: "meet-the-microbit.hex", path: "/hex-files/meet-the-microbit.hex", label: "Meet the micro:bit" },
-  { name: "microbit-beating-heart.hex", path: "/hex-files/microbit-beating-heart.hex", label: "Beating Heart" },
-  { name: "microbit-micropython-v1.hex", path: "/hex-files/microbit-micropython-v1.hex", label: "MicroPython V1" },
-  { name: "microbit-micropython-v2.hex", path: "/hex-files/microbit-micropython-v2.hex", label: "MicroPython V2" },
-  { name: "microbit-v1-battery-level.hex", path: "/hex-files/microbit-v1-battery-level.hex", label: "V1 Battery Level" },
-  { name: "microbit-v2-battery-voltage-v1.0.0.hex", path: "/hex-files/microbit-v2-battery-voltage-v1.0.0.hex", label: "V2 Battery Voltage" },
-  { name: "python-editor-default.hex", path: "/hex-files/python-editor-default.hex", label: "Python Editor Default" },
+  {
+    name: "bluetooth-v1-no-magnetometer.hex",
+    path: "/hex-files/bluetooth-v1-no-magnetometer.hex",
+    label: "Bluetooth V1 (No Magnetometer)",
+  },
+  {
+    name: "bluetooth-v2.hex",
+    path: "/hex-files/bluetooth-v2.hex",
+    label: "Bluetooth V2",
+  },
+  {
+    name: "data-collection-program.hex",
+    path: "/hex-files/data-collection-program.hex",
+    label: "Data Collection Program",
+  },
+  {
+    name: "serial-counter-makecode.hex",
+    path: "/hex-files/serial-counter-makecode.hex",
+    label: "Serial Counter (MakeCode)",
+  },
+  {
+    name: "serial-counter-python.hex",
+    path: "/hex-files/serial-counter-python.hex",
+    label: "Serial Counter (Python)",
+  },
+  {
+    name: "microbit-data-collection-just-works-universal.hex",
+    path: "/hex-files/microbit-data-collection-just-works-universal.hex",
+    label: "Data Collection (new, just works)",
+  },
+  {
+    name: "microbit-data-collection-no-pairing-universal.hex",
+    path: "/hex-files/microbit-data-collection-no-pairing-universal.hex",
+    label: "Data Collection (new, no pairing)",
+  },
+  {
+    name: "local-sensors-radio-bridge.hex",
+    path: "/hex-files/local-sensors-radio-bridge.hex",
+    label: "Local Sensors Radio Bridge",
+  },
+  {
+    name: "createai-project.hex",
+    path: "/hex-files/createai-project.hex",
+    label: "CreateAI project",
+  },
+  {
+    name: "meet-the-microbit.hex",
+    path: "/hex-files/meet-the-microbit.hex",
+    label: "Meet the micro:bit",
+  },
+  {
+    name: "microbit-beating-heart.hex",
+    path: "/hex-files/microbit-beating-heart.hex",
+    label: "Beating Heart",
+  },
+  {
+    name: "microbit-micropython-v1.hex",
+    path: "/hex-files/microbit-micropython-v1.hex",
+    label: "MicroPython V1",
+  },
+  {
+    name: "microbit-micropython-v2.hex",
+    path: "/hex-files/microbit-micropython-v2.hex",
+    label: "MicroPython V2",
+  },
+  {
+    name: "microbit-v1-battery-level.hex",
+    path: "/hex-files/microbit-v1-battery-level.hex",
+    label: "V1 Battery Level",
+  },
+  {
+    name: "microbit-v2-battery-voltage-v1.0.0.hex",
+    path: "/hex-files/microbit-v2-battery-voltage-v1.0.0.hex",
+    label: "V2 Battery Voltage",
+  },
+  {
+    name: "python-editor-default.hex",
+    path: "/hex-files/python-editor-default.hex",
+    label: "Python Editor Default",
+  },
 ];
 
 const FlashTab = () => {

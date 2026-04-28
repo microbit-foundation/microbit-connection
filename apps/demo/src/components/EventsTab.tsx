@@ -134,19 +134,27 @@ const ButtonClicksSection = ({
       <div className="sensor-readout" style={{ marginTop: 8 }}>
         <span className="axis">
           <span className="axis-label">A:</span>
-          <span className="axis-value" style={{ minWidth: 80 }}>{lastA}</span>
+          <span className="axis-value" style={{ minWidth: 80 }}>
+            {lastA}
+          </span>
         </span>
         <span className="axis">
           <span className="axis-label">B:</span>
-          <span className="axis-value" style={{ minWidth: 80 }}>{lastB}</span>
+          <span className="axis-value" style={{ minWidth: 80 }}>
+            {lastB}
+          </span>
         </span>
         <span className="axis">
           <span className="axis-label">A+B:</span>
-          <span className="axis-value" style={{ minWidth: 80 }}>{lastAB}</span>
+          <span className="axis-value" style={{ minWidth: 80 }}>
+            {lastAB}
+          </span>
         </span>
         <span className="axis">
           <span className="axis-label">Logo:</span>
-          <span className="axis-value" style={{ minWidth: 80 }}>{lastLogo}</span>
+          <span className="axis-value" style={{ minWidth: 80 }}>
+            {lastLogo}
+          </span>
         </span>
       </div>
     </div>
@@ -209,7 +217,14 @@ const RawEventsSection = ({
         </button>
       </div>
       <div className="control-row" style={{ marginTop: 8 }}>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Source:
           <input
             type="number"
@@ -219,7 +234,14 @@ const RawEventsSection = ({
             style={{ width: 60 }}
           />
         </label>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Value:
           <input
             type="number"
@@ -230,8 +252,12 @@ const RawEventsSection = ({
             placeholder="0 = any"
           />
         </label>
-        <button onClick={subscribe} className="btn">Subscribe</button>
-        <button onClick={() => setEntries([])} className="btn">Clear</button>
+        <button onClick={subscribe} className="btn">
+          Subscribe
+        </button>
+        <button onClick={() => setEntries([])} className="btn">
+          Clear
+        </button>
       </div>
       <div ref={logRef} className="data-box">
         {entries.length > 0
@@ -269,7 +295,14 @@ const SendEventSection = ({
     <div className="section">
       <h2>Send Event</h2>
       <div className="control-row">
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Source:
           <input
             type="number"
@@ -279,7 +312,14 @@ const SendEventSection = ({
             style={{ width: 60 }}
           />
         </label>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Value:
           <input
             type="number"
@@ -289,7 +329,9 @@ const SendEventSection = ({
             style={{ width: 60 }}
           />
         </label>
-        <button onClick={send} className="btn">Send</button>
+        <button onClick={send} className="btn">
+          Send
+        </button>
       </div>
     </div>
   );

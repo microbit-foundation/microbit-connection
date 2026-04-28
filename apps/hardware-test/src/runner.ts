@@ -308,8 +308,7 @@ export class TestRunner {
         }
         this.appendLog(test, `PASS: ${msg}`, "success");
       },
-      waitForUser: (instruction: string) =>
-        this.waitForUser(test, instruction),
+      waitForUser: (instruction: string) => this.waitForUser(test, instruction),
       waitForStatus: (
         status: ConnectionStatus,
         timeoutMs = 10_000,
