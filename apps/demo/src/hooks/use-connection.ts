@@ -23,9 +23,8 @@ import { Capacitor } from "@capacitor/core";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLog, createLoggingAdapter } from "./use-log.ts";
 
-const defaultConnectionType: AnyConnection["type"] = Capacitor.isNativePlatform()
-  ? "bluetooth"
-  : "usb";
+const defaultConnectionType: AnyConnection["type"] =
+  Capacitor.isNativePlatform() ? "bluetooth" : "usb";
 
 export type AnyConnection =
   | MicrobitUSBConnection
@@ -49,7 +48,9 @@ export const ConnectionContext = createContext<
 
 export const useConnectionState = (): ConnectionContextValue | undefined => {
   const { log } = useLog();
-  const [connectionType, setConnectionType] = useState<AnyConnection["type"]>(defaultConnectionType);
+  const [connectionType, setConnectionType] = useState<AnyConnection["type"]>(
+    defaultConnectionType,
+  );
   const [pauseOnHidden, setPauseOnHidden] = useState(true);
   const [bondMode, setBondMode] = useState<BondMode>("pairing");
   const [status, setStatus] = useState<ConnectionStatus>(
@@ -105,16 +106,15 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
       setStatus(e.status);
       if (e.status === ConnectionStatus.Connected) {
         setBoardVersion(conn.getBoardVersion());
-      } else if (e.status === ConnectionStatus.Disconnected || e.status === ConnectionStatus.NoAuthorizedDevice) {
+      } else if (
+        e.status === ConnectionStatus.Disconnected ||
+        e.status === ConnectionStatus.NoAuthorizedDevice
+      ) {
         setBoardVersion(undefined);
       }
     };
     const errorListener = (e: BackgroundErrorData) => {
-      log(
-        "connection",
-        `Error: ${e.error.code} ${e.error.message}`,
-        "error",
-      );
+      log("connection", `Error: ${e.error.code} ${e.error.message}`, "error");
     };
 
     conn.addEventListener("status", statusListener);

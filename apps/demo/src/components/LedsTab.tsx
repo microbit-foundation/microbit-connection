@@ -8,7 +8,11 @@ import LedGrid from "./LedGrid.tsx";
 const emptyMatrix = (): boolean[][] =>
   Array.from({ length: 5 }, () => Array(5).fill(false));
 
-const TextSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const TextSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [text, setText] = useState("");
@@ -17,7 +21,9 @@ const TextSection = ({ connection }: { connection: MicrobitBluetoothConnection }
     try {
       await connection.setLedText(text);
       log("led", `Text set: "${text}"`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, text, log, showError]);
 
   return (
@@ -32,13 +38,19 @@ const TextSection = ({ connection }: { connection: MicrobitBluetoothConnection }
           className="input"
           style={{ width: 200 }}
         />
-        <button onClick={sendText} className="btn btn-primary">Write</button>
+        <button onClick={sendText} className="btn btn-primary">
+          Write
+        </button>
       </div>
     </div>
   );
 };
 
-const ScrollingDelaySection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const ScrollingDelaySection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [delay, setDelay] = useState("");
@@ -49,14 +61,18 @@ const ScrollingDelaySection = ({ connection }: { connection: MicrobitBluetoothCo
       if (d !== undefined) {
         setDelay(String(d));
       }
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, showError]);
 
   const setDelayValue = useCallback(async () => {
     try {
       await connection.setLedScrollingDelay(parseInt(delay, 10));
       log("led", `Scrolling delay set to ${delay}ms`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, delay, log, showError]);
 
   return (
@@ -71,14 +87,22 @@ const ScrollingDelaySection = ({ connection }: { connection: MicrobitBluetoothCo
           className="input"
           style={{ width: 100 }}
         />
-        <button onClick={getDelay} className="btn">Read</button>
-        <button onClick={setDelayValue} className="btn">Write</button>
+        <button onClick={getDelay} className="btn">
+          Read
+        </button>
+        <button onClick={setDelayValue} className="btn">
+          Write
+        </button>
       </div>
     </div>
   );
 };
 
-const MatrixSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const MatrixSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [matrix, setMatrix] = useState<boolean[][]>(emptyMatrix);
@@ -87,14 +111,18 @@ const MatrixSection = ({ connection }: { connection: MicrobitBluetoothConnection
     try {
       const m = await connection.getLedMatrix();
       setMatrix(m);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, showError]);
 
   const sendMatrix = useCallback(async () => {
     try {
       await connection.setLedMatrix(matrix);
       log("led", "Matrix updated");
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, matrix, log, showError]);
 
   const handleToggle = useCallback((row: number, col: number) => {
@@ -108,16 +136,17 @@ const MatrixSection = ({ connection }: { connection: MicrobitBluetoothConnection
   return (
     <div className="section">
       <h2>Matrix</h2>
-      <LedGrid
-        grid={matrix}
-        onToggle={handleToggle}
-        cellSize={32}
-        gap={3}
-      />
+      <LedGrid grid={matrix} onToggle={handleToggle} cellSize={32} gap={3} />
       <div className="control-row" style={{ marginTop: 8 }}>
-        <button onClick={getMatrix} className="btn">Read</button>
-        <button onClick={sendMatrix} className="btn">Write</button>
-        <button onClick={() => setMatrix(emptyMatrix())} className="btn">Reset grid</button>
+        <button onClick={getMatrix} className="btn">
+          Read
+        </button>
+        <button onClick={sendMatrix} className="btn">
+          Write
+        </button>
+        <button onClick={() => setMatrix(emptyMatrix())} className="btn">
+          Reset grid
+        </button>
       </div>
     </div>
   );

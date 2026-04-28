@@ -41,7 +41,15 @@ const LogPanel = () => {
         )}
       </div>
       {isOpen && (
-        <div id="log-panel-content" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <div
+          id="log-panel-content"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           <div
             role="log"
             aria-live="polite"
@@ -50,9 +58,15 @@ const LogPanel = () => {
           >
             {entries.map((entry) => {
               const time = new Date(entry.timestamp);
-              const ts = time.toTimeString().slice(0, 8) + "." + String(time.getMilliseconds()).padStart(3, "0");
+              const ts =
+                time.toTimeString().slice(0, 8) +
+                "." +
+                String(time.getMilliseconds()).padStart(3, "0");
               return (
-                <div key={entry.id} style={{ whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
+                <div
+                  key={entry.id}
+                  style={{ whiteSpace: "pre-wrap", lineHeight: 1.4 }}
+                >
                   <span style={{ color: "#737373" }}>{ts}</span>{" "}
                   <span style={{ color: levelColors[entry.level] ?? "#666" }}>
                     [{entry.source}]

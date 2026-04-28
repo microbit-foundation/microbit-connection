@@ -1,0 +1,17 @@
+node_modules
+
+# Build / dist output
+build
+dist
+docs/build
+
+# Capacitor native projects (have their own tooling)
+apps/*/android
+apps/*/ios
+
+# Generated / vendored binaries and lockfiles
+apps/*/public/hex-files
+hex-files
+packages/microbit-connection/examples
+package-lock.json
+*.hex

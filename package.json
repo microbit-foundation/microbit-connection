@@ -10,9 +10,9 @@
     "build:lib": "npm run build -w @microbit/microbit-connection",
     "dev": "npm run dev -w @microbit/microbit-connection-demo",
     "test": "npm run test -w @microbit/microbit-connection",
-    "ci": "npm run build && npm run test && npm run format:check",
-    "format": "prettier --write --list-different packages/*/src",
-    "format:check": "prettier --check packages/*/src",
+    "ci": "npm run build && npm run test",
+    "format": "prettier --write --list-different .",
+    "format:check": "prettier --check .",
     "docs": "npm run docs -w @microbit/microbit-connection"
   },
   "devDependencies": {

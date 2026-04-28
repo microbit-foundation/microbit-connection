@@ -5,7 +5,11 @@ import { useConnection } from "../hooks/use-connection.ts";
 import { useLog } from "../hooks/use-log.ts";
 import { useErrorDialog } from "../hooks/use-error-dialog.ts";
 
-const ReceiveSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const ReceiveSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const [lines, setLines] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
@@ -54,14 +58,20 @@ const ReceiveSection = ({ connection }: { connection: MicrobitBluetoothConnectio
         </div>
       ) : (
         <p className="empty-state">
-          {listening ? "Waiting for UART data..." : "Press Listen to start receiving UART data."}
+          {listening
+            ? "Waiting for UART data..."
+            : "Press Listen to start receiving UART data."}
         </p>
       )}
     </div>
   );
 };
 
-const WriteSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const WriteSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [text, setText] = useState("");
@@ -71,7 +81,9 @@ const WriteSection = ({ connection }: { connection: MicrobitBluetoothConnection 
       const encoded = new TextEncoder().encode(text);
       await connection.uartWrite(encoded);
       log("uart", `Sent: ${text}`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, text, log, showError]);
 
   return (

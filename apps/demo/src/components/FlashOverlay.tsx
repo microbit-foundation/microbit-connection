@@ -43,8 +43,8 @@ const FlashOverlay = ({
         <Dialog title="Ready to pair" titleId="flash-dialog-title">
           <p>Press reset on the micro:bit three times.</p>
           <p>
-            If your micro:bit has not been updated in a while, hold button A
-            and B and press reset.
+            If your micro:bit has not been updated in a while, hold button A and
+            B and press reset.
           </p>
           <div className="dialog-actions">
             <button
@@ -83,9 +83,10 @@ const FlashOverlay = ({
       );
 
     case "flashing": {
-      const progressPercent = step.progress !== undefined
-        ? Math.round(step.progress * 100)
-        : undefined;
+      const progressPercent =
+        step.progress !== undefined
+          ? Math.round(step.progress * 100)
+          : undefined;
       return (
         <Dialog title="Flashing..." titleId="flash-dialog-title">
           {progressPercent !== undefined && (
@@ -131,9 +132,7 @@ const FlashOverlay = ({
                 ))}
                 <tr className="timing-total">
                   <td>Total</td>
-                  <td className="timing-value">
-                    {(total / 1000).toFixed(1)}s
-                  </td>
+                  <td className="timing-value">{(total / 1000).toFixed(1)}s</td>
                 </tr>
               </tbody>
             </table>
@@ -149,7 +148,11 @@ const FlashOverlay = ({
 
     case "flash-error":
       return (
-        <Dialog title="Flash failed" titleId="flash-dialog-title" titleStyle={{ color: "#dc2626" }}>
+        <Dialog
+          title="Flash failed"
+          titleId="flash-dialog-title"
+          titleStyle={{ color: "#dc2626" }}
+        >
           <p>{step.children}</p>
           <div className="dialog-actions">
             <button

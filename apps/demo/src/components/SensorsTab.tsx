@@ -15,7 +15,11 @@ type ServiceConnection =
   | MicrobitBluetoothConnection
   | MicrobitRadioBridgeConnection;
 
-const AxisReadout = ({ data }: { data: { x: number; y: number; z: number } }) => (
+const AxisReadout = ({
+  data,
+}: {
+  data: { x: number; y: number; z: number };
+}) => (
   <div className="sensor-readout">
     <span className="axis">
       <span className="axis-label">x:</span>
@@ -32,7 +36,11 @@ const AxisReadout = ({ data }: { data: { x: number; y: number; z: number } }) =>
   </div>
 );
 
-const AccelerometerSection = ({ connection }: { connection: ServiceConnection }) => {
+const AccelerometerSection = ({
+  connection,
+}: {
+  connection: ServiceConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [data, setData] = useState<AccelerometerData | null>(null);
@@ -54,7 +62,9 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
         const p = await connection.getAccelerometerPeriod();
         setPeriod(String(p));
       }
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, showError]);
 
   const setPeriodValue = useCallback(async () => {
@@ -63,7 +73,9 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
         await connection.setAccelerometerPeriod(parseInt(period, 10));
         log("accel", `Period set to ${period}ms`);
       }
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, period, log, showError]);
 
   return (
@@ -77,14 +89,25 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
           {listening ? "Stop" : "Listen"}
         </button>
       </div>
-      {data ? <AxisReadout data={data} /> : (
+      {data ? (
+        <AxisReadout data={data} />
+      ) : (
         <p className="empty-state">
-          {listening ? "Waiting for data..." : "Press Listen to start receiving accelerometer data."}
+          {listening
+            ? "Waiting for data..."
+            : "Press Listen to start receiving accelerometer data."}
         </p>
       )}
       {connection.type === "bluetooth" && (
         <div className="control-row" style={{ marginTop: 8 }}>
-          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+          <label
+            style={{
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             Period (ms):
             <input
               type="number"
@@ -94,15 +117,23 @@ const AccelerometerSection = ({ connection }: { connection: ServiceConnection })
               style={{ width: 80 }}
             />
           </label>
-          <button onClick={getPeriod} className="btn">Read</button>
-          <button onClick={setPeriodValue} className="btn">Write</button>
+          <button onClick={getPeriod} className="btn">
+            Read
+          </button>
+          <button onClick={setPeriodValue} className="btn">
+            Write
+          </button>
         </div>
       )}
     </div>
   );
 };
 
-const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const MagnetometerSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [data, setData] = useState<MagnetometerData | null>(null);
@@ -123,14 +154,18 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
     try {
       const p = await connection.getMagnetometerPeriod();
       setPeriod(String(p));
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, showError]);
 
   const setPeriodValue = useCallback(async () => {
     try {
       await connection.setMagnetometerPeriod(parseInt(period, 10));
       log("mag", `Period set to ${period}ms`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, period, log, showError]);
 
   const handleGetBearing = useCallback(async () => {
@@ -138,14 +173,18 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
       const b = await connection.getMagnetometerBearing();
       setBearing(b);
       log("mag", `Bearing: ${b} degrees`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, log, showError]);
 
   const handleCalibrate = useCallback(async () => {
     try {
       log("mag", "Triggering calibration...");
       await connection.triggerMagnetometerCalibration();
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, log, showError]);
 
   return (
@@ -159,13 +198,24 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
           {listening ? "Stop" : "Listen"}
         </button>
       </div>
-      {data ? <AxisReadout data={data} /> : (
+      {data ? (
+        <AxisReadout data={data} />
+      ) : (
         <p className="empty-state">
-          {listening ? "Waiting for data..." : "Press Listen to start receiving magnetometer data."}
+          {listening
+            ? "Waiting for data..."
+            : "Press Listen to start receiving magnetometer data."}
         </p>
       )}
       <div className="control-row" style={{ marginTop: 8 }}>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Period (ms):
           <input
             type="number"
@@ -175,8 +225,12 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
             style={{ width: 80 }}
           />
         </label>
-        <button onClick={getPeriod} className="btn">Read</button>
-        <button onClick={setPeriodValue} className="btn">Write</button>
+        <button onClick={getPeriod} className="btn">
+          Read
+        </button>
+        <button onClick={setPeriodValue} className="btn">
+          Write
+        </button>
       </div>
       <div className="control-row" style={{ marginTop: 8 }}>
         <button onClick={handleCalibrate} className="btn">
@@ -187,13 +241,19 @@ const MagnetometerSection = ({ connection }: { connection: MicrobitBluetoothConn
         </button>
       </div>
       {bearing !== null && (
-        <p style={{ fontSize: 13, margin: "8px 0 0" }}>Bearing: {bearing} degrees</p>
+        <p style={{ fontSize: 13, margin: "8px 0 0" }}>
+          Bearing: {bearing} degrees
+        </p>
       )}
     </div>
   );
 };
 
-const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConnection }) => {
+const TemperatureSection = ({
+  connection,
+}: {
+  connection: MicrobitBluetoothConnection;
+}) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
   const [celsius, setCelsius] = useState<number | null>(null);
@@ -214,21 +274,27 @@ const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConne
       const t = await connection.getTemperature();
       setCelsius(t);
       log("temp", `Temperature: ${t} °C`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, log, showError]);
 
   const getPeriod = useCallback(async () => {
     try {
       const p = await connection.getTemperaturePeriod();
       setPeriod(String(p));
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, showError]);
 
   const setPeriodValue = useCallback(async () => {
     try {
       await connection.setTemperaturePeriod(parseInt(period, 10));
       log("temp", `Period set to ${period}ms`);
-    } catch (e) { showError(e); }
+    } catch (e) {
+      showError(e);
+    }
   }, [connection, period, log, showError]);
 
   return (
@@ -241,21 +307,34 @@ const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConne
         >
           {listening ? "Stop" : "Listen"}
         </button>
-        <button onClick={readTemperature} className="btn">Read</button>
+        <button onClick={readTemperature} className="btn">
+          Read
+        </button>
       </div>
       {celsius !== null ? (
         <div className="sensor-readout">
           <span className="axis">
-            <span className="axis-value" style={{ minWidth: 40 }}>{celsius} °C</span>
+            <span className="axis-value" style={{ minWidth: 40 }}>
+              {celsius} °C
+            </span>
           </span>
         </div>
       ) : (
         <p className="empty-state">
-          {listening ? "Waiting for data..." : "Press Listen or Read to get temperature."}
+          {listening
+            ? "Waiting for data..."
+            : "Press Listen or Read to get temperature."}
         </p>
       )}
       <div className="control-row" style={{ marginTop: 8 }}>
-        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Period (ms):
           <input
             type="number"
@@ -265,8 +344,12 @@ const TemperatureSection = ({ connection }: { connection: MicrobitBluetoothConne
             style={{ width: 80 }}
           />
         </label>
-        <button onClick={getPeriod} className="btn">Read</button>
-        <button onClick={setPeriodValue} className="btn">Write</button>
+        <button onClick={getPeriod} className="btn">
+          Read
+        </button>
+        <button onClick={setPeriodValue} className="btn">
+          Write
+        </button>
       </div>
     </div>
   );
@@ -310,11 +393,15 @@ const ButtonsSection = ({ connection }: { connection: ServiceConnection }) => {
       <div className="sensor-readout" style={{ marginTop: 8 }}>
         <span className="axis">
           <span className="axis-label">A:</span>
-          <span className="axis-value" style={{ minWidth: 32 }}>{buttonA}</span>
+          <span className="axis-value" style={{ minWidth: 32 }}>
+            {buttonA}
+          </span>
         </span>
         <span className="axis">
           <span className="axis-label">B:</span>
-          <span className="axis-value" style={{ minWidth: 32 }}>{buttonB}</span>
+          <span className="axis-value" style={{ minWidth: 32 }}>
+            {buttonB}
+          </span>
         </span>
       </div>
     </div>

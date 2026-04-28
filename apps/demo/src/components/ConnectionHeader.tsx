@@ -33,13 +33,14 @@ const ConnectionHeader = () => {
   const { showError } = useErrorDialog();
   const isNative = Capacitor.isNativePlatform();
 
-  const connectionOptions: { value: AnyConnection["type"]; label: string }[] = isNative
-    ? [{ value: "bluetooth", label: "Bluetooth" }]
-    : [
-        { value: "usb", label: "WebUSB" },
-        { value: "bluetooth", label: "Web Bluetooth" },
-        { value: "radio-bridge", label: "Radio Bridge" },
-      ];
+  const connectionOptions: { value: AnyConnection["type"]; label: string }[] =
+    isNative
+      ? [{ value: "bluetooth", label: "Bluetooth" }]
+      : [
+          { value: "usb", label: "WebUSB" },
+          { value: "bluetooth", label: "Web Bluetooth" },
+          { value: "radio-bridge", label: "Radio Bridge" },
+        ];
 
   return (
     <header className="app-header">
@@ -93,20 +94,29 @@ const ConnectionHeader = () => {
         Clear device
       </button>
 
-      <div className="status-indicator" role="status" aria-label="Connection status">
+      <div
+        className="status-indicator"
+        role="status"
+        aria-label="Connection status"
+      >
         <span
           className="status-dot"
           style={{ background: statusDot[status] ?? "#999" }}
           aria-hidden="true"
         />
         <span>{statusLabel[status] ?? status}</span>
-        {boardVersion && (
-          <span className="version-badge">{boardVersion}</span>
-        )}
+        {boardVersion && <span className="version-badge">{boardVersion}</span>}
       </div>
 
       {connection.type === "bluetooth" && isNative && (
-        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           Bond:
           <select
             value={bondMode}
@@ -122,7 +132,14 @@ const ConnectionHeader = () => {
       )}
 
       {(connection.type === "usb" || connection.type === "radio-bridge") && (
-        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+        <label
+          style={{
+            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           <input
             type="checkbox"
             checked={pauseOnHidden}
@@ -131,7 +148,6 @@ const ConnectionHeader = () => {
           Pause on hidden
         </label>
       )}
-
     </header>
   );
 };

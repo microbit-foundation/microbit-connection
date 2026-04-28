@@ -12,7 +12,14 @@ const ErrorDialog = () => {
       titleStyle={{ color: "#dc2626" }}
     >
       {error.code && (
-        <p style={{ fontFamily: "monospace", fontSize: 13, color: "#666", margin: "0 0 8px" }}>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 13,
+            color: "#666",
+            margin: "0 0 8px",
+          }}
+        >
           {error.code}
         </p>
       )}
