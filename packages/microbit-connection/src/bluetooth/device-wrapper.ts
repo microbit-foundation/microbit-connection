@@ -10,44 +10,44 @@ import {
   TimeoutOptions,
 } from "@capacitor-community/bluetooth-le";
 import { Capacitor } from "@capacitor/core";
-import { AccelerometerService } from "./services/accelerometer-service.js";
 import {
   DisconnectError,
   disconnectErrorCallback,
   TimeoutError,
   timeoutErrorAfter,
 } from "../async-util.js";
-import { ButtonService } from "./services/button-service.js";
-import { DeviceInformationService } from "./services/device-information-service.js";
 import {
-  BondMode,
   BoardVersion,
+  BondMode,
   ConnectOptions,
   DeviceError,
   ProgressCallback,
   ProgressStage,
 } from "../device.js";
-import { LedService } from "./services/led-service.js";
-import { Logging, LoggingEvent, ConsoleLogging } from "../logging.js";
-import { MagnetometerService } from "./services/magnetometer-service.js";
-import {
-  MicroBitMode,
-  PartialFlashingService,
-} from "./services/partial-flashing-service.js";
+import { ConsoleLogging, Logging, LoggingEvent } from "../logging.js";
 import {
   ServiceConnectionEventMap,
   TypedServiceEvent,
   TypedServiceEventDispatcher,
 } from "../service-events.js";
-import { EventService } from "./services/event-service.js";
-import { TemperatureService } from "./services/temperature-service.js";
-import { IoPinService } from "./services/io-pin-service.js";
-import { UARTService } from "./services/uart-service.js";
 import {
   DefaultDeviceBondState,
   DeviceBondState,
 } from "./device-bond-state.js";
 import { profile } from "./profile.js";
+import { AccelerometerService } from "./services/accelerometer-service.js";
+import { ButtonService } from "./services/button-service.js";
+import { DeviceInformationService } from "./services/device-information-service.js";
+import { EventService } from "./services/event-service.js";
+import { IoPinService } from "./services/io-pin-service.js";
+import { LedService } from "./services/led-service.js";
+import { MagnetometerService } from "./services/magnetometer-service.js";
+import {
+  MicroBitMode,
+  PartialFlashingService,
+} from "./services/partial-flashing-service.js";
+import { TemperatureService } from "./services/temperature-service.js";
+import { UARTService } from "./services/uart-service.js";
 
 /**
  * The @capacitor-community/bluetooth-le plugin throws this message when
@@ -74,28 +74,6 @@ interface ConnectCallbacks {
   onDisconnect: () => void;
   onSuccess: () => void;
 }
-
-// TODO: We've removed the support for these behaviours as we need to
-// re-evaluate how best to support then via capacitor-ble (or reinstate
-// the direct Web Bluetooth connection code.
-//
-// On ChromeOS and Mac there's no timeout and no clear way to abort
-// device.gatt.connect(), so we accept that sometimes we'll still
-// be trying to connect when we'd rather not be. If it succeeds when
-// we no longer intend to be connected then we disconnect at that
-// point. If we try to connect when a previous connection attempt is
-// still around then we wait for it for our timeout period.
-//
-// On Windows it times out after 7s.
-// https://bugs.chromium.org/p/chromium/issues/detail?id=684073
-//
-// Additionally we've remove the delay before trying to connect again
-// on Windows.
-//
-// We also used to have a timeout around requestDevice that reloaded the page.
-//
-// > In some situations the Chrome device prompt simply doesn't appear so we time
-// > this out after 30 seconds and reload the page
 
 export class BluetoothDeviceWrapper implements Logging {
   connected = false;
