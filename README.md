@@ -2,57 +2,76 @@
 
 <a href="https://microbit-foundation.github.io/microbit-connection/" class="typedoc-ignore">This documentation is best viewed on the documentation site rather than GitHub or NPM package site.</a>
 
-This is a JavaScript library for micro:bit connections in browsers via USB and Bluetooth.
+A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. Works in browsers (via WebUSB and Web Bluetooth) and in native iOS/Android apps (Bluetooth only, via [Capacitor](https://capacitorjs.com/)).
 
-This project is a work in progress. We are extracting WebUSB and Web Bluetooth code from the [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/) and other projects. The API is not stable and it's not yet recommended that third parties use this project unless they are happy to update usage as the API evolves.
+[Available on NPM](https://www.npmjs.com/package/@microbit/microbit-connection). Migrating from an earlier version? See the [migration guide](https://github.com/microbit-foundation/microbit-connection/blob/main/MIGRATION.md).
 
-[Demo page](https://microbit-connection.pages.dev/) for this library.
+### Demo apps
 
-[Alpha releases are now on NPM](https://www.npmjs.com/package/@microbit/microbit-connection).
+- [Demo app](https://microbit-connection.pages.dev/) ([source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo)) — WebUSB, Web Bluetooth, and Capacitor for native mobile
 
-[micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/) is already using this library for WebUSB and Web Bluetooth.
+### Projects using this library
 
-[This Python Editor PR](https://github.com/microbit-foundation/python-editor-v3/pull/1190) tracks updating the micro:bit Python Editor to use this library.
+- [micro:bit CreateAI](https://github.com/microbit-foundation/ml-trainer/)
+- [micro:bit Python Editor](https://github.com/microbit-foundation/python-editor-v3/)
+
+### Platform support
+
+| Feature              | Web (browser) | Native (Capacitor) |
+| -------------------- | ------------- | ------------------ |
+| USB connection       | WebUSB        | Not supported      |
+| Bluetooth connection | Web Bluetooth | iOS and Android    |
+| Flash via USB        | Yes           | Not supported      |
+| Flash via Bluetooth  | Not supported | iOS and Android    |
+
+## Entrypoints
+
+The library is split into separate entrypoints for tree-shaking. Import shared types from the root and connection-specific code from subpaths:
+
+| Import path                                   | Contents                                                                                                                   |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                     |
+| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                 |
+| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                             |
+| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                        |
+| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details. |
 
 ## Usage
 
 ### Flash a micro:bit
 
-Instantiate a WebUSB connection using {@link createWebUSBConnection} class and use it to connect to a micro:bit.
+Instantiate a WebUSB connection using {@link @microbit/microbit-connection/usb!createUSBConnection | createUSBConnection} and use it to connect to a micro:bit.
 
 ```ts
-import { createWebUSBConnection } from "@microbit/microbit-connection";
+import { createUSBConnection } from "@microbit/microbit-connection/usb";
 
-const usb = createWebUSBConnection();
-const connectionStatus = await usb.connect();
+const usb = createUSBConnection();
+await usb.connect();
 
-console.log("Connection status: ", connectionStatus);
+console.log("Connection status: ", usb.status); // "Connected"
 ```
-
-{@link ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
 
 Flash a universal hex that supports both V1 and V2:
 
 ```ts
-import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection";
+import { createUniversalHexFlashDataSource } from "@microbit/microbit-connection/universal-hex";
 
 await usb.flash(createUniversalHexFlashDataSource(universalHexString), {
   partial: true,
-  progress: (percentage: number | undefined) => {
-    console.log(percentage);
+  progress: (stage, percentage) => {
+    console.log(stage, percentage);
   },
 });
 ```
 
 This code will also work for non-universal hex files so is a good default for unknown hex files.
 
-Alternatively, you can create and flash a hex for a specific micro:bit version by providing a function that takes a {@link BoardVersion} and returns a hex.
+Alternatively, you can create and flash a hex for a specific micro:bit version by providing a function that takes a {@link @microbit/microbit-connection!BoardVersion} and returns a hex.
 This can reduce download size or help integrate with APIs that produce a hex for a particular device version.
 This example uses the [@microbit/microbit-fs library](https://microbit-foundation.github.io/microbit-fs/) which can return a hex based on board id.
 
 ```ts
 import { MicropythonFsHex, microbitBoardId } from "@microbit/microbit-fs";
-import { BoardId } from "@microbit/microbit-connection";
 
 const micropythonFs = new MicropythonFsHex([
   { hex: microPythonV1HexFile, boardId: microbitBoardId.V1 },
@@ -62,44 +81,104 @@ const micropythonFs = new MicropythonFsHex([
 // Flash the device
 await usb.flash(
   async (boardVersion) => {
-    const boardId = BoardId.forVersion(boardVersion).id;
-    return micropythonFs.getIntelHex(boardId);
+    return micropythonFs.getIntelHex(microbitBoardId[boardVersion]);
   },
   {
     partial: true,
-    progress: (percentage: number | undefined) => {
-      console.log(percentage);
+    progress: (stage, percentage) => {
+      console.log(stage, percentage);
     },
   },
 );
 ```
 
-For more examples of using other methods in the {@link MicrobitWebUSBConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
+#### Post-flash connection state
+
+The connection state after flashing differs between USB and Bluetooth because they connect to different parts of the micro:bit hardware:
+
+- **USB** connects to the **interface chip** (running DAPLink firmware), which is separate from the application processor that runs user code. Flashing does not affect the interface chip, so the USB connection remains in `"Connected"` state and serial communication is automatically reinitialised.
+
+- **Bluetooth** connects directly to the **application processor** (the Nordic nRF51/nRF52 running the user's program and BLE stack). This processor reboots after flashing, so the Bluetooth connection is necessarily lost. The connection is always left in `"Disconnected"` state and callers must call `connect()` again after flashing.
+
+#### Tab visibility and the Paused state
+
+By default, a USB connection is automatically paused when the browser tab becomes hidden and reconnected when the tab becomes visible again. This frees the USB interface for other tabs or processes while the user isn't looking at the page. During this time the connection status is `"Paused"`.
+
+If reconnection fails when the tab becomes visible again (for example, because another process has claimed the USB interface), the connection transitions to `"Disconnected"`.
+
+To disable this behaviour, pass `pauseOnHidden: false`:
+
+```ts
+const usb = createUSBConnection({ pauseOnHidden: false });
+```
+
+For more examples see the [demo app source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo/src).
 
 ### Connect via Bluetooth
 
 By default, the micro:bit's Bluetooth service is not enabled. Visit our [Bluetooth tech site page](https://tech.microbit.org/bluetooth/) to download a hex file that would enable the bluetooth service.
 
-Instantiate a Bluetooth connection using {@link createWebBluetoothConnection} class and use it to connect to a micro:bit.
+Instantiate a Bluetooth connection using {@link @microbit/microbit-connection/bluetooth!createBluetoothConnection | createBluetoothConnection} class and use it to connect to a micro:bit.
 
 ```ts
-import { createWebBluetoothConnection } from "@microbit/microbit-connection";
+import { createBluetoothConnection } from "@microbit/microbit-connection/bluetooth";
 
-const bluetooth = createWebBluetoothConnection();
-const connectionStatus = await bluetooth.connect();
+const bluetooth = createBluetoothConnection();
+await bluetooth.connect();
 
-console.log("Connection status: ", connectionStatus);
+console.log("Connection status: ", bluetooth.status); // "Connected"
 ```
 
-{@link ConnectionStatus | Connection status} is `"CONNECTED"` if connection succeeds.
+For more examples see the [demo app source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo/src).
 
-For more examples of using other methods in the {@link createWebBluetoothConnection} class, see our [demo code](https://github.com/microbit-foundation/microbit-connection/blob/main/src/demo.ts) for our [demo site](https://microbit-connection.pages.dev/).
+### Error handling
+
+Methods that interact with device features (reading sensors, writing to LEDs, serial communication, etc.) throw a {@link @microbit/microbit-connection!DeviceError | DeviceError} with code `"not-connected"` if called without an active connection:
+
+```ts
+import { DeviceError } from "@microbit/microbit-connection";
+
+try {
+  const data = await bluetooth.getAccelerometerData();
+} catch (e) {
+  if (e instanceof DeviceError && e.code === "not-connected") {
+    console.log("Connect to a micro:bit first");
+  }
+}
+```
+
+## Known limitations
+
+### Bluetooth
+
+### Open link security mode hex file already on micro:bit
+
+Open link hex files are not common. The most common source is the micro:bit CreateAI. Known issues:
+
+- **iOS DFU classroom collision risk with open-link firmware**: When performing DFU on iOS with open-link security firmware (no bonding), the Nordic DFU library scans for the bootloader by DFU service UUID and connects to the first matching device. If multiple micro:bits are in bootloader mode simultaneously, the wrong device could be targeted. This does not affect bonded firmware (where the bootloader uses whitelist-filtered advertising) or Android (which reconnects by MAC address).
+
+- **V1 Android PIN dialog with open-link firmware**: On Android with micro:bit V1, calling `createBond` triggers a passkey entry dialog because the V1 DAL declares `IO_CAPS_DISPLAY_ONLY` even in open-link mode. The micro:bit displays a PIN that the user must enter. This is a bug in the V1 DAL (V2 correctly uses `IO_CAPS_NONE`). There is no BLE-visible indicator of the security mode, so the library cannot detect this situation to avoid it. On V2 you get a harmless (but somewhat pointless) "just works" pairing dialog.
+
+### No suitable services on the micro:bit to flash
+
+- **Hex with no partial flashing or DFU control service (V1)**: Some older CreateAI data-collection hex files for micro:bit V1 fall into this category. There's nothing that can be done via Bluetooth. Workaround: flash via WebUSB or drag and drop from a computer. The equivalent V2 hex does have the Secure DFU service (but not partial flashing) which we support.
+
+## Hardware testing
+
+The [hardware test app](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/hardware-test) is a human-in-the-loop test runner for USB flashing. It covers partial and full flash, flash fallback paths, serial data integrity after flash, and reconnection after unplug. Run it with:
+
+```bash
+cd apps/hardware-test
+npm run dev
+```
+
+The tests prompt you for physical actions (plugging/unplugging) and verify the results automatically.
 
 ## License
 
 This software is under the MIT open source license.
 
-[SPDX-License-Identifier: MIT](LICENSE)
+[SPDX-License-Identifier: MIT](https://github.com/microbit-foundation/microbit-connection/blob/main/LICENSE.md)
 
 We use dependencies via the NPM registry as specified by the package.json file under common Open Source licenses.
 

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "sourceMap": true,
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    /* Temporarily disabled */
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
+  }
+}

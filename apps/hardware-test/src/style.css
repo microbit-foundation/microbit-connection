@@ -1,0 +1,218 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+h1 {
+  margin-bottom: 16px;
+}
+
+.suite-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 24px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #ddd;
+}
+
+.suite-header h2 {
+  flex: 1;
+}
+
+.test {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.test-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.test-header:hover {
+  background: #f5f5f5;
+}
+
+.test-header:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.test-status {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: white;
+}
+
+.test-status.pass {
+  background: #16a34a;
+}
+
+.test-status.fail {
+  background: #dc2626;
+}
+
+.test-status.running {
+  background: #2563eb;
+  animation: pulse 1s infinite;
+}
+
+.test-status.skipped {
+  background: #a3a3a3;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.test-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.test-body {
+  display: none;
+  padding: 0 12px 12px;
+}
+
+.test.expanded .test-body {
+  display: block;
+}
+
+.prompt {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #eff6ff;
+  border: 2px solid #2563eb;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.prompt .prompt-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #2563eb;
+  margin-bottom: 4px;
+}
+
+.prompt button {
+  margin-top: 8px;
+}
+
+.prompt.done {
+  background: transparent;
+  border: 1px solid #e5e5e5;
+  color: #999;
+  font-weight: 400;
+  padding: 4px 12px;
+}
+
+.prompt.done .prompt-label,
+.prompt.done button {
+  display: none;
+}
+
+.log-line {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  padding: 2px 0;
+  color: #555;
+}
+
+.prompt:first-child {
+  margin-top: 4px;
+}
+
+.log-line.error {
+  color: #dc2626;
+}
+
+.log-line.success {
+  color: #16a34a;
+}
+
+button {
+  padding: 6px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+button:hover {
+  background: #f0f0f0;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+button.primary:hover {
+  background: #1d4ed8;
+}
+
+button.primary:disabled {
+  opacity: 0.4;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summary {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  font-weight: 500;
+}

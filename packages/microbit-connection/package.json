@@ -1,0 +1,95 @@
+{
+  "name": "@microbit/microbit-connection",
+  "version": "0.0.0",
+  "main": "./build/cjs/index.js",
+  "module": "./build/esm/index.js",
+  "types": "./build/esm/index.d.ts",
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./build/esm/index.d.ts",
+        "default": "./build/esm/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/index.d.ts",
+        "default": "./build/cjs/index.js"
+      }
+    },
+    "./bluetooth": {
+      "import": {
+        "types": "./build/esm/bluetooth/index.d.ts",
+        "default": "./build/esm/bluetooth/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/bluetooth/index.d.ts",
+        "default": "./build/cjs/bluetooth/index.js"
+      }
+    },
+    "./usb": {
+      "import": {
+        "types": "./build/esm/usb/index.d.ts",
+        "default": "./build/esm/usb/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/usb/index.d.ts",
+        "default": "./build/cjs/usb/index.js"
+      }
+    },
+    "./universal-hex": {
+      "import": {
+        "types": "./build/esm/universal-hex/index.d.ts",
+        "default": "./build/esm/universal-hex/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/universal-hex/index.d.ts",
+        "default": "./build/cjs/universal-hex/index.js"
+      }
+    },
+    "./radio-bridge": {
+      "import": {
+        "types": "./build/esm/radio-bridge/index.d.ts",
+        "default": "./build/esm/radio-bridge/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/radio-bridge/index.d.ts",
+        "default": "./build/cjs/radio-bridge/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
+    "build:lib": "npm run build:esm && npm run build:cjs",
+    "build": "npm run build:lib",
+    "docs": "typedoc",
+    "ci": "npm run build:lib && npm run test",
+    "test": "vitest",
+    "prepack": "cp ../../README.md ../../LICENSE.md .",
+    "postpack": "rm -f README.md LICENSE.md"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "jsdom": "^24.1.0",
+    "typedoc": "^0.27.6",
+    "typescript": "^5.2.2",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@microbit/microbit-universal-hex": "^0.2.2",
+    "@types/w3c-web-usb": "^1.0.13",
+    "@types/web-bluetooth": "^0.0.20",
+    "nrf-intel-hex": "^1.4.0"
+  },
+  "peerDependencies": {
+    "@capacitor-community/bluetooth-le": "^7.3.0",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/filesystem": "^7.1.6",
+    "@microbit/capacitor-community-nordic-dfu": "v7.0.0-microbit.4"
+  }
+}

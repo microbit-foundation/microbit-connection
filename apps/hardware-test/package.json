@@ -1,0 +1,19 @@
+{
+  "name": "@microbit/microbit-connection-hardware-test",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "copy-hex": "mkdir -p public/hex-files && cp ../../hex-files/*.hex public/hex-files/",
+    "dev": "npm run copy-hex && vite",
+    "build": "npm run copy-hex && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@microbit/microbit-connection": "*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
+    "typescript": "^5.2.2",
+    "vite": "^6.3.5"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@microbit/microbit-connection-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "copy-hex": "mkdir -p public/hex-files && cp ../../hex-files/*.hex public/hex-files/",
+    "dev": "npm run copy-hex && vite",
+    "dev:apps": "npm run copy-hex && vite --host",
+    "build": "npm run copy-hex && tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "^7.2.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/preferences": "^7.0.2",
+    "@microbit/capacitor-community-nordic-dfu": "v7.0.0-microbit.4",
+    "@microbit/makecode-embed": "^0.5.0",
+    "@microbit/microbit-connection": "*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
+  }
+}
