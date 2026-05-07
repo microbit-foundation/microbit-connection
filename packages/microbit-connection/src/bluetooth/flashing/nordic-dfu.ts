@@ -146,7 +146,7 @@ export async function flashDfu(
                   restoreBond: true,
                 },
               }[boardVersion],
-              startAsForegroundService: false,
+              startAsForegroundService: true,
               keepBond: true,
               packetReceiptNotificationsEnabled: true,
             }
