@@ -87,9 +87,9 @@
     "nrf-intel-hex": "^1.4.0"
   },
   "peerDependencies": {
-    "@capacitor-community/bluetooth-le": "^7.3.0",
-    "@capacitor/core": "^7.4.4",
-    "@capacitor/filesystem": "^7.1.6",
-    "@microbit/capacitor-community-nordic-dfu": "v7.0.0-microbit.4"
+    "@capacitor-community/bluetooth-le": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@microbit/capacitor-community-nordic-dfu": "file:../../../nordic-dfu"
   }
 }
