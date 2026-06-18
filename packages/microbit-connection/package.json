@@ -90,6 +90,6 @@
     "@capacitor-community/bluetooth-le": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/filesystem": "^8.0.0",
-    "@microbit/capacitor-community-nordic-dfu": "file:../../../nordic-dfu"
+    "@microbit/capacitor-community-nordic-dfu": "^8.0.0-microbit.1"
   }
 }
