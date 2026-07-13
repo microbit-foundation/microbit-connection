@@ -27,6 +27,7 @@ jobs:
           working-directory: packages/microbit-connection
       - run: npm run ci
       - run: npm publish -w @microbit/microbit-connection
-        if: github.event_name == 'release' && github.event.action == 'created'
+        # Temporarily build from this experimental branch
+        #if: github.event_name == 'release' && github.event.action == 'created'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
