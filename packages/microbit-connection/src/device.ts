@@ -114,6 +114,12 @@ export type DeviceErrorCode =
    */
   | "firmware-update-required"
   /**
+   * **USB.** The program running on the micro:bit does not include the
+   * Jacdac stack, so the Jacdac exchange buffer was not found in RAM.
+   * Flash a program built with Jacdac support and try again.
+   */
+  | "jacdac-missing"
+  /**
    * **BLE.** The micro:bit's Bluetooth pairing/bonding information has
    * been lost (e.g. after a firmware reflash). The user needs to
    * re-pair the device. Currently only detected on iOS.

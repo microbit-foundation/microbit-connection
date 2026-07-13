@@ -25,6 +25,11 @@ import {
 import { TypedEventTarget } from "../events.js";
 import { Logging, ConsoleLogging } from "../logging.js";
 import { PromiseQueue } from "./promise-queue.js";
+import {
+  JacdacConnectionEventMap,
+  type JacdacFrameData,
+} from "./jacdac-events.js";
+import { JacdacPump } from "./jacdac-pump.js";
 import { SerialConnectionEventMap, type SerialData } from "./serial-events.js";
 import { BoardSerialInfo } from "./board-serial-info.js";
 import {
@@ -33,6 +38,7 @@ import {
 } from "./device-wrapper.js";
 import { PartialFlashing } from "./partial-flashing.js";
 import { saturateCdcPipeline } from "./cdc-saturation.js";
+import { MicrobitUSBConnectionWorkerFacade } from "./worker/facade.js";
 
 const defaultFilters = [{ vendorId: 0x0d28, productId: 0x0204 }];
 
@@ -74,6 +80,31 @@ export interface MicrobitUSBConnectionOptions {
    * @default true
    */
   pauseOnHidden?: boolean;
+
+  /**
+   * Run the USB stack (device I/O, flashing, serial and Jacdac polling)
+   * in the supplied Web Worker instead of the main thread, keeping the
+   * connection responsive when the main thread is busy rendering.
+   *
+   * Create the worker from this package's worker entry point, e.g. from
+   * the prebuilt bundle:
+   *
+   * ```ts
+   * import workerUrl from "@microbit/microbit-connection/microbit-usb-worker.js?url";
+   * const connection = createUSBConnection({ worker: new Worker(workerUrl) });
+   * ```
+   *
+   * or by bundling the `@microbit/microbit-connection/usb/worker` module
+   * into a worker yourself.
+   *
+   * The caller owns the worker and should terminate it after dispose().
+   *
+   * Behavioural caveats in worker mode: getDevice() may briefly return
+   * undefined or a stale device after background reconnects (its
+   * serialNumber remains the supported use) and the page-unload serial
+   * workaround is best-effort.
+   */
+  worker?: Worker;
 }
 
 export interface MicrobitUSBConnection extends DeviceConnection {
@@ -96,6 +127,11 @@ export interface MicrobitUSBConnection extends DeviceConnection {
     listener: (data: SerialData) => void,
   ): void;
   addEventListener(type: "serialreset", listener: () => void): void;
+  // -- JacdacConnectionEventMap overloads --
+  addEventListener(
+    type: "jacdacframe",
+    listener: (data: JacdacFrameData) => void,
+  ): void;
 
   removeEventListener(
     type: "status",
@@ -113,6 +149,10 @@ export interface MicrobitUSBConnection extends DeviceConnection {
     listener: (data: SerialData) => void,
   ): void;
   removeEventListener(type: "serialreset", listener: () => void): void;
+  removeEventListener(
+    type: "jacdacframe",
+    listener: (data: JacdacFrameData) => void,
+  ): void;
 
   /**
    * Write serial data to the device.
@@ -152,6 +192,19 @@ export interface MicrobitUSBConnection extends DeviceConnection {
    * Resets the micro:bit in software.
    */
   softwareReset(): Promise<void>;
+
+  /**
+   * Send a Jacdac frame to the micro:bit. micro:bit V2 only.
+   *
+   * Starts the Jacdac exchange pump if it is not already running.
+   *
+   * @returns A promise that resolves when the device has consumed the frame.
+   * @throws {DeviceError} with code `not-connected` if there is no
+   *   connection or the pump has stopped, `unsupported` on micro:bit V1,
+   *   or `jacdac-missing` if the program on the micro:bit does not
+   *   include the Jacdac stack.
+   */
+  sendJacdacFrame(frame: Uint8Array): Promise<void>;
 }
 
 /**
@@ -159,14 +212,79 @@ export interface MicrobitUSBConnection extends DeviceConnection {
  */
 export const createUSBConnection = (
   options?: MicrobitUSBConnectionOptions,
-): MicrobitUSBConnection => new MicrobitUSBConnectionImpl(options);
+): MicrobitUSBConnection =>
+  options?.worker
+    ? new MicrobitUSBConnectionWorkerFacade(options.worker, options)
+    : new MicrobitUSBConnectionImpl(options);
+
+/**
+ * Connection details mirrored to the worker facade so its synchronous
+ * getters can answer without a round trip.
+ *
+ * @internal
+ */
+export interface CoreConnectionInfo {
+  deviceId: number;
+  boardVersion: BoardVersion;
+  usbSerialNumber?: string;
+}
+
+/**
+ * Options for hosting the connection outside the main thread.
+ *
+ * @internal
+ */
+export interface USBConnectionCoreOptions extends MicrobitUSBConnectionOptions {
+  /**
+   * Overrides navigator.usb.requestDevice. Used when running in a worker,
+   * where the device picker must be delegated to the main thread.
+   */
+  requestDevice?: (options: USBDeviceRequestOptions) => Promise<USBDevice>;
+}
+
+/**
+ * The connection implementation plus the hooks a hosting environment
+ * (e.g. the worker host) needs to drive behaviour that is normally
+ * triggered by DOM events.
+ *
+ * @internal
+ */
+export interface MicrobitUSBConnectionCore extends MicrobitUSBConnection {
+  /**
+   * The body of the document visibilitychange listener registered in
+   * main-thread mode.
+   */
+  handleVisibilityChange(visible: boolean): void;
+  /**
+   * The body of the window beforeunload listener registered in
+   * main-thread mode.
+   */
+  handlePageUnloading(): void;
+  /**
+   * Called when the page turned out not to unload after
+   * {@link handlePageUnloading} (focus regained and a grace period passed).
+   */
+  handlePageStayedOpen(): void;
+  getConnectionInfo(): CoreConnectionInfo | undefined;
+}
+
+/**
+ * @internal
+ */
+export const createUSBConnectionCore = (
+  options?: USBConnectionCoreOptions,
+): MicrobitUSBConnectionCore => new MicrobitUSBConnectionImpl(options);
 
 /**
  * A WebUSB connection to a micro:bit device.
  */
 class MicrobitUSBConnectionImpl
-  extends TypedEventTarget<DeviceConnectionEventMap & SerialConnectionEventMap>
-  implements MicrobitUSBConnection
+  extends TypedEventTarget<
+    DeviceConnectionEventMap &
+      SerialConnectionEventMap &
+      JacdacConnectionEventMap
+  >
+  implements MicrobitUSBConnectionCore
 {
   readonly type = "usb" as const;
   status: ConnectionStatus = ConnectionStatus.NoAuthorizedDevice;
@@ -208,10 +326,30 @@ class MicrobitUSBConnectionImpl
     this.dispatchEvent("serialdata", { data });
   };
 
+  /**
+   * Set while the Jacdac exchange pump is running. Like serial, unset when
+   * disconnected or flashing even if we have jacdacframe listeners.
+   */
+  private jacdacPump: JacdacPump | undefined;
+  /**
+   * Resolves when the current pump has fully stopped touching the debug
+   * interface (unlike serial, the pump writes to target memory, so flash
+   * and disconnect wait for it).
+   */
+  private jacdacPumpStopped: Promise<void> | undefined;
+  // Separate queue from serial: serial start can block on a baud-rate
+  // change that resets the target and Jacdac transitions shouldn't stall
+  // behind it. DAP-level ordering is handled by the CmsisDapUsb queue.
+  private jacdacStateChangeQueue = new PromiseQueue();
+
   private flashing: boolean = false;
   private pauseAfterFlash: boolean = false;
   private visibilityChangeListener = () => {
-    if (document.visibilityState === "visible") {
+    this.handleVisibilityChange(document.visibilityState === "visible");
+  };
+
+  handleVisibilityChange(visible: boolean): void {
+    if (visible) {
       // We may not have actually paused when we became hidden due to an in-progress flash.
       this.pauseAfterFlash = false;
       if (this.status === ConnectionStatus.Paused) {
@@ -233,46 +371,62 @@ class MicrobitUSBConnectionImpl
         }
       }
     }
-  };
+  }
 
   private unloading = false;
 
   private beforeUnloadListener = () => {
-    // If serial is in progress when the page unloads with V1 DAPLink 0254 or V2 0255
-    // then it'll fail to reconnect with mismatched command/response errors.
-    // Try hard to disconnect as a workaround.
-    // https://github.com/microbit-foundation/python-editor-v3/issues/89
-    this.unloading = true;
-    this.stopSerialInternal();
+    this.handlePageUnloading();
     // The user might stay on the page if they have unsaved changes and there's another beforeunload listener.
     window.addEventListener(
       "focus",
       () => {
         const assumePageIsStayingOpenDelay = 1000;
         setTimeout(() => {
-          if (this.status === ConnectionStatus.Connected) {
-            this.unloading = false;
-            if (this.hasSerialEventListeners()) {
-              this.startSerialInternal();
-            }
-          }
+          this.handlePageStayedOpen();
         }, assumePageIsStayingOpenDelay);
       },
       { once: true },
     );
   };
 
+  handlePageUnloading(): void {
+    // If serial is in progress when the page unloads with V1 DAPLink 0254 or V2 0255
+    // then it'll fail to reconnect with mismatched command/response errors.
+    // Try hard to disconnect as a workaround.
+    // https://github.com/microbit-foundation/python-editor-v3/issues/89
+    this.unloading = true;
+    this.stopSerialInternal();
+  }
+
+  handlePageStayedOpen(): void {
+    if (this.status === ConnectionStatus.Connected) {
+      this.unloading = false;
+      if (this.hasSerialEventListeners()) {
+        this.startSerialInternal();
+      }
+    }
+  }
+
   private logging: Logging;
   private deviceSelectionMode: DeviceSelectionMode;
 
   private pauseOnHidden: boolean;
 
-  constructor(options: MicrobitUSBConnectionOptions = {}) {
+  private requestDeviceImpl: (
+    options: USBDeviceRequestOptions,
+  ) => Promise<USBDevice>;
+
+  constructor(options: USBConnectionCoreOptions = {}) {
     super();
     this.logging = options.logging || new ConsoleLogging();
     this.deviceSelectionMode =
       options.deviceSelectionMode || DeviceSelectionMode.AlwaysAsk;
     this.pauseOnHidden = options.pauseOnHidden ?? true;
+    // Bound lazily so environments without WebUSB can still construct
+    // the connection and report availability.
+    this.requestDeviceImpl =
+      options.requestDevice ?? ((o) => navigator.usb.requestDevice(o));
   }
 
   private log(v: any) {
@@ -363,6 +517,13 @@ class MicrobitUSBConnectionImpl
       this.logging.log("Flash complete");
     } finally {
       this.flashing = false;
+      // Restart here rather than in flashInternal as startJacdacInternal
+      // no-ops while the flashing flag is set. The new program's exchange
+      // is rediscovered by the fresh pump; its retry loop covers the
+      // ~700ms Jacdac startup after the post-flash reset.
+      if (this.hasJacdacEventListeners()) {
+        this.startJacdacInternal();
+      }
     }
   }
 
@@ -376,8 +537,11 @@ class MicrobitUSBConnectionImpl
       options.progress || (() => {}),
     );
 
-    this.log("Stopping serial before flash");
+    this.log("Stopping serial and Jacdac before flash");
     await this.stopSerialInternal();
+    // Unlike serial this must complete before we halt: the pump writes to
+    // target memory and could otherwise interleave with flashing.
+    await this.stopJacdacInternal();
 
     this.log("Reconnecting before flash");
     await this.connectInternal(progress);
@@ -511,12 +675,60 @@ class MicrobitUSBConnectionImpl
     });
   }
 
+  private async startJacdacInternal() {
+    return this.jacdacStateChangeQueue.add(async () => {
+      if (!this.device || this.jacdacPump || this.flashing) {
+        return;
+      }
+      if (
+        this.cachedConnectionInfo?.boardSerialInfo.id.toBoardVersion() !== "V2"
+      ) {
+        // Jacdac over USB is V2-only. Silent no-op so that adding a
+        // jacdacframe listener before connecting to an unknown board is
+        // harmless; sendJacdacFrame reports this case explicitly.
+        return;
+      }
+      this.log("Starting Jacdac pump");
+      const pump = new JacdacPump(
+        this.device.adi,
+        (frame) => this.dispatchEvent("jacdacframe", { frame }),
+        this.logging,
+      );
+      this.jacdacPump = pump;
+      this.jacdacPumpStopped = pump
+        .startPumping()
+        .then(() => {
+          this.log("Jacdac pump stopped");
+        })
+        .catch((e) => {
+          this.dispatchEvent("backgrounderror", {
+            error: enrichedError(e),
+            event: "jacdacframe",
+          });
+        })
+        .finally(() => {
+          if (this.jacdacPump === pump) {
+            this.jacdacPump = undefined;
+            this.jacdacPumpStopped = undefined;
+          }
+        });
+    });
+  }
+
+  private async stopJacdacInternal() {
+    return this.jacdacStateChangeQueue.add(async () => {
+      this.jacdacPump?.stop();
+      await this.jacdacPumpStopped;
+    });
+  }
+
   async disconnect(
     quiet?: boolean,
     finalStatus: ConnectionStatus = ConnectionStatus.Disconnected,
   ): Promise<void> {
     try {
       if (this.device) {
+        await this.stopJacdacInternal();
         await this.stopSerialInternal();
         await this.device.disconnect();
       }
@@ -626,14 +838,35 @@ class MicrobitUSBConnectionImpl
   async softwareReset(): Promise<void> {
     assertConnected(this.device);
     const device = this.device;
+    // The Jacdac pump survives this via its recovery path.
     return this.serialStateChangeQueue.add(
       async () => await device.cortexM.softwareReset(),
     );
   }
 
+  async sendJacdacFrame(frame: Uint8Array): Promise<void> {
+    assertConnected(this.device);
+    if (this.getBoardVersion() !== "V2") {
+      throw new DeviceError({
+        code: "unsupported",
+        message: "Jacdac over USB requires micro:bit V2",
+      });
+    }
+    if (this.flashing) {
+      throw new DeviceError({
+        code: "not-connected",
+        message: "Cannot send Jacdac frames while flashing",
+      });
+    }
+    await this.startJacdacInternal();
+    assertConnected(this.jacdacPump);
+    return this.jacdacPump.sendFrame(frame);
+  }
+
   private handleDisconnect = (event: USBConnectionEvent) => {
     if (event.device === this.usbDevice) {
       this.cdcSaturated = false;
+      this.jacdacPump?.stop();
       this.device = undefined;
       this.usbDevice = undefined;
       this.setStatus(ConnectionStatus.NoAuthorizedDevice);
@@ -673,6 +906,9 @@ class MicrobitUSBConnectionImpl
 
     if (this.hasSerialEventListeners() && !this.flashing) {
       this.startSerialInternal();
+    }
+    if (this.hasJacdacEventListeners() && !this.flashing) {
+      this.startJacdacInternal();
     }
     this.setStatus(ConnectionStatus.Connected);
   }
@@ -736,7 +972,7 @@ class MicrobitUSBConnectionImpl
   private async chooseDevice(): Promise<USBDevice> {
     this.dispatchEvent("beforerequestdevice");
     try {
-      this.usbDevice = await navigator.usb.requestDevice({
+      this.usbDevice = await this.requestDeviceImpl({
         exclusionFilters: this.exclusionFilters,
         filters: defaultFilters,
       });
@@ -746,8 +982,22 @@ class MicrobitUSBConnectionImpl
     return this.usbDevice;
   }
 
+  getConnectionInfo(): CoreConnectionInfo | undefined {
+    if (!this.cachedConnectionInfo) {
+      return undefined;
+    }
+    return {
+      deviceId: this.cachedConnectionInfo.deviceId,
+      boardVersion:
+        this.cachedConnectionInfo.boardSerialInfo.id.toBoardVersion(),
+      usbSerialNumber: this.usbDevice?.serialNumber ?? undefined,
+    };
+  }
+
   protected eventActivated(type: string): void {
-    switch (type as keyof SerialConnectionEventMap) {
+    switch (
+      type as keyof (SerialConnectionEventMap & JacdacConnectionEventMap)
+    ) {
       case "serialdata": {
         // Prevent starting serial when flashing. We'll reinstate later.
         if (!this.flashing) {
@@ -755,19 +1005,34 @@ class MicrobitUSBConnectionImpl
         }
         break;
       }
+      case "jacdacframe": {
+        if (!this.flashing) {
+          this.startJacdacInternal();
+        }
+        break;
+      }
     }
   }
 
   protected async eventDeactivated(type: string) {
-    switch (type as keyof SerialConnectionEventMap) {
+    switch (
+      type as keyof (SerialConnectionEventMap & JacdacConnectionEventMap)
+    ) {
       case "serialdata": {
         this.stopSerialInternal();
+        break;
+      }
+      case "jacdacframe": {
+        this.stopJacdacInternal();
         break;
       }
     }
   }
   private hasSerialEventListeners() {
     return this.getActiveEvents().includes("serialdata");
+  }
+  private hasJacdacEventListeners() {
+    return this.getActiveEvents().includes("jacdacframe");
   }
 }
 

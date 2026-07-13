@@ -8,3 +8,4 @@ export {
   type MicrobitUSBConnectionOptions,
 } from "./connection.js";
 export type { SerialData } from "./serial-events.js";
+export type { JacdacFrameData } from "./jacdac-events.js";

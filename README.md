@@ -28,13 +28,14 @@ A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. 
 
 The library is split into separate entrypoints for tree-shaking. Import shared types from the root and connection-specific code from subpaths:
 
-| Import path                                   | Contents                                                                                                                   |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                     |
-| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                 |
-| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                             |
-| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                        |
-| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details. |
+| Import path                                   | Contents                                                                                                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                                                                                            |
+| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                                                                                        |
+| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                                                                                                    |
+| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                                                                                               |
+| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details.                                                                        |
+| `@microbit/microbit-connection/usb/worker`    | **Experimental.** Web Worker entry module for the worker-hosted USB mode (see below). A prebuilt classic worker script is also shipped as `@microbit/microbit-connection/microbit-usb-worker.js`. |
 
 ## Usage
 
@@ -113,6 +114,44 @@ const usb = createUSBConnection({ pauseOnHidden: false });
 ```
 
 For more examples see the [demo app source](https://github.com/microbit-foundation/microbit-connection/tree/main/apps/demo/src).
+
+### Run the USB stack in a Web Worker (experimental)
+
+USB I/O (flashing, serial polling and the Jacdac exchange pump) normally runs on the main thread, where a busy UI can starve its poll loops. Pass a `worker` to `createUSBConnection` to host the whole USB stack in a Web Worker instead; only the device picker and page lifecycle listeners stay on the main thread. The API is unchanged.
+
+Using the prebuilt classic worker script (works with any setup — with Vite use a `?url` import, with webpack 5 use `new URL(...)`):
+
+```ts
+import { createUSBConnection } from "@microbit/microbit-connection/usb";
+import workerUrl from "@microbit/microbit-connection/microbit-usb-worker.js?url";
+
+const usb = createUSBConnection({ worker: new Worker(workerUrl) });
+```
+
+Alternatively, bundle the ESM entry into a module worker yourself: create a one-line file containing `import "@microbit/microbit-connection/usb/worker";` and pass `new Worker(new URL("./that-file.ts", import.meta.url), { type: "module" })`.
+
+You own the worker: create one per connection and terminate it after `dispose()`.
+
+Behavioural caveats in worker mode:
+
+- `getDevice()` returns the main thread's handle from the device picker. After a background reconnect (e.g. `UseAnyAllowed` mode connecting without the picker) it may briefly be `undefined` or stale; reading `serialNumber` is the supported use.
+- The page-unload serial workaround is best-effort, as the message to the worker races page teardown.
+
+### Jacdac over USB (experimental)
+
+On micro:bit V2, a program built with [Jacdac](https://aka.ms/jacdac) support exposes a frame exchange that this library can pump over the same USB connection used for flashing and serial. Add a `jacdacframe` listener to start receiving frames and use `sendJacdacFrame` to send:
+
+```ts
+const usb = createUSBConnection();
+await usb.connect();
+usb.addEventListener("jacdacframe", ({ frame }) => {
+  // Feed to jacdac-ts or decode yourself.
+});
+```
+
+Adding the first `jacdacframe` listener starts the exchange pump; removing the last one stops it. If the program on the micro:bit does not include the Jacdac stack, a `backgrounderror` event fires with a `DeviceError` code of `"jacdac-missing"` (and `sendJacdacFrame` rejects likewise). micro:bit V1 is not supported (`"unsupported"`).
+
+Consider worker mode (above) for render-heavy apps: the pump's poll loop is sensitive to main-thread starvation.
 
 ### Connect via Bluetooth
 

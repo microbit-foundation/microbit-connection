@@ -9,7 +9,9 @@
     "README.md",
     "LICENSE.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "**/usb/worker/entry.*"
+  ],
   "exports": {
     ".": {
       "import": {
@@ -41,6 +43,17 @@
         "default": "./build/cjs/usb/index.js"
       }
     },
+    "./usb/worker": {
+      "import": {
+        "types": "./build/esm/usb/worker/entry.d.ts",
+        "default": "./build/esm/usb/worker/entry.js"
+      },
+      "require": {
+        "types": "./build/cjs/usb/worker/entry.d.ts",
+        "default": "./build/cjs/usb/worker/entry.js"
+      }
+    },
+    "./microbit-usb-worker.js": "./build/worker/microbit-usb-worker.js",
     "./universal-hex": {
       "import": {
         "types": "./build/esm/universal-hex/index.d.ts",
@@ -65,7 +78,8 @@
   "scripts": {
     "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
     "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
-    "build:lib": "npm run build:esm && npm run build:cjs",
+    "build:worker": "esbuild src/usb/worker/entry.ts --bundle --format=iife --target=es2021 --sourcemap --outfile=build/worker/microbit-usb-worker.js",
+    "build:lib": "npm run build:esm && npm run build:cjs && npm run build:worker",
     "build": "npm run build:lib",
     "docs": "typedoc",
     "ci": "npm run build:lib && npm run test",
@@ -75,6 +89,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
+    "esbuild": "^0.25.12",
     "jsdom": "^24.1.0",
     "typedoc": "^0.27.6",
     "typescript": "^5.2.2",

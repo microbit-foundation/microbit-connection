@@ -13,6 +13,15 @@ import { ConnectionStatus, ConnectionStatusChange } from "../device.js";
 import { applyDeviceFilters, createUSBConnection } from "./connection.js";
 import { beforeAll, beforeEach, expect, vi, describe, it } from "vitest";
 
+const mockState = vi.hoisted(() => ({
+  boardVersion: "V2",
+  jacdacPumps: [] as Array<{
+    stopped: boolean;
+    onFrame: (frame: Uint8Array) => void;
+    sendFrame: ReturnType<typeof vi.fn>;
+  }>,
+}));
+
 vi.mock("./device-wrapper.js", () => ({
   USBDeviceWrapper: class USBDeviceWrapper {
     serial = {
@@ -24,7 +33,10 @@ vi.mock("./device-wrapper.js", () => ({
     };
     reconnect = vi.fn().mockResolvedValue({
       boardSerialInfo: {
-        id: { toBoardVersion: () => "V2", toString: () => "9900" },
+        id: {
+          toBoardVersion: () => mockState.boardVersion,
+          toString: () => "9900",
+        },
         familyId: "99",
         hic: "00",
         eq: () => true,
@@ -34,6 +46,30 @@ vi.mock("./device-wrapper.js", () => ({
       numPages: 256,
     });
     disconnect = vi.fn().mockResolvedValue(undefined);
+  },
+}));
+
+vi.mock("./jacdac-pump.js", () => ({
+  JacdacPump: class MockJacdacPump {
+    stopped = false;
+    sendFrame = vi.fn().mockResolvedValue(undefined);
+    private resolveStopped!: () => void;
+    private stoppedPromise = new Promise<void>((resolve) => {
+      this.resolveStopped = resolve;
+    });
+    constructor(
+      _adi: unknown,
+      public onFrame: (frame: Uint8Array) => void,
+    ) {
+      mockState.jacdacPumps.push(this);
+    }
+    startPumping() {
+      return this.stoppedPromise;
+    }
+    stop() {
+      this.stopped = true;
+      this.resolveStopped();
+    }
   },
 }));
 
@@ -242,6 +278,109 @@ describe("Tab visibility and PAUSED state", () => {
 
     await waitForStatus(connection, ConnectionStatus.Connected);
     expect(connection.status).toBe(ConnectionStatus.Connected);
+  });
+});
+
+describe("Jacdac pump lifecycle", () => {
+  beforeAll(() => {
+    vi.stubGlobal("navigator", {
+      usb: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        requestDevice: () => ({}),
+      },
+    });
+  });
+
+  beforeEach(() => {
+    mockState.boardVersion = "V2";
+    mockState.jacdacPumps = [];
+  });
+
+  const waitFor = async (condition: () => boolean, timeoutMs = 2000) => {
+    const start = Date.now();
+    while (!condition()) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error("waitFor timed out");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  };
+
+  it("starts the pump when a jacdacframe listener is added while connected", async () => {
+    const connection = createUSBConnection();
+    await connection.connect();
+    expect(mockState.jacdacPumps.length).toBe(0);
+    connection.addEventListener("jacdacframe", () => {});
+    await waitFor(() => mockState.jacdacPumps.length === 1);
+  });
+
+  it("starts the pump on connect when a listener was already added", async () => {
+    const connection = createUSBConnection();
+    connection.addEventListener("jacdacframe", () => {});
+    expect(mockState.jacdacPumps.length).toBe(0);
+    await connection.connect();
+    await waitFor(() => mockState.jacdacPumps.length === 1);
+  });
+
+  it("does not start the pump on V1", async () => {
+    mockState.boardVersion = "V1";
+    const connection = createUSBConnection();
+    connection.addEventListener("jacdacframe", () => {});
+    await connection.connect();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(mockState.jacdacPumps.length).toBe(0);
+    await expect(
+      connection.sendJacdacFrame(new Uint8Array(12)),
+    ).rejects.toMatchObject({ code: "unsupported" });
+  });
+
+  it("stops the pump when the last listener is removed", async () => {
+    const connection = createUSBConnection();
+    await connection.connect();
+    const listener = () => {};
+    connection.addEventListener("jacdacframe", listener);
+    await waitFor(() => mockState.jacdacPumps.length === 1);
+    connection.removeEventListener("jacdacframe", listener);
+    await waitFor(() => mockState.jacdacPumps[0].stopped);
+  });
+
+  it("stops the pump on disconnect", async () => {
+    const connection = createUSBConnection();
+    await connection.connect();
+    connection.addEventListener("jacdacframe", () => {});
+    await waitFor(() => mockState.jacdacPumps.length === 1);
+    await connection.disconnect();
+    expect(mockState.jacdacPumps[0].stopped).toBe(true);
+  });
+
+  it("forwards pump frames as jacdacframe events", async () => {
+    const connection = createUSBConnection();
+    await connection.connect();
+    const frames: Uint8Array[] = [];
+    connection.addEventListener("jacdacframe", (data) =>
+      frames.push(data.frame),
+    );
+    await waitFor(() => mockState.jacdacPumps.length === 1);
+    const frame = new Uint8Array([1, 2, 3]);
+    mockState.jacdacPumps[0].onFrame(frame);
+    expect(frames).toEqual([frame]);
+  });
+
+  it("sendJacdacFrame starts the pump and delegates to it", async () => {
+    const connection = createUSBConnection();
+    await connection.connect();
+    const frame = new Uint8Array(16);
+    await connection.sendJacdacFrame(frame);
+    expect(mockState.jacdacPumps.length).toBe(1);
+    expect(mockState.jacdacPumps[0].sendFrame).toHaveBeenCalledWith(frame);
+  });
+
+  it("sendJacdacFrame rejects when not connected", async () => {
+    const connection = createUSBConnection();
+    await expect(
+      connection.sendJacdacFrame(new Uint8Array(12)),
+    ).rejects.toMatchObject({ code: "not-connected" });
   });
 });
 
