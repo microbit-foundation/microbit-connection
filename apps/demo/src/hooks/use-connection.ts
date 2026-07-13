@@ -26,6 +26,16 @@ import { useLog, createLoggingAdapter } from "./use-log.ts";
 const defaultConnectionType: AnyConnection["type"] =
   Capacitor.isNativePlatform() ? "bluetooth" : "usb";
 
+// Opt into the worker-hosted USB stack with ?worker in the URL.
+const usbWorkerMode =
+  !Capacitor.isNativePlatform() &&
+  new URLSearchParams(window.location.search).has("worker");
+
+const createUsbWorker = () =>
+  new Worker(new URL("../usb-worker.ts", import.meta.url), {
+    type: "module",
+  });
+
 export type AnyConnection =
   | MicrobitUSBConnection
   | MicrobitBluetoothConnection
@@ -67,25 +77,29 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
 
   useEffect(() => {
     const logging = loggingRef.current;
+    let worker: Worker | undefined;
+    const createUsb = () => {
+      worker = usbWorkerMode ? createUsbWorker() : undefined;
+      if (worker) {
+        log("connection", "USB worker mode enabled");
+      }
+      return createUSBConnection({
+        deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
+        pauseOnHidden,
+        logging,
+        worker,
+      });
+    };
     let conn: DeviceConnection;
     switch (connectionType) {
       case "bluetooth":
         conn = createBluetoothConnection({ logging });
         break;
       case "usb":
-        conn = createUSBConnection({
-          deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
-          pauseOnHidden,
-          logging,
-        });
+        conn = createUsb();
         break;
       case "radio-bridge": {
-        const usb = createUSBConnection({
-          deviceSelectionMode: DeviceSelectionMode.UseAnyAllowed,
-          pauseOnHidden,
-          logging,
-        });
-        const radio = createRadioBridgeConnection(usb);
+        const radio = createRadioBridgeConnection(createUsb());
         radio.setRemoteDeviceId(0);
         conn = radio;
         break;
@@ -125,7 +139,10 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
       cancelled = true;
       conn.removeEventListener("status", statusListener);
       conn.removeEventListener("backgrounderror", errorListener);
-      conn.disconnect().then(() => conn.dispose());
+      conn.disconnect().then(() => {
+        conn.dispose();
+        worker?.terminate();
+      });
     };
   }, [connectionType, pauseOnHidden, log]);
 

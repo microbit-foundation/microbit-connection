@@ -90,6 +90,11 @@ const cannedHexFiles: CannedHexFile[] = [
     path: "/hex-files/python-editor-default.hex",
     label: "Python Editor Default",
   },
+  {
+    name: "makecode-jacdac.hex",
+    path: "/hex-files/makecode-jacdac.hex",
+    label: "Jacdac (MakeCode, V2 only)",
+  },
 ];
 
 const FlashTab = () => {

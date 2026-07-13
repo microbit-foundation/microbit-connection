@@ -18,9 +18,18 @@ import SerialTab from "./components/SerialTab.tsx";
 import UartTab from "./components/UartTab.tsx";
 import PinsTab from "./components/PinsTab.tsx";
 import EventsTab from "./components/EventsTab.tsx";
+import JacdacTab from "./components/JacdacTab.tsx";
 import "./App.css";
 
-type Tab = "flash" | "sensors" | "io" | "pins" | "events" | "serial" | "uart";
+type Tab =
+  | "flash"
+  | "sensors"
+  | "io"
+  | "pins"
+  | "events"
+  | "serial"
+  | "uart"
+  | "jacdac";
 
 const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "flash", label: "Flash", availableFor: ["usb", "bluetooth"] },
@@ -34,6 +43,7 @@ const tabDefs: { id: Tab; label: string; availableFor: string[] }[] = [
   { id: "events", label: "Events", availableFor: ["bluetooth"] },
   { id: "serial", label: "Serial", availableFor: ["usb"] },
   { id: "uart", label: "UART", availableFor: ["bluetooth"] },
+  { id: "jacdac", label: "Jacdac", availableFor: ["usb"] },
 ];
 
 const tabComponents: Record<Tab, React.ComponentType> = {
@@ -44,6 +54,7 @@ const tabComponents: Record<Tab, React.ComponentType> = {
   events: EventsTab,
   serial: SerialTab,
   uart: UartTab,
+  jacdac: JacdacTab,
 };
 
 const AppContent = () => {

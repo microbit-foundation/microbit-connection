@@ -11,6 +11,12 @@ export default defineConfig({
         __dirname,
         "../../packages/microbit-connection/src/bluetooth/index.ts",
       ),
+      // Must precede the /usb alias: aliases prefix-match, so /usb would
+      // otherwise capture /usb/worker.
+      "@microbit/microbit-connection/usb/worker": resolve(
+        __dirname,
+        "../../packages/microbit-connection/src/usb/worker/entry.ts",
+      ),
       "@microbit/microbit-connection/usb": resolve(
         __dirname,
         "../../packages/microbit-connection/src/usb/index.ts",
