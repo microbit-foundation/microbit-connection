@@ -28,14 +28,14 @@ A TypeScript library for connecting to micro:bit devices via USB and Bluetooth. 
 
 The library is split into separate entrypoints for tree-shaking. Import shared types from the root and connection-specific code from subpaths:
 
-| Import path                                   | Contents                                                                                                                                                                                          |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                                                                                            |
-| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                                                                                        |
-| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                                                                                                    |
-| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                                                                                               |
-| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details.                                                                        |
-| `@microbit/microbit-connection/usb/worker`    | **Experimental.** Web Worker entry module for the worker-hosted USB mode (see below). A prebuilt classic worker script is also shipped as `@microbit/microbit-connection/microbit-usb-worker.js`. |
+| Import path                                   | Contents                                                                                                                                |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `@microbit/microbit-connection`               | Shared types and events (`ConnectionStatus`, `DeviceConnection`, `FlashOptions`, etc.)                                                  |
+| `@microbit/microbit-connection/bluetooth`     | `createBluetoothConnection` and Bluetooth connection types                                                                              |
+| `@microbit/microbit-connection/usb`           | `createUSBConnection` and USB connection types                                                                                          |
+| `@microbit/microbit-connection/universal-hex` | `createUniversalHexFlashDataSource` (depends on `@microbit/microbit-universal-hex`)                                                     |
+| `@microbit/microbit-connection/radio-bridge`  | **Experimental.** `createRadioBridgeConnection` for radio bridge via USB. Limited service support — see JSDoc for details.              |
+| `@microbit/microbit-connection/usb/worker`    | **Experimental.** Web Worker entry module for the worker-hosted USB mode (see below); bundle it into a module worker with your bundler. |
 
 ## Usage
 
@@ -119,16 +119,24 @@ For more examples see the [demo app source](https://github.com/microbit-foundati
 
 USB I/O (flashing, serial polling and the Jacdac exchange pump) normally runs on the main thread, where a busy UI can starve its poll loops. Pass a `worker` to `createUSBConnection` to host the whole USB stack in a Web Worker instead; only the device picker and page lifecycle listeners stay on the main thread. The API is unchanged.
 
-Using the prebuilt classic worker script (works with any setup — with Vite use a `?url` import, with webpack 5 use `new URL(...)`):
+Your bundler builds the worker from this package's entry module. Create a one-line file:
+
+```ts
+// usb-worker.ts
+import "@microbit/microbit-connection/usb/worker";
+```
+
+and pass a module worker built from it (Vite and webpack 5 both handle this pattern natively):
 
 ```ts
 import { createUSBConnection } from "@microbit/microbit-connection/usb";
-import workerUrl from "@microbit/microbit-connection/microbit-usb-worker.js?url";
 
-const usb = createUSBConnection({ worker: new Worker(workerUrl) });
+const usb = createUSBConnection({
+  worker: new Worker(new URL("./usb-worker.ts", import.meta.url), {
+    type: "module",
+  }),
+});
 ```
-
-Alternatively, bundle the ESM entry into a module worker yourself: create a one-line file containing `import "@microbit/microbit-connection/usb/worker";` and pass `new Worker(new URL("./that-file.ts", import.meta.url), { type: "module" })`.
 
 You own the worker: create one per connection and terminate it after `dispose()`.
 

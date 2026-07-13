@@ -86,16 +86,11 @@ export interface MicrobitUSBConnectionOptions {
    * in the supplied Web Worker instead of the main thread, keeping the
    * connection responsive when the main thread is busy rendering.
    *
-   * Create the worker from this package's worker entry point, e.g. from
-   * the prebuilt bundle:
-   *
-   * ```ts
-   * import workerUrl from "@microbit/microbit-connection/microbit-usb-worker.js?url";
-   * const connection = createUSBConnection({ worker: new Worker(workerUrl) });
-   * ```
-   *
-   * or by bundling the `@microbit/microbit-connection/usb/worker` module
-   * into a worker yourself.
+   * Bundle the `@microbit/microbit-connection/usb/worker` module into a
+   * worker: create a file containing only
+   * `import "@microbit/microbit-connection/usb/worker";` and pass
+   * `new Worker(new URL("./that-file.ts", import.meta.url), { type: "module" })`.
+   * Vite and webpack 5 handle this pattern natively.
    *
    * The caller owns the worker and should terminate it after dispose().
    *
