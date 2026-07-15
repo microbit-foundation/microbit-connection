@@ -9,6 +9,7 @@
     "esbuild": true,
     "fsevents": true
   },
+  "packageManager": "npm@11.18.0",
   "engines": {
     "node": ">=24.0.0",
     "npm": ">=11.18.0"
