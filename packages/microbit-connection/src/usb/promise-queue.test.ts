@@ -60,6 +60,37 @@ describe("PromiseQueue", () => {
     expect(rejected).toEqual([p2, p3]);
   });
 
+  it("serves two concurrent await-loop clients", async () => {
+    // The shape of serial polling + the Jacdac pump sharing the DAP queue:
+    // two independent loops that each await their own operation before
+    // queueing the next, keeping the queue occupied for long stretches.
+    const queue = new PromiseQueue();
+    let active = 0;
+    const served: string[] = [];
+    const client = async (name: string, ops: number) => {
+      for (let i = 0; i < ops; i++) {
+        await queue.add(async () => {
+          active++;
+          expect(active).toBe(1);
+          served.push(`${name}${i}`);
+          // Yield so the other client's entries interleave with ours.
+          await Promise.resolve();
+          active--;
+        });
+      }
+    };
+    await Promise.all([client("a", 1000), client("b", 1000)]);
+    expect(served).toHaveLength(2000);
+    const perClient = (name: string) =>
+      served.filter((op) => op.startsWith(name));
+    expect(perClient("a")).toEqual(
+      Array.from({ length: 1000 }, (_, i) => `a${i}`),
+    );
+    expect(perClient("b")).toEqual(
+      Array.from({ length: 1000 }, (_, i) => `b${i}`),
+    );
+  });
+
   it("detects abort", async () => {
     let abort = false;
     const queue = new PromiseQueue({

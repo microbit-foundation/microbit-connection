@@ -42,23 +42,28 @@ export class PromiseQueue {
   }
 
   private async processQueue(): Promise<void> {
-    const rejection = this.abortCheck();
-    if (rejection) {
-      this.clear(rejection);
-      return;
+    // A loop rather than tail recursion: async recursion retains one pending
+    // promise per processed entry until the queue fully drains, which grows
+    // without bound when concurrent clients keep the queue occupied (e.g.
+    // serial polling and the Jacdac pump sharing the DAP command queue).
+    while (true) {
+      const rejection = this.abortCheck();
+      if (rejection) {
+        this.clear(rejection);
+        return;
+      }
+      const entry = this.entries.shift();
+      if (!entry) {
+        return;
+      }
+      this.busy = true;
+      try {
+        entry.resolve(await entry.action());
+      } catch (e) {
+        entry.reject(e);
+      }
+      this.busy = false;
     }
-    const entry = this.entries.shift();
-    if (!entry) {
-      return;
-    }
-    this.busy = true;
-    try {
-      entry.resolve(await entry.action());
-    } catch (e) {
-      entry.reject(e);
-    }
-    this.busy = false;
-    return this.processQueue();
   }
 
   /**
