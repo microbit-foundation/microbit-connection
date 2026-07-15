@@ -52,6 +52,21 @@ const FIND_EXCHANGE_RETRY_DELAY = 200;
 const RECOVERY_DELAY = 500;
 const SLOW_CYCLE_THRESHOLD = 50;
 
+// Slow-cycle diagnostics: cycles are timed per phase so the slow-cycle
+// warning can attribute the delay (USB transfer vs event-loop lag vs frame
+// size). Known benign cause of degrading cycles: DevTools' "capture async
+// stack traces" slows the whole worker progressively for as long as the
+// inspector is attached — see the troubleshooting note in the README.
+const SLOW_LOG_MIN_INTERVAL = 1_000;
+const STUCK_SEND_THRESHOLD = 1_000;
+const STUCK_SEND_LOG_INTERVAL = 5_000;
+
+// Consecutive empty polls back the poll delay off up to this cap. Zero-delay
+// polling (~3k polls/s) burnt a core needlessly and amplified per-async-op
+// overheads (such as attached DevTools) into visible stalls; 4ms keeps the
+// worst-case added frame latency well under a typical 20ms streaming period.
+const IDLE_BACKOFF_MAX_DELAY = 4;
+
 interface SendItem {
   /** Padded to a 4-byte multiple. */
   frame: Uint8Array;
@@ -77,6 +92,14 @@ export class JacdacPump {
   private currSend: SendItem | undefined;
   private lastSendAttempt = 0;
   private lastCycle = 0;
+
+  // Slow-cycle diagnostics state.
+  private phases: Record<string, number> = {};
+  private cycleRxBytes = 0;
+  private sendStartedAt = 0;
+  private lastSlowLog = 0;
+  private suppressedSlow = 0;
+  private lastStuckSendLog = 0;
 
   constructor(
     private adi: ArmDebug,
@@ -246,14 +269,20 @@ export class JacdacPump {
 
   private async pumpLoop(): Promise<void> {
     let justRecovered = false;
+    let idleStreak = 0;
     while (!this.stopRequested) {
       try {
         const progress = await this.pumpCycle();
         justRecovered = false;
-        if (!progress && !this.stopRequested) {
-          // Idle: yield as briefly as possible (browsers clamp nested
-          // timeouts, throttling this loop when appropriate).
-          await delay(0);
+        if (progress) {
+          idleStreak = 0;
+        } else if (!this.stopRequested) {
+          // Idle: back off gradually so a quiet bus isn't polled at full
+          // rate; reset as soon as a frame moves so bursts drain quickly.
+          idleStreak++;
+          await this.timed("idle", () =>
+            delay(Math.min(idleStreak - 1, IDLE_BACKOFF_MAX_DELAY)),
+          );
         }
       } catch (e) {
         if (this.stopRequested) {
@@ -274,9 +303,14 @@ export class JacdacPump {
 
   private async pumpCycle(): Promise<boolean> {
     const now = Date.now();
-    if (this.lastCycle && now - this.lastCycle > SLOW_CYCLE_THRESHOLD) {
-      this.logging.log(`Slow Jacdac exchange: ${now - this.lastCycle}ms`);
+    const gap = this.lastCycle ? now - this.lastCycle : 0;
+    if (gap > SLOW_CYCLE_THRESHOLD) {
+      this.logSlowCycle(gap);
     }
+    // Phase times accumulated from here (through the trailing idle yield)
+    // are what explain the next cycle's gap.
+    this.phases = {};
+    this.cycleRxBytes = 0;
     this.lastCycle = now;
 
     let progress = await this.pollRx();
@@ -286,11 +320,55 @@ export class JacdacPump {
     return progress;
   }
 
+  /** Time one phase of the pump cycle for the slow-cycle diagnostics. */
+  private async timed<T>(phase: string, f: () => Promise<T>): Promise<T> {
+    const start = performance.now();
+    try {
+      return await f();
+    } finally {
+      this.phases[phase] =
+        (this.phases[phase] ?? 0) + performance.now() - start;
+    }
+  }
+
+  private logSlowCycle(gap: number): void {
+    const now = performance.now();
+    if (now - this.lastSlowLog < SLOW_LOG_MIN_INTERVAL) {
+      this.suppressedSlow++;
+      return;
+    }
+    this.lastSlowLog = now;
+    // "unaccounted" is time within the gap spent outside the timed awaits:
+    // event-loop lag from GC, message handling or thread contention.
+    const accounted = Object.values(this.phases).reduce((a, b) => a + b, 0);
+    const detail = Object.entries(this.phases)
+      .map(([name, ms]) => `${name}=${ms.toFixed(1)}`)
+      .join(" ");
+    const suppressed = this.suppressedSlow
+      ? ` [+${this.suppressedSlow} suppressed]`
+      : "";
+    this.suppressedSlow = 0;
+    this.logging.log(
+      `Slow Jacdac exchange: ${gap}ms (ms: ${detail || "none"} ` +
+        `unaccounted=${Math.max(0, gap - accounted).toFixed(1)}; ` +
+        `rxBytes=${this.cycleRxBytes} sendQ=${this.sendQ.length}` +
+        `${this.currSendAgeText(now)})${suppressed}`,
+    );
+  }
+
+  private currSendAgeText(now: number): string {
+    return this.currSend
+      ? ` currSendAge=${(now - this.sendStartedAt).toFixed(0)}ms`
+      : "";
+  }
+
   private async pollRx(): Promise<boolean> {
     const xchg = this.xchgAddr!;
     // Peek the slot's first word for the size so the idle poll is a single
     // DAP transfer rather than a 256-byte block read.
-    const head = await this.adi.readMem32(xchg + RX_OFFSET);
+    const head = await this.timed("rxHead", () =>
+      this.adi.readMem32(xchg + RX_OFFSET),
+    );
     const size = sizeByte(head);
     if (size === 0) {
       return false;
@@ -299,7 +377,7 @@ export class JacdacPump {
       // The target re-initialized the exchange (e.g. it reset without the
       // debug interface noticing). Re-attach.
       this.logging.log("Jacdac exchange was re-initialized; re-attaching");
-      await this.initExchange();
+      await this.timed("reattach", () => this.initExchange());
       return true;
     }
     if (size > JD_FRAME_MAX_DATA_SIZE) {
@@ -308,21 +386,21 @@ export class JacdacPump {
         message: "Jacdac exchange corrupt; try power-cycling the micro:bit",
       });
     }
-    const words = await this.adi.readBlock(
-      xchg + RX_OFFSET,
-      (size + JD_FRAME_HEADER_SIZE + 3) >> 2,
+    const words = await this.timed("rxBlock", () =>
+      this.adi.readBlock(
+        xchg + RX_OFFSET,
+        (size + JD_FRAME_HEADER_SIZE + 3) >> 2,
+      ),
     );
     // Release the slot before delivering so the target can refill it while
     // the app processes the frame.
-    await this.adi.writeMem32(xchg + RX_OFFSET, 0);
-    await this.triggerIRQ();
-    this.onFrame(
-      new Uint8Array(
-        words.buffer,
-        words.byteOffset,
-        size + JD_FRAME_HEADER_SIZE,
-      ),
+    await this.timed("rxRelease", () =>
+      this.adi.writeMem32(xchg + RX_OFFSET, 0),
     );
+    await this.timed("rxIrq", () => this.triggerIRQ());
+    const frameLength = size + JD_FRAME_HEADER_SIZE;
+    this.cycleRxBytes += frameLength;
+    this.onFrame(new Uint8Array(words.buffer, words.byteOffset, frameLength));
     return true;
   }
 
@@ -331,34 +409,45 @@ export class JacdacPump {
     let progress = false;
     let sendFree = false;
     if (this.currSend) {
-      const head = await this.adi.readMem32(xchg + TX_HEADER_OFFSET);
+      const head = await this.timed("txPoll", () =>
+        this.adi.readMem32(xchg + TX_HEADER_OFFSET),
+      );
       if (sizeByte(head) === 0) {
         this.currSend.resolve();
         this.currSend = undefined;
         sendFree = true;
         progress = true;
+      } else {
+        this.logStuckSend();
       }
     }
     if (!this.currSend && this.sendQ.length) {
       if (!sendFree) {
-        const head = await this.adi.readMem32(xchg + TX_HEADER_OFFSET);
+        const head = await this.timed("txPoll", () =>
+          this.adi.readMem32(xchg + TX_HEADER_OFFSET),
+        );
         sendFree = sizeByte(head) === 0;
       }
       if (sendFree) {
         this.currSend = this.sendQ.shift()!;
         const frame = this.currSend.frame;
-        await this.adi.writeBlock(
-          xchg + TX_BODY_OFFSET,
-          new Uint32Array(frame.buffer, 4, (frame.length - 4) / 4),
+        await this.timed("txWrite", () =>
+          this.adi.writeBlock(
+            xchg + TX_BODY_OFFSET,
+            new Uint32Array(frame.buffer, 4, (frame.length - 4) / 4),
+          ),
         );
         // Header word last: the size byte it carries is what tells the
         // target a frame is present, so the body must already be in place.
         const headerWord =
           (frame[0] | (frame[1] << 8) | (frame[2] << 16) | (frame[3] << 24)) >>>
           0;
-        await this.adi.writeMem32(xchg + TX_HEADER_OFFSET, headerWord);
-        await this.triggerIRQ();
+        await this.timed("txWrite", () =>
+          this.adi.writeMem32(xchg + TX_HEADER_OFFSET, headerWord),
+        );
+        await this.timed("txIrq", () => this.triggerIRQ());
         this.lastSendAttempt = Date.now();
+        this.sendStartedAt = performance.now();
         progress = true;
       } else if (
         this.lastSendAttempt &&
@@ -369,6 +458,27 @@ export class JacdacPump {
       }
     }
     return progress;
+  }
+
+  /**
+   * The in-flight frame hasn't been consumed for a suspiciously long time.
+   * Without this a TX stall is silent: the "slow to consume" log in
+   * {@link pollTxAndSend} only covers a stale foreign frame blocking the
+   * slot, not our own in-flight send.
+   */
+  private logStuckSend(): void {
+    const now = performance.now();
+    const age = now - this.sendStartedAt;
+    if (
+      age > STUCK_SEND_THRESHOLD &&
+      now - this.lastStuckSendLog > STUCK_SEND_LOG_INTERVAL
+    ) {
+      this.lastStuckSendLog = now;
+      this.logging.log(
+        `Jacdac send: in-flight frame unconsumed for ${age.toFixed(0)}ms ` +
+          `(sendQ=${this.sendQ.length})`,
+      );
+    }
   }
 
   private async triggerIRQ(): Promise<void> {
@@ -406,6 +516,9 @@ export class JacdacPump {
       this.xchgAddr = addr;
     }
     await this.initExchange();
+    // Otherwise the recovery pause is guaranteed to register as one bogus
+    // slow cycle.
+    this.lastCycle = 0;
   }
 
   private rejectSends(error: Error): void {

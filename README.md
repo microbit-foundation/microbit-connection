@@ -161,6 +161,8 @@ Adding the first `jacdacframe` listener starts the exchange pump; removing the l
 
 Consider worker mode (above) for render-heavy apps: the pump's poll loop is sensitive to main-thread starvation.
 
+**DevTools and `Slow Jacdac exchange` warnings:** with Chrome DevTools open, its "capture async stack traces" feature (on by default) progressively slows the pump's high-frequency async loop for as long as the inspector is attached, eventually producing a stream of `Slow Jacdac exchange` warnings. This is inspector overhead, not a connection or application problem, and users without DevTools open are unaffected. For long debugging sessions, turn off async stack traces (DevTools Settings → Preferences → Sources) or close DevTools, and the pump returns to normal immediately.
+
 ### Connect via Bluetooth
 
 By default, the micro:bit's Bluetooth service is not enabled. Visit our [Bluetooth tech site page](https://tech.microbit.org/bluetooth/) to download a hex file that would enable the bluetooth service.
