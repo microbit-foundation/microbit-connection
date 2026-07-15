@@ -5,6 +5,14 @@
     "packages/*",
     "apps/*"
   ],
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.18.0"
+  },
   "scripts": {
     "build": "npm run build:lib && npm run build -w @microbit/microbit-connection-demo",
     "build:lib": "npm run build -w @microbit/microbit-connection",
