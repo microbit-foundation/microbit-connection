@@ -11,7 +11,8 @@ const ReceiveSection = ({
   connection: MicrobitBluetoothConnection;
 }) => {
   const { log } = useLog();
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<{ id: number; text: string }[]>([]);
+  const nextLineIdRef = useRef(0);
   const [listening, setListening] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -19,8 +20,9 @@ const ReceiveSection = ({
     if (!listening) return;
     const listener = (event: UartData) => {
       const value = new TextDecoder().decode(event.value);
+      const id = nextLineIdRef.current++;
       setLines((prev) => {
-        const next = [...prev, value];
+        const next = [...prev, { id, text: value }];
         return next.length > 200 ? next.slice(-200) : next;
       });
       log("uart", value, "data");
@@ -51,8 +53,8 @@ const ReceiveSection = ({
       </div>
       {lines.length > 0 ? (
         <div className="data-box">
-          {lines.map((line, i) => (
-            <div key={i}>{line}</div>
+          {lines.map((line) => (
+            <div key={line.id}>{line.text}</div>
           ))}
           <div ref={endRef} />
         </div>
