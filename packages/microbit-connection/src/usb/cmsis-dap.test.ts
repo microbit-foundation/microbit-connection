@@ -40,7 +40,7 @@ class MockTransport implements Transport {
     if (!response) {
       throw new Error("MockTransport: no responses queued");
     }
-    return response;
+    return Promise.resolve(response);
   });
 
   /** Queue a raw response packet. */
