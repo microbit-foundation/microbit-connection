@@ -132,7 +132,7 @@ class CapturingLogging implements Logging {
   error(message: string, e: unknown): void {
     console.error(message, e);
   }
-  log(e: any): void {
+  log(e: unknown): void {
     const msg = String(e);
     this.messages.push(msg);
     console.log(e);
@@ -171,7 +171,7 @@ export class TestRunner {
     const btn = document.createElement("button");
     btn.textContent = "Run";
     btn.addEventListener("click", () => {
-      this.runSuite(suite.name);
+      void this.runSuite(suite.name);
     });
     header.appendChild(btn);
 

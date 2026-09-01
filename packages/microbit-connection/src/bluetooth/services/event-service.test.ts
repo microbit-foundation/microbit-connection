@@ -37,7 +37,7 @@ function makeMultiEvent(...pairs: [number, number][]): DataView {
 function captureNotificationCallback(): (data: DataView) => void {
   const calls = (BleClient.startNotifications as Mock).mock.calls;
   const lastCall = calls[calls.length - 1];
-  return lastCall[3];
+  return lastCall[3] as (data: DataView) => void;
 }
 
 describe("EventService", () => {

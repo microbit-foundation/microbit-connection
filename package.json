@@ -19,12 +19,15 @@
     "build:lib": "npm run build -w @microbit/microbit-connection",
     "dev": "npm run dev -w @microbit/microbit-connection-demo",
     "test": "npm run test -w @microbit/microbit-connection",
-    "ci": "npm run build && npm run test",
+    "ci": "npm run lint && npm run build && npm run test",
     "format": "prettier --write --list-different .",
     "format:check": "prettier --check .",
-    "docs": "npm run docs -w @microbit/microbit-connection"
+    "docs": "npm run docs -w @microbit/microbit-connection",
+    "lint": "eslint . --max-warnings 0"
   },
   "devDependencies": {
+    "@microbit/eslint-config": "^0.1.2",
+    "eslint": "^9.39.5",
     "prettier": "3.3.2"
   }
 }

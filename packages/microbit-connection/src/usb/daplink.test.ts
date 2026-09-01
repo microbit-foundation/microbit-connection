@@ -200,17 +200,17 @@ describe("DapLinkSerial", () => {
       const received: string[] = [];
       let callCount = 0;
 
-      vi.mocked(dap.send).mockImplementation(async () => {
+      vi.mocked(dap.send).mockImplementation(() => {
         callCount++;
         if (callCount <= 2) {
           const resp = new DataView(new ArrayBuffer(64));
           resp.setUint8(1, 1);
           resp.setUint8(2, 0x41 + callCount - 1); // 'A', 'B'
-          return resp;
+          return Promise.resolve(resp);
         }
         // After 2 data reads, stop polling
         serial.stopPolling();
-        return makeResponse(0, 0);
+        return Promise.resolve(makeResponse(0, 0));
       });
 
       await serial.startPolling((data) => received.push(data), 0);

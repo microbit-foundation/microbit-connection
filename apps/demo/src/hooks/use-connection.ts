@@ -119,13 +119,13 @@ export const useConnectionState = (): ConnectionContextValue | undefined => {
 
     conn.addEventListener("status", statusListener);
     conn.addEventListener("backgrounderror", errorListener);
-    init();
+    void init();
 
     return () => {
       cancelled = true;
       conn.removeEventListener("status", statusListener);
       conn.removeEventListener("backgrounderror", errorListener);
-      conn.disconnect().then(() => conn.dispose());
+      void conn.disconnect().then(() => conn.dispose());
     };
   }, [connectionType, pauseOnHidden, log]);
 

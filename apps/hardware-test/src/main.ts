@@ -324,6 +324,6 @@ const runAllBtn = document.createElement("button");
 runAllBtn.className = "primary";
 runAllBtn.textContent = "Run all";
 runAllBtn.addEventListener("click", () => {
-  runner.runAll();
+  void runner.runAll();
 });
 controls.appendChild(runAllBtn);

@@ -157,7 +157,10 @@ export const processPeriodicMessage = (
   message: string,
 ): MicrobitSensorState | undefined => {
   // Basic checks to match the message being a compact periodic message
-  if (message.length !== 13 || message[0] !== MessageTypes.Periodic) {
+  if (
+    message.length !== 13 ||
+    message[0] !== (MessageTypes.Periodic as string)
+  ) {
     return undefined;
   }
   // All characters except the first one should be hex

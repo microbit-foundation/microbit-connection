@@ -59,13 +59,15 @@ function createMockDap() {
       blockReadResults.push(new Uint32Array(values));
     },
 
-    open: vi.fn(async () => {
+    open: vi.fn(() => {
       _isOpen = true;
+      return Promise.resolve();
     }),
-    close: vi.fn(async () => {
+    close: vi.fn(() => {
       _isOpen = false;
+      return Promise.resolve();
     }),
-    send: vi.fn(async () => new DataView(new ArrayBuffer(64))),
+    send: vi.fn(() => Promise.resolve(new DataView(new ArrayBuffer(64)))),
     clearAbort: vi.fn(async () => {}),
     swjSequence: vi.fn(async () => {}),
     swjClock: vi.fn(async () => {}),
@@ -74,10 +76,10 @@ function createMockDap() {
     configureTransfer: vi.fn(async () => {}),
     drainStaleResponses: vi.fn(async () => {}),
 
-    transfer: vi.fn(async (ops: DapOperation[]) => {
+    transfer: vi.fn((ops: DapOperation[]) => {
       transferCalls.push([...ops]);
       if (transferResults.length > 0) {
-        return transferResults.shift()!;
+        return Promise.resolve(transferResults.shift()!);
       }
       // Auto-respond: return values for READ ops from the register map.
       const readValues: number[] = [];
@@ -86,10 +88,10 @@ function createMockDap() {
           readValues.push(registers.get(`${op.port}:${op.register}`) ?? 0);
         }
       }
-      return new Uint32Array(readValues);
+      return Promise.resolve(new Uint32Array(readValues));
     }),
-    transferBlockRead: vi.fn(async () => {
-      return blockReadResults.shift() ?? new Uint32Array(0);
+    transferBlockRead: vi.fn(() => {
+      return Promise.resolve(blockReadResults.shift() ?? new Uint32Array(0));
     }),
     transferBlockWrite: vi.fn(async () => {}),
   };

@@ -1,7 +1,7 @@
 export type Listener<T> = (data: T) => void;
 
 export class TypedEventTarget<M> {
-  private listeners = new Map<string, Set<Listener<any>>>();
+  private listeners = new Map<string, Set<Listener<unknown>>>();
 
   addEventListener<K extends keyof M & string>(
     type: K,
@@ -13,8 +13,8 @@ export class TypedEventTarget<M> {
       set = new Set();
       this.listeners.set(type, set);
     }
-    if (!set.has(listener)) {
-      set.add(listener);
+    if (!set.has(listener as Listener<unknown>)) {
+      set.add(listener as Listener<unknown>);
       if (wasEmpty) this.eventActivated(type);
     }
   }
@@ -24,7 +24,7 @@ export class TypedEventTarget<M> {
     listener: Listener<M[K]>,
   ): void {
     const set = this.listeners.get(type);
-    if (set?.delete(listener) && set.size === 0) {
+    if (set?.delete(listener as Listener<unknown>) && set.size === 0) {
       this.listeners.delete(type);
       this.eventDeactivated(type);
     }
@@ -37,7 +37,7 @@ export class TypedEventTarget<M> {
     const set = this.listeners.get(type);
     if (set) {
       for (const listener of set) {
-        listener(data as M[K]);
+        listener(data);
       }
     }
   }

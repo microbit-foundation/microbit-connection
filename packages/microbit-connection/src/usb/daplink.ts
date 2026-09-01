@@ -225,7 +225,7 @@ export async function readDaplinkUniqueId(
     return new TextDecoder().decode(bytes);
   } catch (e) {
     logging.log(
-      `Error reading DAPLink unique ID: ${e instanceof Error ? e.message : e}`,
+      `Error reading DAPLink unique ID: ${e instanceof Error ? e.message : String(e)}`,
     );
     return undefined;
   }
@@ -262,5 +262,5 @@ export async function readMem32WithRetry(
       }
     }
   }
-  throw lastError;
+  throw lastError!;
 }

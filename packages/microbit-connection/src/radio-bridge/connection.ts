@@ -143,7 +143,7 @@ class MicrobitRadioBridgeConnectionImpl
         this.serialSession?.clearLastReceivedTimestamp();
       } else if (this.serialSessionOpen) {
         // If the session is already closed we don't need to dispose.
-        this.serialSession?.dispose();
+        void this.serialSession?.dispose();
       }
     } else {
       this.status = ConnectionStatus.Disconnected;
@@ -152,7 +152,7 @@ class MicrobitRadioBridgeConnectionImpl
       // visibility, and now the tab is visible again so we should reconnect.
       const shouldReconnect = currentStatus === ConnectionStatus.Paused;
       if (shouldReconnect && this.serialSessionOpen) {
-        this.serialSession?.connect();
+        void this.serialSession?.connect();
       }
     }
   };
@@ -190,7 +190,7 @@ class MicrobitRadioBridgeConnectionImpl
   }
 
   clearDevice(): void {
-    this.delegate.clearDevice();
+    void this.delegate.clearDevice();
   }
 
   setRemoteDeviceId(remoteDeviceId: number) {
@@ -273,7 +273,7 @@ class MicrobitRadioBridgeConnectionImpl
     })();
   }
 
-  private log(v: any) {
+  private log(v: unknown) {
     this.logging.log(v);
   }
 
@@ -314,7 +314,7 @@ class RadioBridgeSerialSession {
     const messages = protocol.splitMessages(this.unprocessedData + data);
     this.unprocessedData = messages.remainingInput;
 
-    messages.messages.forEach(async (msg) => {
+    messages.messages.forEach((msg) => {
       this.lastReceivedMessageTimestamp = Date.now();
 
       // Messages are either periodic sensor data or command/response
@@ -424,7 +424,7 @@ class RadioBridgeSerialSession {
       // TODO: in the first-time connection case we used to move the error/disconnect to the background here, why? timing?
       await periodicMessagePromise;
 
-      await this.startConnectionCheck();
+      this.startConnectionCheck();
       this.callbacks.onSuccess();
     } catch (e) {
       this.callbacks.onFailPreDispose();
@@ -438,7 +438,7 @@ class RadioBridgeSerialSession {
     this.stopConnectionCheck();
     try {
       await this.sendCmdWaitResponse(protocol.generateCmdStop());
-    } catch (e) {
+    } catch {
       // If this fails the remote micro:bit has already gone away.
     }
     this.responseMap.clear();
@@ -473,7 +473,7 @@ class RadioBridgeSerialSession {
     return responsePromise;
   }
 
-  private async startConnectionCheck() {
+  private startConnectionCheck() {
     // Check for connection lost
     if (this.connectionCheckIntervalId === undefined) {
       this.connectionCheckIntervalId = setInterval(async () => {
@@ -522,35 +522,38 @@ class RadioBridgeSerialSession {
     // starts to flow.
     this.logging.log("Serial handshake");
     const handshakeResult = await new Promise<protocol.MessageResponse>(
-      async (resolve, reject) => {
+      (resolve, reject) => {
         const attempts = 20;
         let attemptCounter = 0;
         let failureCounter = 0;
         let resolved = false;
-        while (attemptCounter < 20 && !resolved) {
-          attemptCounter++;
-          this.sendCmdWaitResponse(protocol.generateCmdHandshake())
-            .then((value) => {
-              if (!resolved) {
-                resolved = true;
-                resolve(value);
-              }
-            })
-            .catch(() => {
-              // We expect some to time out, likely well after the handshake is completed.
-              if (!resolved) {
-                if (++failureCounter === attempts) {
-                  reject(
-                    new DeviceError({
-                      code: "timeout",
-                      message: "Handshake not completed",
-                    }),
-                  );
+        const attemptUntilResolved = async () => {
+          while (attemptCounter < 20 && !resolved) {
+            attemptCounter++;
+            this.sendCmdWaitResponse(protocol.generateCmdHandshake())
+              .then((value) => {
+                if (!resolved) {
+                  resolved = true;
+                  resolve(value);
                 }
-              }
-            });
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+              })
+              .catch(() => {
+                // We expect some to time out, likely well after the handshake is completed.
+                if (!resolved) {
+                  if (++failureCounter === attempts) {
+                    reject(
+                      new DeviceError({
+                        code: "timeout",
+                        message: "Handshake not completed",
+                      }),
+                    );
+                  }
+                }
+              });
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        };
+        void attemptUntilResolved();
       },
     );
     if (handshakeResult.value !== protocol.version) {

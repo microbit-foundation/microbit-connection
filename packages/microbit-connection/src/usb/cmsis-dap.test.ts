@@ -21,18 +21,21 @@ class MockTransport implements Transport {
   written: Uint8Array[] = [];
   responses: DataView[] = [];
 
-  open = vi.fn(async () => {
+  open = vi.fn(() => {
     this.isOpen = true;
+    return Promise.resolve();
   });
-  close = vi.fn(async () => {
+  close = vi.fn(() => {
     this.isOpen = false;
+    return Promise.resolve();
   });
 
-  write = vi.fn(async (data: Uint8Array) => {
+  write = vi.fn((data: Uint8Array) => {
     this.written.push(new Uint8Array(data));
+    return Promise.resolve();
   });
 
-  read = vi.fn(async (): Promise<DataView> => {
+  read = vi.fn((): Promise<DataView> => {
     const response = this.responses.shift();
     if (!response) {
       throw new Error("MockTransport: no responses queued");

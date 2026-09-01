@@ -14,7 +14,7 @@ describe("withTimeout", () => {
     );
   });
   it("returns the value", async () => {
-    const resolvesWithValue = async () => "foo";
+    const resolvesWithValue = () => Promise.resolve("foo");
     expect(await withTimeout(resolvesWithValue(), 10)).toEqual("foo");
   });
 });

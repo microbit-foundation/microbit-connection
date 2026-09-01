@@ -30,7 +30,7 @@ const BluetoothPatternInput = ({
     if (initialValue && initialValue.length === 5) {
       return initialValue.split("");
     }
-    return Array(5).fill("");
+    return Array<string>(5).fill("");
   });
 
   const [activeRows, setActiveRows] = useState<number[]>(() => {
@@ -38,7 +38,7 @@ const BluetoothPatternInput = ({
       const chars = initialValue.split("");
       return chars.map((char, colIdx) => findRowForChar(char, colIdx));
     }
-    return Array(5).fill(5);
+    return Array<number>(5).fill(5);
   });
 
   return (

@@ -128,7 +128,7 @@ export class PartialFlashing {
     private numPages: number,
   ) {}
 
-  private log(v: any): void {
+  private log(v: unknown): void {
     this.logging.log(v);
   }
 
@@ -181,13 +181,13 @@ export class PartialFlashing {
     // Use two slots in RAM to allow parallelisation of the following two tasks.
     // 1. DAPjs writes a page to one slot.
     // 2. flashPageBIN copies a page to flash from the other slot.
-    let thisAddr = i & 1 ? dataAddr : dataAddr + this.pageSize;
-    let nextAddr = i & 1 ? dataAddr + this.pageSize : dataAddr;
+    const thisAddr = i & 1 ? dataAddr : dataAddr + this.pageSize;
+    const nextAddr = i & 1 ? dataAddr + this.pageSize : dataAddr;
 
     // Write first page to slot in RAM.
     // All subsequent pages will have already been written to RAM.
     if (i === 0) {
-      let u32data = new Uint32Array(page.data.length / 4);
+      const u32data = new Uint32Array(page.data.length / 4);
       for (let j = 0; j < page.data.length; j += 4) {
         u32data[j >> 2] = read32FromUInt8Array(page.data, j);
       }
@@ -197,7 +197,7 @@ export class PartialFlashing {
     await this.runFlash(page, thisAddr);
     // Write next page to micro:bit RAM if it exists.
     if (nextPage) {
-      let buf = new Uint32Array(nextPage.data.buffer);
+      const buf = new Uint32Array(nextPage.data.buffer);
       await this.device.adi.writeBlock(nextAddr, buf);
     }
     return this.device.cortexM.waitForHalt();
@@ -303,7 +303,7 @@ export class PartialFlashing {
     this.log("Begin reset");
     try {
       await this.device.cortexM.reset(true);
-    } catch (e) {
+    } catch {
       this.log("Retrying reset");
       await this.device.reconnect();
       await this.device.cortexM.reset(true);
