@@ -16,11 +16,16 @@ class TestTypedEventTarget extends TypedEventTarget<TestEventMap> {
   public getActiveEvents(): string[] {
     return super.getActiveEvents();
   }
-  public dispatchEvent<K extends keyof TestEventMap & string>(
+  public dispatchEvent<K extends keyof TestEventMap>(
     type: K,
     ...[data]: TestEventMap[K] extends void ? [] : [data: TestEventMap[K]]
   ): void {
-    super.dispatchEvent(type, ...([data] as any));
+    super.dispatchEvent(
+      type,
+      ...([data] as TestEventMap[K] extends void
+        ? []
+        : [data: TestEventMap[K]]),
+    );
   }
   protected eventActivated(type: string): void {
     this.activate(type);

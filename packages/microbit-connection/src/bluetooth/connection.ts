@@ -580,14 +580,14 @@ class MicrobitBluetoothConnectionImpl
   }
 
   protected eventActivated(type: string): void {
-    this.device?.startNotifications(type as TypedServiceEvent);
+    void this.device?.startNotifications(type as TypedServiceEvent);
   }
 
   protected eventDeactivated(type: string): void {
-    this.device?.stopNotifications(type as TypedServiceEvent);
+    void this.device?.stopNotifications(type as TypedServiceEvent);
   }
 
-  private log(v: any) {
+  private log(v: unknown) {
     this.logging.log(v);
   }
 
@@ -679,8 +679,9 @@ class MicrobitBluetoothConnectionImpl
 
     // After partial flashing, we will need to wait for connection to fully
     // disconnect before attempting to connect.
-    this.waitForPostFlashDisconnectPromise &&
-      (await this.waitForPostFlashDisconnectPromise);
+    if (this.waitForPostFlashDisconnectPromise) {
+      await this.waitForPostFlashDisconnectPromise;
+    }
 
     if (!this.bleDevice || !this.device) {
       progress(ProgressStage.FindingDevice);
@@ -710,7 +711,7 @@ class MicrobitBluetoothConnectionImpl
       if (this.device) {
         await this.device.disconnect();
       }
-    } catch (e) {
+    } catch {
       this.logging.event({
         type: "Bluetooth-error",
         message: "error-disconnecting",

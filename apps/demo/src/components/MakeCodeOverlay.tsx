@@ -38,10 +38,13 @@ const MakeCodeOverlay = ({ onClose }: MakeCodeOverlayProps) => {
     setDeviceName,
   } = useFlashing();
 
-  const initialProject = useCallback(async () => [starterProject], []);
+  const initialProject = useCallback(
+    () => Promise.resolve([starterProject]),
+    [],
+  );
 
   const handleDownload = useCallback(
-    async (download: { name: string; hex: string }) => {
+    (download: { name: string; hex: string }) => {
       startFlashing(download);
     },
     [startFlashing],

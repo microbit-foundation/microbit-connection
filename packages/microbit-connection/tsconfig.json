@@ -2,10 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "node10",
-    "outDir": "build/esm",
-    "declaration": true
+    "moduleResolution": "node10"
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/setupTests.ts"]
+  "include": ["src", "vitest.config.mts"]
 }

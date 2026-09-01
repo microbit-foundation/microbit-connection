@@ -25,7 +25,7 @@ const PinConfigSection = ({
       ]);
       setAnalogPins(new Set(analog.filter((p) => PINS.includes(p))));
       setInputPins(new Set(input.filter((p) => PINS.includes(p))));
-      log("pins", `Analog: [${analog}], Input: [${input}]`);
+      log("pins", `Analog: [${analog.join(",")}], Input: [${input.join(",")}]`);
     } catch (e) {
       showError(e);
     }
@@ -37,7 +37,7 @@ const PinConfigSection = ({
       await connection.setInputPins([...inputPins]);
       log(
         "pins",
-        `Config written — analog: [${[...analogPins]}], input: [${[...inputPins]}]`,
+        `Config written — analog: [${[...analogPins].join(",")}], input: [${[...inputPins].join(",")}]`,
       );
     } catch (e) {
       showError(e);
@@ -47,7 +47,11 @@ const PinConfigSection = ({
   const toggleAnalog = (pin: number) => {
     setAnalogPins((prev) => {
       const next = new Set(prev);
-      next.has(pin) ? next.delete(pin) : next.add(pin);
+      if (next.has(pin)) {
+        next.delete(pin);
+      } else {
+        next.add(pin);
+      }
       return next;
     });
   };
@@ -55,7 +59,11 @@ const PinConfigSection = ({
   const toggleInput = (pin: number) => {
     setInputPins((prev) => {
       const next = new Set(prev);
-      next.has(pin) ? next.delete(pin) : next.add(pin);
+      if (next.has(pin)) {
+        next.delete(pin);
+      } else {
+        next.add(pin);
+      }
       return next;
     });
   };

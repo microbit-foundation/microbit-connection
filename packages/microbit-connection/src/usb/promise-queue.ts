@@ -1,7 +1,7 @@
 interface QueueEntry<T> {
   action: () => Promise<T>;
   resolve: (v: T) => void;
-  reject: (r: any) => void;
+  reject: (r: unknown) => void;
 }
 
 interface Options {
@@ -14,7 +14,7 @@ interface Options {
 
 export class PromiseQueue {
   private busy: boolean = false;
-  private entries: QueueEntry<any>[] = [];
+  private entries: QueueEntry<unknown>[] = [];
   private abortCheck: () => (() => Error) | undefined;
 
   constructor(options: Options = {}) {
@@ -34,7 +34,7 @@ export class PromiseQueue {
         reject,
         action,
       };
-      this.entries.push(entry);
+      this.entries.push(entry as QueueEntry<unknown>);
       if (!this.busy) {
         void this.processQueue();
       }

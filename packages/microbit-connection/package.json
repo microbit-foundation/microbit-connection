@@ -63,11 +63,12 @@
     }
   },
   "scripts": {
-    "build:esm": "tsc -p tsconfig.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
+    "build:esm": "tsc -p tsconfig.build.json && echo '{\"type\": \"module\"}' > build/esm/package.json",
     "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\": \"commonjs\"}' > build/cjs/package.json",
     "build:lib": "npm run build:esm && npm run build:cjs",
     "build": "npm run build:lib",
     "docs": "typedoc",
+    "typecheck": "tsc --noEmit",
     "ci": "npm run build:lib && npm run test",
     "test": "vitest",
     "prepack": "cp ../../README.md ../../LICENSE.md .",

@@ -107,7 +107,7 @@ export class LedService implements Service {
     return dataView.getUint16(0, true);
   }
 
-  async startNotifications(type: TypedServiceEvent): Promise<void> {}
+  async startNotifications(_type: TypedServiceEvent): Promise<void> {}
 
-  async stopNotifications(type: TypedServiceEvent): Promise<void> {}
+  async stopNotifications(_type: TypedServiceEvent): Promise<void> {}
 }

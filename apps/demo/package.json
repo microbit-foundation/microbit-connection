@@ -8,7 +8,8 @@
     "dev": "npm run copy-hex && vite",
     "dev:apps": "npm run copy-hex && vite --host",
     "build": "npm run copy-hex && tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^7.2.0",

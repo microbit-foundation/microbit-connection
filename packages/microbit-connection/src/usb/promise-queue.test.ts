@@ -5,19 +5,21 @@ describe("PromiseQueue", () => {
   it("waits for previous items", async () => {
     const sequence: number[] = [];
     const queue = new PromiseQueue();
-    queue.add(async () => {
+    void queue.add(() => {
       expect(sequence).toEqual([]);
       sequence.push(1);
+      return Promise.resolve();
     });
-    queue.add(async () => {
+    void queue.add(() => {
       expect(sequence).toEqual([1]);
       sequence.push(2);
+      return Promise.resolve();
     });
     expect(
-      await queue.add(async () => {
+      await queue.add(() => {
         expect(sequence).toEqual([1, 2]);
         sequence.push(3);
-        return 3;
+        return Promise.resolve(3);
       }),
     ).toEqual(3);
     expect(sequence).toEqual([1, 2, 3]);
@@ -65,12 +67,11 @@ describe("PromiseQueue", () => {
     const queue = new PromiseQueue({
       abortCheck: () => (abort ? () => new Error("Aborted") : undefined),
     });
-    const p1 = queue.add(async () => {
+    const p1 = queue.add(() => {
       abort = true;
+      return Promise.resolve();
     });
-    const p2 = queue.add(async () => {
-      throw new Error("Does not happen");
-    });
+    const p2 = queue.add(() => Promise.reject(new Error("Does not happen")));
     expect(await p1).toBeUndefined();
     await expect(p2).rejects.toThrow("Aborted");
   });

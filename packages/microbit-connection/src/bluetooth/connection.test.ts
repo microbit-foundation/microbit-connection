@@ -87,7 +87,7 @@ describe("Bluetooth connection status events", () => {
 
     // flash() will fail but the finally block still emits a catch-up event
     try {
-      await connection.flash(async () => "mock-hex-data", {});
+      await connection.flash(() => Promise.resolve("mock-hex-data"), {});
     } catch {
       // Expected to fail
     }

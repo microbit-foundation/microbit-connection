@@ -226,7 +226,7 @@ class MicrobitUSBConnectionImpl
         if (!this.flashing) {
           this.log("Pausing connection for hidden tab");
           // Transition to PAUSED not DISCONNECTED
-          this.disconnect(false, ConnectionStatus.Paused);
+          void this.disconnect(false, ConnectionStatus.Paused);
         } else {
           this.log("Scheduling disconnect of hidden tab for after flash");
           this.pauseAfterFlash = true;
@@ -243,7 +243,7 @@ class MicrobitUSBConnectionImpl
     // Try hard to disconnect as a workaround.
     // https://github.com/microbit-foundation/python-editor-v3/issues/89
     this.unloading = true;
-    this.stopSerialInternal();
+    void this.stopSerialInternal();
     // The user might stay on the page if they have unsaved changes and there's another beforeunload listener.
     window.addEventListener(
       "focus",
@@ -253,7 +253,7 @@ class MicrobitUSBConnectionImpl
           if (this.status === ConnectionStatus.Connected) {
             this.unloading = false;
             if (this.hasSerialEventListeners()) {
-              this.startSerialInternal();
+              void this.startSerialInternal();
             }
           }
         }, assumePageIsStayingOpenDelay);
@@ -275,11 +275,11 @@ class MicrobitUSBConnectionImpl
     this.pauseOnHidden = options.pauseOnHidden ?? true;
   }
 
-  private log(v: any) {
+  private log(v: unknown) {
     this.logging.log(v);
   }
 
-  async initialize(): Promise<void> {
+  initialize(): Promise<void> {
     if (navigator.usb) {
       navigator.usb.addEventListener("disconnect", this.handleDisconnect);
     }
@@ -292,13 +292,14 @@ class MicrobitUSBConnectionImpl
         );
       }
     }
+    return Promise.resolve();
   }
 
-  async checkAvailability(): Promise<ConnectionAvailabilityStatus> {
+  checkAvailability(): Promise<ConnectionAvailabilityStatus> {
     if (!navigator.usb) {
-      return "unsupported";
+      return Promise.resolve("unsupported");
     }
-    return "available";
+    return Promise.resolve("available");
   }
 
   dispose() {
@@ -459,7 +460,7 @@ class MicrobitUSBConnectionImpl
           this.log("Resetting micro:bit to run new program");
           try {
             await this.device.cortexM.reset();
-          } catch (e) {
+          } catch {
             // Allow errors on resetting, user can always manually reset if necessary.
           }
         }
@@ -503,11 +504,11 @@ class MicrobitUSBConnectionImpl
   }
 
   private async stopSerialInternal() {
-    return this.serialStateChangeQueue.add(async () => {
-      if (!this.device || !this.serialState) {
-        return;
+    return this.serialStateChangeQueue.add(() => {
+      if (this.device && this.serialState) {
+        this.device.serial.stopPolling();
       }
-      this.device.serial.stopPolling();
+      return Promise.resolve();
     });
   }
 
@@ -522,7 +523,7 @@ class MicrobitUSBConnectionImpl
       }
     } catch (e) {
       if (!quiet) {
-        this.log("Error during disconnection:\r\n" + e);
+        this.log("Error during disconnection:\r\n" + String(e));
         this.logging.event({
           type: "WebUSB-error",
           message: "error-disconnecting",
@@ -560,7 +561,7 @@ class MicrobitUSBConnectionImpl
       this.loggedBoardSerialInfo = info;
       this.logging.event({
         type: "WebUSB-info",
-        message: "board-id/" + info.id,
+        message: "board-id/" + info.id.toString(),
       });
       this.logging.event({
         type: "WebUSB-info",
@@ -572,7 +573,7 @@ class MicrobitUSBConnectionImpl
   private async withEnrichedErrors<T>(f: () => Promise<T>): Promise<T> {
     try {
       return await f();
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof FlashDataError) {
         throw e;
       }
@@ -594,13 +595,14 @@ class MicrobitUSBConnectionImpl
 
       const enriched = enrichedError(e);
       // Sanitise error message, replace all special chars with '-', if last char is '-' remove it
-      const errorMessage = e.message
-        ? e.message.replace(/\W+/g, "-").replace(/\W$/, "").toLowerCase()
-        : "";
+      const errorMessage =
+        e instanceof Error
+          ? e.message.replace(/\W+/g, "-").replace(/\W$/, "").toLowerCase()
+          : "";
 
       this.logging.event({
         type: "WebUSB-error",
-        message: e.code + "/" + errorMessage,
+        message: String((e as { code?: unknown }).code) + "/" + errorMessage,
       });
       throw enriched;
     }
@@ -672,7 +674,7 @@ class MicrobitUSBConnectionImpl
     this.logBoardInfo(this.cachedConnectionInfo!.boardSerialInfo);
 
     if (this.hasSerialEventListeners() && !this.flashing) {
-      this.startSerialInternal();
+      void this.startSerialInternal();
     }
     this.setStatus(ConnectionStatus.Connected);
   }
@@ -751,17 +753,17 @@ class MicrobitUSBConnectionImpl
       case "serialdata": {
         // Prevent starting serial when flashing. We'll reinstate later.
         if (!this.flashing) {
-          this.startSerialInternal();
+          void this.startSerialInternal();
         }
         break;
       }
     }
   }
 
-  protected async eventDeactivated(type: string) {
+  protected eventDeactivated(type: string) {
     switch (type as keyof SerialConnectionEventMap) {
       case "serialdata": {
-        this.stopSerialInternal();
+        void this.stopSerialInternal();
         break;
       }
     }
@@ -830,7 +832,7 @@ const hasMatchingInterface = (device: USBDevice, filter: USBDeviceFilter) => {
   });
 };
 
-const enrichedError = (err: any): DeviceError => {
+const enrichedError = (err: unknown): DeviceError => {
   if (err instanceof DeviceError) {
     return err;
   }
@@ -864,7 +866,7 @@ const enrichedError = (err: any): DeviceError => {
   }
   return new DeviceError({
     code: "connection-error",
-    message: err.message,
+    message: err instanceof Error ? err.message : String(err),
     cause: err,
   });
 };

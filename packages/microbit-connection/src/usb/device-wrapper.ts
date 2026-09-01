@@ -59,7 +59,7 @@ export class USBDeviceWrapper {
     await this.adi.connect();
 
     const boardSerialInfo = await this.readBoardSerialInfo();
-    this.logging.log(`Detected board ID ${boardSerialInfo.id}`);
+    this.logging.log(`Detected board ID ${boardSerialInfo.id.toString()}`);
 
     // https://support.microbit.org/support/solutions/articles/19000067679-how-to-find-the-name-of-your-micro-bit
     // We retry on errors as immediately after flash the micro:bit won't be ready to respond

@@ -22,7 +22,7 @@ export function useDeviceName() {
       }
     };
 
-    loadDeviceName();
+    void loadDeviceName();
 
     return () => {
       mounted = false;

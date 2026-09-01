@@ -6,7 +6,8 @@
     "copy-hex": "mkdir -p public/hex-files && cp ../../hex-files/*.hex public/hex-files/",
     "dev": "npm run copy-hex && vite",
     "build": "npm run copy-hex && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@microbit/microbit-connection": "*"

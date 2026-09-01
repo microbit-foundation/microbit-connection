@@ -85,7 +85,7 @@ export async function saturateCdcPipeline(
     }
   } catch (e) {
     logging.log(
-      `CDC saturation failed (non-fatal): ${e instanceof Error ? e.message : e}`,
+      `CDC saturation failed (non-fatal): ${e instanceof Error ? e.message : String(e)}`,
     );
   }
 }

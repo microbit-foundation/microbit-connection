@@ -50,17 +50,17 @@ export const pageAlignBlocks = (
   targetAddr: number,
   pageSize: number,
 ): Page[] => {
-  let unaligned = new Uint8Array(buffer);
-  let pages = [];
+  const unaligned = new Uint8Array(buffer);
+  const pages = [];
   for (let i = 0; i < unaligned.byteLength; ) {
-    let newbuf = new Uint8Array(pageSize).fill(0xff);
-    let startPad = (targetAddr + i) & (pageSize - 1);
-    let newAddr = targetAddr + i - startPad;
+    const newbuf = new Uint8Array(pageSize).fill(0xff);
+    const startPad = (targetAddr + i) & (pageSize - 1);
+    const newAddr = targetAddr + i - startPad;
     for (; i < unaligned.byteLength; ++i) {
       if (targetAddr + i >= newAddr + pageSize) break;
       newbuf[targetAddr + i - newAddr] = unaligned[i];
     }
-    let page = new Page(newAddr, newbuf);
+    const page = new Page(newAddr, newbuf);
     pages.push(page);
   }
   return pages;
@@ -74,11 +74,11 @@ export const onlyChanged = (
   pageSize: number,
 ): Page[] => {
   return pages.filter((page) => {
-    let idx = page.targetAddr / pageSize;
+    const idx = page.targetAddr / pageSize;
     if (idx * 2 + 2 > checksums.length) return true; // out of range?
-    let c0 = checksums[idx * 2];
-    let c1 = checksums[idx * 2 + 1];
-    let ch = murmur3_core(page.data);
+    const c0 = checksums[idx * 2];
+    const c1 = checksums[idx * 2 + 1];
+    const ch = murmur3_core(page.data);
     if (c0 === ch[0] && c1 === ch[1]) return false;
     return true;
   });

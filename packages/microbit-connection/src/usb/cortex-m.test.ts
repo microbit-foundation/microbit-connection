@@ -53,12 +53,13 @@ function createMockAdi() {
     writtenBlocks: [],
     transferSequenceCalls: [],
 
-    readMem32: vi.fn(async (address: number) => {
-      return mem32.get(address) ?? 0;
+    readMem32: vi.fn((address: number) => {
+      return Promise.resolve(mem32.get(address) ?? 0);
     }),
-    writeMem32: vi.fn(async (address: number, value: number) => {
+    writeMem32: vi.fn((address: number, value: number) => {
       writtenMem32.push({ address, value });
       mem32.set(address, value);
+      return Promise.resolve();
     }),
     readMem32Ops: vi.fn((address: number): DapOperation[] => [
       { port: 0, mode: 0x02, register: 0, value: address },
@@ -68,14 +69,15 @@ function createMockAdi() {
       { port: 0, mode: 0x00, register: 0, value },
     ]),
     readBlock: vi.fn(),
-    writeBlock: vi.fn(async (address: number, values: Uint32Array) => {
+    writeBlock: vi.fn((address: number, values: Uint32Array) => {
       mock.writtenBlocks.push({ address, values });
+      return Promise.resolve();
     }),
     transferSequence: vi.fn(
-      async (groups: DapOperation[][]): Promise<Uint32Array> => {
+      (groups: DapOperation[][]): Promise<Uint32Array> => {
         mock.transferSequenceCalls.push(groups);
         // Return S_REGRDY for readCoreRegister/writeCoreRegister
-        return new Uint32Array([S_REGRDY, 0x42]);
+        return Promise.resolve(new Uint32Array([S_REGRDY, 0x42]));
       },
     ),
     resetState: vi.fn(),
@@ -116,9 +118,10 @@ describe("CortexM", () => {
     it("writes halt request to DHCSR", async () => {
       adi.mem32.set(DHCSR, 0); // not halted initially
       // After the write, simulate halted state for the wait
-      vi.mocked(adi.writeMem32).mockImplementation(async (addr, val) => {
+      vi.mocked(adi.writeMem32).mockImplementation((addr, val) => {
         adi.writtenMem32.push({ address: addr, value: val });
         if (addr === DHCSR) adi.mem32.set(DHCSR, S_HALT);
+        return Promise.resolve();
       });
 
       await cortex.halt();
@@ -142,9 +145,10 @@ describe("CortexM", () => {
     it("clears halt and enables debug", async () => {
       adi.mem32.set(DHCSR, S_HALT); // halted initially
       // After writes, simulate running state
-      vi.mocked(adi.writeMem32).mockImplementation(async (addr, val) => {
+      vi.mocked(adi.writeMem32).mockImplementation((addr, val) => {
         adi.writtenMem32.push({ address: addr, value: val });
         if (addr === DHCSR) adi.mem32.set(DHCSR, 0); // now running
+        return Promise.resolve();
       });
 
       await cortex.resume();
@@ -259,9 +263,10 @@ describe("CortexM", () => {
     it("uploads code, sets registers, resumes, and waits for halt", async () => {
       // Start not halted, then halt when halt() is called
       adi.mem32.set(DHCSR, 0);
-      vi.mocked(adi.writeMem32).mockImplementation(async (addr, val) => {
+      vi.mocked(adi.writeMem32).mockImplementation((addr, val) => {
         adi.writtenMem32.push({ address: addr, value: val });
         if (addr === DHCSR) adi.mem32.set(DHCSR, S_HALT);
+        return Promise.resolve();
       });
 
       const code = new Uint32Array([0xbe00be00, 0x12345678]);
@@ -283,7 +288,7 @@ describe("CortexM", () => {
 
     it("throws if too many general purpose registers", async () => {
       const code = new Uint32Array([0]);
-      const tooMany = new Array(13).fill(0);
+      const tooMany = new Array<number>(13).fill(0);
 
       await expect(
         cortex.execute(0x20000000, code, 0, 0, 0, ...tooMany),

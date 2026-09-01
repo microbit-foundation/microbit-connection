@@ -6,7 +6,7 @@ import { useErrorDialog } from "../hooks/use-error-dialog.ts";
 import LedGrid from "./LedGrid.tsx";
 
 const emptyMatrix = (): boolean[][] =>
-  Array.from({ length: 5 }, () => Array(5).fill(false));
+  Array.from({ length: 5 }, () => Array<boolean>(5).fill(false));
 
 const TextSection = ({
   connection,
