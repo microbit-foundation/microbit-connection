@@ -52,6 +52,7 @@ const BluetoothPatternInput = ({
           const isLit = rowIdx >= activeRows[colIdx];
           return (
             <button
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- position is identity in a fixed 5x5 grid
               key={`${rowIdx}${colIdx}`}
               className={`pattern-cell ${isLit ? "lit" : "unlit"}`}
               aria-label={`Column ${colIdx + 1}, row ${rowIdx + 1}${isLit ? ", selected" : ""}`}
@@ -71,6 +72,7 @@ const BluetoothPatternInput = ({
         }),
       )}
       {deviceChars.map((c, ci) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- one char per column, fixed length
         <div key={ci} className="pattern-char" aria-hidden="true">
           {c}
         </div>

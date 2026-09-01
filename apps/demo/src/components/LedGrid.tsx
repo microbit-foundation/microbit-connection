@@ -24,6 +24,7 @@ const LedGrid = ({ grid, onToggle, cellSize = 44, gap = 4 }: LedGridProps) => {
       {grid.map((row, rowIdx) =>
         row.map((lit, colIdx) => (
           <button
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- position is identity in a fixed 5x5 grid
             key={`${rowIdx}-${colIdx}`}
             className={`pattern-cell ${lit ? "lit" : "unlit"}`}
             aria-label={`Column ${colIdx + 1}, row ${rowIdx + 1}${lit ? ", on" : ", off"}`}

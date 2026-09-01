@@ -14,8 +14,8 @@ const PinConfigSection = ({
 }) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
-  const [analogPins, setAnalogPins] = useState<Set<number>>(new Set());
-  const [inputPins, setInputPins] = useState<Set<number>>(new Set());
+  const [analogPins, setAnalogPins] = useState<Set<number>>(() => new Set());
+  const [inputPins, setInputPins] = useState<Set<number>>(() => new Set());
 
   const readConfig = useCallback(async () => {
     try {
@@ -126,7 +126,9 @@ const PinDataSection = ({
 }) => {
   const { log } = useLog();
   const { showError } = useErrorDialog();
-  const [pinValues, setPinValues] = useState<Map<number, number>>(new Map());
+  const [pinValues, setPinValues] = useState<Map<number, number>>(
+    () => new Map(),
+  );
   const [listening, setListening] = useState(false);
   const [writePin, setWritePin] = useState(0);
   const [writeValue, setWriteValue] = useState("");

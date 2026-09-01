@@ -27,8 +27,8 @@
     "lint": "eslint . --max-warnings 0"
   },
   "devDependencies": {
-    "@microbit/eslint-config": "^0.1.2",
-    "eslint": "^9.39.5",
+    "@microbit/eslint-config": "^0.2.1",
+    "eslint": "^10.9.1",
     "prettier": "3.3.2"
   }
 }

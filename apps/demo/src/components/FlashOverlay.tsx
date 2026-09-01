@@ -123,6 +123,7 @@ const FlashOverlay = ({
               </thead>
               <tbody>
                 {step.timings.map((t, i) => (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key -- timings are only appended
                   <tr key={i}>
                     <td>{t.stage}</td>
                     <td className="timing-value">

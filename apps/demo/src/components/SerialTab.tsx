@@ -7,7 +7,10 @@ const SerialTab = () => {
   const { connection } = useConnection();
   const { log } = useLog();
 
-  const [serialLines, setSerialLines] = useState<string[]>([]);
+  const [serialLines, setSerialLines] = useState<
+    { id: number; text: string }[]
+  >([]);
+  const nextLineIdRef = useRef(0);
   const [serialListening, setSerialListening] = useState(false);
   const serialBufferRef = useRef("");
   const serialEndRef = useRef<HTMLDivElement>(null);
@@ -24,8 +27,9 @@ const SerialTab = () => {
         if (char === "\n") {
           const line = serialBufferRef.current;
           serialBufferRef.current = "";
+          const id = nextLineIdRef.current++;
           setSerialLines((prev) => {
-            const next = [...prev, line];
+            const next = [...prev, { id, text: line }];
             return next.length > 200 ? next.slice(-200) : next;
           });
           log("serial", line, "data");
@@ -64,8 +68,8 @@ const SerialTab = () => {
         </div>
         {serialLines.length > 0 ? (
           <div className="data-box">
-            {serialLines.map((line, i) => (
-              <div key={i}>{line}</div>
+            {serialLines.map((line) => (
+              <div key={line.id}>{line.text}</div>
             ))}
             <div ref={serialEndRef} />
           </div>
