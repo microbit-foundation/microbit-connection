@@ -68,6 +68,7 @@
     "build:lib": "npm run build:esm && npm run build:cjs",
     "build": "npm run build:lib",
     "docs": "typedoc",
+    "typecheck": "tsc --noEmit",
     "ci": "npm run build:lib && npm run test",
     "test": "vitest",
     "prepack": "cp ../../README.md ../../LICENSE.md .",
