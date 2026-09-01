@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { TimeoutError } from "../async-util.js";
 import {
   BackgroundErrorData,
   BoardVersion,
@@ -521,46 +522,46 @@ class RadioBridgeSerialSession {
     // enough responses have been queued in the buffer to fill it and the data
     // starts to flow.
     this.logging.log("Serial handshake");
-    const handshakeResult = await new Promise<protocol.MessageResponse>(
-      (resolve, reject) => {
-        const attempts = 20;
-        let attemptCounter = 0;
-        let failureCounter = 0;
-        let resolved = false;
-        const attemptUntilResolved = async () => {
-          while (attemptCounter < 20 && !resolved) {
-            attemptCounter++;
-            this.sendCmdWaitResponse(protocol.generateCmdHandshake())
-              .then((value) => {
-                if (!resolved) {
-                  resolved = true;
-                  resolve(value);
-                }
-              })
-              .catch(() => {
-                // We expect some to time out, likely well after the handshake is completed.
-                if (!resolved) {
-                  if (++failureCounter === attempts) {
-                    reject(
-                      new DeviceError({
-                        code: "timeout",
-                        message: "Handshake not completed",
-                      }),
-                    );
-                  }
-                }
-              });
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        };
-        void attemptUntilResolved();
-      },
-    );
+    const handshakeResult = await this.firstHandshakeResponse();
     if (handshakeResult.value !== protocol.version) {
       throw new DeviceError({
         code: "connection-error",
         message: `Handshake failed. Unexpected protocol version ${protocol.version}`,
       });
     }
+  }
+
+  /**
+   * Sends handshake commands at an interval, resolving with the first
+   * response. We expect some attempts to time out, likely well after the
+   * handshake is completed; rejects only if all of them do.
+   */
+  private firstHandshakeResponse(): Promise<protocol.MessageResponse> {
+    const maxAttempts = 20;
+    const attemptIntervalMillis = 100;
+    return new Promise<protocol.MessageResponse>((resolve, reject) => {
+      let attempts = 0;
+      let failures = 0;
+      const attempt = () => {
+        if (++attempts === maxAttempts) {
+          clearInterval(intervalId);
+        }
+        this.sendCmdWaitResponse(protocol.generateCmdHandshake()).then(
+          (value) => {
+            clearInterval(intervalId);
+            resolve(value);
+          },
+          () => {
+            // Only reachable if every attempt failed, so this cannot
+            // reject a promise that has already been resolved.
+            if (++failures === maxAttempts) {
+              reject(new TimeoutError("Handshake not completed"));
+            }
+          },
+        );
+      };
+      const intervalId = setInterval(attempt, attemptIntervalMillis);
+      attempt();
+    });
   }
 }
