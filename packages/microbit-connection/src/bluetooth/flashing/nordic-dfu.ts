@@ -38,7 +38,7 @@ async function writeCacheFile(options: Omit<WriteFileOptions, "directory">) {
 
 async function createDfuZipFile(
   boardVersion: BoardVersion,
-  appBin: Uint8Array,
+  appBin: Uint8Array<ArrayBuffer>,
 ): Promise<string> {
   const createInitPacket =
     boardVersion === "V1" ? createLegacyInitPacketV1 : createInitPacketV2;
@@ -58,7 +58,7 @@ async function createDfuZipFile(
 
 async function getFilePath(
   boardVersion: BoardVersion,
-  appBin: Uint8Array,
+  appBin: Uint8Array<ArrayBuffer>,
 ): Promise<{ uri: string; filename: string }> {
   const uri = await createDfuZipFile(boardVersion, appBin);
   return { uri, filename: "dfu.zip" };
@@ -82,7 +82,7 @@ async function cleanupTemporaryFile(
 export async function flashDfu(
   connection: BluetoothDeviceWrapper,
   boardVersion: BoardVersion,
-  appBin: Uint8Array,
+  appBin: Uint8Array<ArrayBuffer>,
   progress: ProgressCallback,
 ): Promise<void> {
   const { bleDevice } = connection;
@@ -239,7 +239,10 @@ const calculateCRC16 = (data: Uint8Array): number => {
 
 // See microbit_dfu_app_t and fw_hash_ok in the V2 bootloader:
 // https://github.com/microbit-foundation/v2-bootloader/blob/master/nRF5SDK_mods/components/libraries/bootloader/dfu/nrf_dfu_validation.c
-const createInitPacketV2 = async (appBin: Uint8Array): Promise<Uint8Array> => {
+// The buffer must be unshared: crypto.subtle rejects a SharedArrayBuffer view.
+const createInitPacketV2 = async (
+  appBin: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> => {
   //typedef struct {
   //    uint8_t  magic[12];                 // identify this struct "microbit_app"
   //    uint32_t version;                   // version of this struct == 1

@@ -91,7 +91,7 @@ export async function fullFlash(
 const createAppBin = (
   memoryMap: MemoryMap,
   boardVersion: BoardVersion,
-): Uint8Array | null => {
+): Uint8Array<ArrayBuffer> | null => {
   const appRegionBoundaries = {
     V1: { start: 0x18000, end: 0x3c000 },
     V2: { start: 0x1c000, end: 0x77000 },
@@ -116,5 +116,11 @@ const createAppBin = (
   // 4-byte alignment required by DFU
   size = Math.ceil(size / 4) * 4;
 
-  return memoryMap.slicePad(appRegionBoundaries.start, size);
+  // nrf-intel-hex types slicePad as a bare Uint8Array, so its buffer is
+  // ArrayBufferLike and could in principle be shared. It always allocates a
+  // plain ArrayBuffer, and the DFU path needs that for crypto.subtle.
+  return memoryMap.slicePad(
+    appRegionBoundaries.start,
+    size,
+  ) as Uint8Array<ArrayBuffer>;
 };
