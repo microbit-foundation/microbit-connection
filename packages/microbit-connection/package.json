@@ -1,6 +1,11 @@
 {
   "name": "@microbit/microbit-connection",
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/microbit-foundation/microbit-connection.git",
+    "directory": "packages/microbit-connection"
+  },
   "main": "./build/cjs/index.js",
   "module": "./build/esm/index.js",
   "types": "./build/esm/index.d.ts",
