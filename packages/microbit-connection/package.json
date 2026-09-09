@@ -79,7 +79,7 @@
     "jsdom": "^24.1.0",
     "typedoc": "^0.28.0",
     "typescript": "^5.2.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.0"
   },
   "dependencies": {
     "@microbit/microbit-universal-hex": "^0.2.2",
