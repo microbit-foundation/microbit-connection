@@ -87,7 +87,7 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@microbit/microbit-universal-hex": "^0.2.2",
+    "@microbit/microbit-universal-hex": "^0.3.1",
     "@types/w3c-web-usb": "^1.0.13",
     "@types/web-bluetooth": "^0.0.21",
     "nrf-intel-hex": "^1.4.0"
