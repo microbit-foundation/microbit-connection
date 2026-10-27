@@ -7,7 +7,8 @@
   ],
   "allowScripts": {
     "esbuild": true,
-    "fsevents": true
+    "fsevents": true,
+    "file:/Users/grace/Code/nordic-dfu/microbit-capacitor-community-nordic-dfu-8.0.0-spm.1.tgz": false
   },
   "packageManager": "npm@11.21.0",
   "engines": {
