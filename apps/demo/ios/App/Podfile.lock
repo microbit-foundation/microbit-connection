@@ -4,9 +4,9 @@ PODS:
   - CapacitorCommunityBluetoothLe (8.3.0):
     - Capacitor
   - CapacitorCordova (8.5.3)
-  - CapacitorFilesystem (8.1.4):
+  - CapacitorFilesystem (8.1.5):
     - Capacitor
-    - IONFilesystemLib (~> 2.0.0)
+    - IONFilesystemLib (= 2.0.1)
   - CapacitorPreferences (8.0.1):
     - Capacitor
   - IONFilesystemLib (2.0.1)
@@ -49,7 +49,7 @@ SPEC CHECKSUMS:
   Capacitor: 2f67eaeb8ed79909cd35b5e7439a5c2a9ca58e0f
   CapacitorCommunityBluetoothLe: f9c76baa5338d206b7418c48d945d93d47800af3
   CapacitorCordova: 0b7326439c7a09fc5d20eced5e0dab986327a493
-  CapacitorFilesystem: 17ee1862a45ef2e5012311a87e18de1d45a6811b
+  CapacitorFilesystem: e3bc7123acb1554df1b7b099fa5847064b9e1bd4
   CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
   IONFilesystemLib: 306469e4c563f61de82d7bca2bbfed9e64d1b2d2
   MicrobitCapacitorCommunityNordicDfu: c68ca3803e6f771f645fa74a3745f52a6bdb4f58
