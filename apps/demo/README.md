@@ -16,14 +16,20 @@ npm run dev
 
 ## Mobile (Capacitor)
 
-To run on iOS or Android you need the native projects. These are not checked in — generate them with:
+The `ios/` and `android/` native projects are included, so there's no need to run `npx cap add`.
+Build the library and the demo, then sync them and the plugin native code into the native projects:
 
 ```bash
+# From the monorepo root
+npm run build
+
 cd apps/demo
-npx cap add ios      # or android
 npx cap sync
-npx cap open ios     # opens Xcode
+npx cap open ios     # or android, to open Xcode / Android Studio
 ```
+
+Note that the native projects resolve plugins from the **monorepo root** `node_modules`, not from
+`apps/demo/node_modules` (see the paths in `ios/App/Podfile` and `android/capacitor.settings.gradle`).
 
 For local development with live reload:
 
