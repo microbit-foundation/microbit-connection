@@ -12,20 +12,20 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@capacitor-community/bluetooth-le": "^7.2.0",
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/filesystem": "^7.1.8",
-    "@capacitor/ios": "^7.0.0",
-    "@capacitor/preferences": "^7.0.2",
-    "@microbit/capacitor-community-nordic-dfu": "7.0.0-microbit.5",
+    "@capacitor-community/bluetooth-le": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
+    "@microbit/capacitor-community-nordic-dfu": "^8.0.0-microbit.1",
     "@microbit/makecode-embed": "^0.7.0",
     "@microbit/microbit-connection": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.0.0",
+    "@capacitor/cli": "^8.0.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
