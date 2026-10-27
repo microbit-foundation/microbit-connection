@@ -140,7 +140,7 @@ export async function flashDfu(
         dfuOptions: isAndroid
           ? {
               ...{
-                V1: { forceDfu: true },
+                V1: { forceDfu: true, packetsReceiptNotificationsValue: 6 },
                 V2: {
                   disableNotification: true,
                   restoreBond: true,
@@ -149,6 +149,7 @@ export async function flashDfu(
               startAsForegroundService: true,
               keepBond: true,
               packetReceiptNotificationsEnabled: true,
+              loggingEnabled: true,
             }
           : {
               // The micro:bit bootloader is built with
@@ -161,6 +162,7 @@ export async function flashDfu(
               // by DFU service UUID instead.
               // Android is unaffected as it reconnects by MAC address.
               alternativeAdvertisingNameEnabled: false,
+              loggingEnabled: true,
             },
       });
       if (error) {
