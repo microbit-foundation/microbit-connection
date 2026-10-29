@@ -18,7 +18,7 @@
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
     "@capacitor/preferences": "^8.0.0",
-    "@microbit/capacitor-community-nordic-dfu": "8.0.0-microbit.1",
+    "@microbit/capacitor-community-nordic-dfu": "^8.0.0-dev.3",
     "@microbit/makecode-embed": "^0.7.0",
     "@microbit/microbit-connection": "*",
     "react": "^18.3.1",
