@@ -146,7 +146,7 @@ export async function flashDfu(
                   // priority connection for the upload. The V1 bootloader
                   // can't flash fast enough to keep up at the default of 12
                   // packets between receipt notifications: Requesting a receipt
-                  // every 6 packets fixes it. V3 is unaffected.
+                  // every 6 packets fixes it. V2 is unaffected.
                   packetsReceiptNotificationsValue: 6,
                 },
                 V2: {
