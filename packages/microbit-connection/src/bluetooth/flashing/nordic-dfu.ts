@@ -140,7 +140,15 @@ export async function flashDfu(
         dfuOptions: isAndroid
           ? {
               ...{
-                V1: { forceDfu: true, packetsReceiptNotificationsValue: 6 },
+                V1: {
+                  forceDfu: true,
+                  // From 2.7.0 the Android DFU library requests a high
+                  // priority connection for the upload. The V1 bootloader
+                  // can't flash fast enough to keep up at the default of 12
+                  // packets between receipt notifications: Requesting a receipt 
+                  // every 6 packets fixes it. V3 is unaffected.
+                  packetsReceiptNotificationsValue: 6,
+                },
                 V2: {
                   disableNotification: true,
                   restoreBond: true,
