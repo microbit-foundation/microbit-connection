@@ -140,7 +140,15 @@ export async function flashDfu(
         dfuOptions: isAndroid
           ? {
               ...{
-                V1: { forceDfu: true },
+                V1: {
+                  forceDfu: true,
+                  // From 2.7.0 the Android DFU library requests a high
+                  // priority connection for the upload. The V1 bootloader
+                  // can't flash fast enough to keep up at the default of 12
+                  // packets between receipt notifications: Requesting a receipt
+                  // every 6 packets fixes it. V2 is unaffected.
+                  packetsReceiptNotificationsValue: 6,
+                },
                 V2: {
                   disableNotification: true,
                   restoreBond: true,
@@ -149,6 +157,7 @@ export async function flashDfu(
               startAsForegroundService: true,
               keepBond: true,
               packetReceiptNotificationsEnabled: true,
+              loggingEnabled: true,
             }
           : {
               // The micro:bit bootloader is built with
@@ -161,6 +170,7 @@ export async function flashDfu(
               // by DFU service UUID instead.
               // Android is unaffected as it reconnects by MAC address.
               alternativeAdvertisingNameEnabled: false,
+              loggingEnabled: true,
             },
       });
       if (error) {

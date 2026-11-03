@@ -60,6 +60,10 @@ const MakeCodeOverlay = ({ onClose }: MakeCodeOverlayProps) => {
         bottom: 0,
         zIndex: 300,
         background: "#fff",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
       }}
     >
       <MakeCodeFrame
