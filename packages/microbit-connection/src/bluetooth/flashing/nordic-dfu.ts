@@ -116,10 +116,16 @@ export async function flashDfu(
               break;
             }
             case DfuState.DFU_FAILED: {
+              // Android reports the DFU library's reason in the event data.
+              // It isn't part of the plugin's types and iOS doesn't send it.
+              const reason = (data as { message?: unknown }).message;
               reject(
                 new DeviceError({
                   code: "connection-error",
-                  message: "Full flash via DFU failed",
+                  message:
+                    typeof reason === "string" && reason
+                      ? `Full flash via DFU failed: ${reason}`
+                      : "Full flash via DFU failed",
                 }),
               );
               break;

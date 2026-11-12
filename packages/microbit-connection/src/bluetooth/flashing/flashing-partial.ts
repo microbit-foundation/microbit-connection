@@ -49,10 +49,13 @@ const partialFlash = async (
       { timeout: 30_000, actionName: "partial flash" },
     );
   } catch (e) {
-    connection.error("Partial flash failed", e);
     if (isCharacteristicNotFoundError(e)) {
+      connection.log(
+        "Partial flashing service not found, attempting full flash",
+      );
       return PartialFlashResult.AttemptFullFlash;
     }
+    connection.error("Partial flash failed", e);
     if (
       // Error thrown in iOS only for when user cancels the pairing dialog.
       e instanceof Error &&
