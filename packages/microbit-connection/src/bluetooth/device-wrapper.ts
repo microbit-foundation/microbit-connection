@@ -390,9 +390,6 @@ export class BluetoothDeviceWrapper implements Logging {
         timeoutErrorAfter(timeout),
       ]);
     } catch (e) {
-      if (e instanceof TimeoutError) {
-        this.error("Timeout waiting for disconnect");
-      }
       if (!(e instanceof DisconnectError)) {
         throw e;
       }
